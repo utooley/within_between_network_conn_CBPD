@@ -1,0 +1,8 @@
+singularity run --cleanenv -B /data/picsl/mackey_group/Ursula/CBPD:/mnt singularity/fmriprep-1.2.5.simg \
+/mnt/ /mnt \
+participant \
+-w /mnt/fmriprep \
+--participant-label sub-CBPD0124 \
+--fs-license-file $HOME/license.txt \
+
+#must bind to a folder that already exists in the container, and must point to data dir not subject dir
