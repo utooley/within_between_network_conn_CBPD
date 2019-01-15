@@ -1,5 +1,6 @@
 data/*
 docs/* 
 setup/*
+output/*
 .RData
 .RHistory

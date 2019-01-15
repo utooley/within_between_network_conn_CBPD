@@ -1,0 +1,27 @@
+#!/bin/sh
+
+#Loop script for FMRIPREP
+#$ -j y
+#$ -t 1-73
+unset PYTHONPATH;
+URSULA_PROJ=/data/picsl/mackey_group/Ursula/projects/in_progress
+ERROR_DIR=/data/picsl/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/output/qsub_output
+SUBLIST_DIR=${URSULA_PROJ}/within_between_network_conn_CBPD/data/subjectLists
+SUB_FILE=${SUBLIST_DIR}/sub_list_all_T1s_through_FS_11418.txt
+SCRIPTS_DIR=${URSULA_PROJ}/within_between_network_conn_CBPD/code/ppc
+
+mapfile -t ARRAY < ${SUB_FILE}
+
+LENGTH=${#ARRAY[@]}
+
+i=`expr ${SGE_TASK_ID} - 1`
+
+if [[ $i -ge ${LENGTH} ]]; then
+ echo 'Array index > than number of elements'
+
+else
+ SUB=${ARRAY[$i]}
+
+qsub -e ${ERROR_DIR} -o ${ERROR_DIR} -j y -l h_vmem=20.1G,s_vmem=20G ${SCRIPTS_DIR}/mriqc_cmd.sh ${SUB}
+
+fi
