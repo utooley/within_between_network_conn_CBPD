@@ -1,0 +1,17 @@
+#command for running the whole cohort as a group to collate output
+
+MACKEY_HOME=/data/picsl/mackey_group/
+#BIDS_folder=/data/picsl/mackey_group/BPD/niftis
+#BIDS_folder=/data/picsl/mackey_group/BPD/CBPD_bids
+project_dir=picsl/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD
+subject=${1}
+tools_dir=${MACKEY_HOME}/tools/singularity
+output_dir=${BIDS_folder}/derivatives/xcpEngine_nogsr_nospkreg
+
+unset PYTHONPATH;
+singularity run --cleanenv -B /data:/mnt  \
+   ${tools_dir}/xcpEngine.simg \
+   -d /mnt/${project_dir}/code/ppc/fc-36p-nogsr-meancsfwm.dsn \
+   -c /mnt/${project_dir}/data/subjectLists/n47_cohort_usable_t1_rest_1mm_outliers_10_2mm_11718.csv  \
+   -o /mnt/picsl/mackey_group/BPD/CBPD_bids/derivatives/xcpEngine_nogsr_nospkreg \
+   -t 1 \

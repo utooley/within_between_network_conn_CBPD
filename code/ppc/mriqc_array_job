@@ -22,6 +22,6 @@ if [[ $i -ge ${LENGTH} ]]; then
 else
  SUB=${ARRAY[$i]}
 
-qsub -e ${ERROR_DIR} -o ${ERROR_DIR} -j y -l h_vmem=20.1G,s_vmem=20G ${SCRIPTS_DIR}/mriqc_cmd.sh ${SUB}
+qsub -o ${ERROR_DIR} -j y -l h_vmem=20.1G,s_vmem=20G ${SCRIPTS_DIR}/mriqc_cmd.sh ${SUB}
 
 fi

@@ -1,16 +1,15 @@
 MACKEY_HOME=/data/picsl/mackey_group/
 #BIDS_folder=/data/picsl/mackey_group/BPD/niftis
-BIDS_folder=/data/picsl/mackey_group/BPD/CBPD_bids
-project_dir=/data/picsl/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/
+#BIDS_folder=/data/picsl/mackey_group/BPD/CBPD_bids
+project_dir=/Ursula/projects/in_progress/within_between_network_conn_CBPD/
 subject=${1}
 tools_dir=${MACKEY_HOME}/tools/singularity
 output_dir=${BIDS_folder}/derivatives/xcpEngine_nogsr
 
 unset PYTHONPATH;
-singularity run --cleanenv -B ${BIDS_folder}:/mnt,${project_dir}:/home  \
-   ${tools_dir}/xcpEngine.simg
-   -d /home/code/ppc/fc-36p-nogsr-meancsfwm-spikereg.dsn \
-   -c ${HOME}/data/subjectLists/cohort_CBPD002.csv  \
-   -o /mnt/derivatives/xcpEngine_nogsr \
+singularity run --cleanenv -B ${MACKEY_HOME}:/mnt  \
+   ${tools_dir}/xcpEngine.simg \
+   -d /mnt/${project_dir}/code/ppc/fc-36p-nogsr-meancsfwm-spikereg.dsn \
+   -c /mnt/${project_dir}/data/subjectLists/cohort_CBPD002.csv  \
+   -o /mnt/BPD/CBPD_bids/derivatives/xcpEngine_nogsr \
    -t 1 \
-   -r /mnt \
