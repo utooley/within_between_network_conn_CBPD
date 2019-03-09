@@ -8,7 +8,7 @@ output_dir=${BIDS_folder}/derivatives/
 
 unset PYTHONPATH;
 echo 'job is running'
-singularity run --cleanenv -B ${BIDS_folder}:/mnt ${tools_dir}/fmriprep-1.2.5.simg \
+singularity run --cleanenv -B ${BIDS_folder}:/mnt ${tools_dir}/fmriprep-1.2.6.simg \
 /mnt/ /mnt/derivatives \
 participant \
 -w /tmp \
