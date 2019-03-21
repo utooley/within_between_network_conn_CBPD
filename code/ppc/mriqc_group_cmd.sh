@@ -6,9 +6,9 @@ output_dir=${BIDS_folder}/derivatives/mriqc_fd_.5_mm
 
 unset PYTHONPATH;
 singularity run --cleanenv -B ${BIDS_folder}:/mnt ${tools_dir}/mriqc-0.14.2.simg \
-/mnt/ /mnt/derivatives/mriqc_fd_.5_mm \
+/mnt/ /mnt/derivatives/mriqc_fd_2_mm \
 group \
--w /tmp \
+-w ${TMP} \
 
 
 #don't have the working dir be a mounted directory or you'll get errors in the logs about busy resources
