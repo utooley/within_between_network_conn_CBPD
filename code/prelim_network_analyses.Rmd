@@ -15,10 +15,19 @@ library(lm.beta)
 subjdata_dir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/subjectData/"
 main <- read.csv(paste0(subjdata_dir, "cbpd_190321_fromallyson.csv"))
 
+avgweight_dir="~/Desktop/cluster/picsl/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/output/data/"
+withavgweight <- read.csv(paste0(avgweight_dir,"n47_within_between_Yeo7_Schaefer400_withavgweight.csv"))
+
+#filter out extra variables in average weight
+#withavgweight$cbpdid<- paste0("sub-",withavgweight$Var1)
+withavgweight$cbpdid <- withavgweight$Var1
+avgweight <- select(withavgweight, c("cbpdid","avgweight"))
+
 #make factor variables as factors
 main$male <- factor(main$male, levels=c(0,1), labels=c("Female", "Male"))
 #filter out some unneeded variables
 main <- main %>% select(.,-c(cbcl_18mo_admin:cbcl_6yr_complete))
+#main <- main %>% select(.,-c(has_diagnoses:letterword_identification_comple))
 ```
 
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
@@ -27,30 +36,39 @@ When you save the notebook, an HTML file containing the code and output will be 
 ```{r Age and networks}
 #filter on usable rest data
 main_rest <- filter(main,usable_rest==1)
+#merge in average weight data
+main_rest$cbpdid <- paste0("sub-",main_rest$cbpdid)
+main_rest <- right_join(avgweight,main_rest, by="cbpdid")
 #filter out only kids under 8
 main_under9 <- filter(main_rest, age_scan <=9)
 
 #look at mean within and between with age
-l <- lm(mean_within_sys~age_scan+male+fd_mean, data=main_rest)
+l <- lm(mean_within_sys~age_scan+male+fd_mean+avgweight, data=main_rest)
 summary(l)
 lm.beta(l)
-l <- lm(mean_between_sys~age_scan+male+fd_mean, data=main_rest)
+l <- lm(mean_between_sys~age_scan+male+fd_mean+avgweight, data=main_rest)
 summary(l)
-l <- lm(system_segreg~age_scan+male+fd_mean+mean_between_sys, data=main_rest)
+lm.beta(l)
+l <- lm(system_segreg~age_scan+male+fd_mean+avgweight, data=main_rest)
 summary(l)
+#look at average weight with age
+l <- lm(avgweight~age_scan+male+fd_mean, data=main_rest)
+summary(l)
+lm.beta(l)
 
 networks <- select(main_rest, x1to1:x7to7)
 nets <- colnames(networks)
 #look at non-linear interaction between age and envSES 
 for (net in nets){
   name<-paste0("lm_",net)
-  formula<-formula(paste0(net, '~age_scan+male+fd_mean'))
+  formula<-formula(paste0(net, '~age_scan+male+fd_mean+avgweight'))
   assign(name, lm(formula, data=main_rest))
   #p_val[net] <- summary(name)$coefficients[2,4]
 }
 summary(lm_x1to1) #increase with age
 summary(lm_x1to2)
 summary(lm_x1to3) #increase with age
+lm.beta(lm_x1to3)
 summary(lm_x1to4)
 summary(lm_x1to5)
 summary(lm_x1to6)
@@ -69,26 +87,20 @@ summary(lm_x6to6)
 summary(lm_x6to7)
 summary(lm_x7to7)#increase with age
 summary(lm_x7to3) #marginal decrease with age
+lm.beta(lm_x7to3)
 summary(lm_x7to4) #strong decrease with age
 summary(lm_x7to5)
 ```
 
 # Look at each column and correct for multiple comparisons
 ```{r}
-covariates="~ age_scan+male+fd_mean+mean_between_sys"
-m <- mclapply(names(main_rest[,659:706]), function(x) {as.formula(paste(x, covariates, sep=""))},mc.cores=2)
-networks_Age_pvals <- mclapply(m, function(x) { summary(lm(formula = x,data=main_rest))$coefficients[2,4]},mc.cores=1)
-networks_Age_pvals <- as.data.frame(networks_Age_pvals)
-networks_Age_pvals <- t(networks_Age_pvals)
-networks_Age_pvals <- as.data.frame(networks_Age_pvals)
-#bonferroni correct
-networks_Age_pvals_fdr <- p.adjust(networks_Age_pvals$V1, method="fdr")
 
+covariates="~ age_scan+male+fd_mean+avgweight"
 
 #make a dataframe with no repeats of net comparisons
 main_rest <- select(main_rest, -c(x2to1,x3to1,x3to2,x4to1,x4to2,x4to3,x5to1,x5to2,x5to3,x5to4,x6to1,x6to2,x6to3,x6to4,x6to5,x7to1,x7to2,x7to3,x7to4,x7to5,x7to6))
 #run and compare for multiple comparisons again
-m <- mclapply(names(main_rest[,659:686]), function(x) {as.formula(paste(x, covariates, sep=""))},mc.cores=2)
+m <- mclapply(names(main_rest[,660:687]), function(x) {as.formula(paste(x, covariates, sep=""))},mc.cores=2)
 networks_Age_pvals <- mclapply(m, function(x) { summary(lm(formula = x,data=main_rest))$coefficients[2,4]},mc.cores=1)
 networks_Age_pvals <- as.data.frame(networks_Age_pvals)
 networks_Age_pvals <- t(networks_Age_pvals)
