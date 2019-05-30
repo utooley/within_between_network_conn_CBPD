@@ -4,10 +4,10 @@
 #$ -j y
 #$ -t 1-1
 #$ -l h_vmem=25.1G,s_vmem=25G
-#$ -o /data/picsl/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/output/qsub_output
+#$ -o /data/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/output/qsub_output
 #$ -q himem.q,all.q,basic.q,gpu.q
 unset PYTHONPATH;
-URSULA_PROJ=/data/picsl/mackey_group/Ursula/projects/in_progress
+URSULA_PROJ=/data/jux/mackey_group/Ursula/projects/in_progress
 ERROR_DIR=/data/picsl/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/output/qsub_output
 SUBLIST_DIR=${URSULA_PROJ}/within_between_network_conn_CBPD/data/subjectLists
 SUB_FILE=${SUBLIST_DIR}/n7_add_subjs_usable_t1_rest_1mm_outliers_10_2mm_31019
@@ -26,6 +26,6 @@ if [[ $i -ge ${LENGTH} ]]; then
 else
  SUB=${ARRAY[$i]}
 
-bash ${SCRIPTS_DIR}/fmriprep_cmd.sh ${SUB}
+qsub ${SCRIPTS_DIR}/fmriprep_cmd.sh ${SUB}
 
 fi

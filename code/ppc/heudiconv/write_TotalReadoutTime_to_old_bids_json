@@ -1,0 +1,51 @@
+import sys
+import json
+import bisect
+from glob import glob
+from os.path import join, splitext
+from bids import BIDSLayout
+from dateutil.parser import parse
+
+# subj_dir *must* have trailing /
+subj_dir = '/data/picsl/mackey_group/BPD/CBPD_bids'
+subj=sys.argv[1]
+#subj=
+sess = '01'
+data_suffix = '.nii.gz'
+
+layout = BIDSLayout(subj_dir)
+
+
+def files_to_dict(file_list):
+    """Convert list of BIDS Files to dictionary where key is
+    acquisition time (datetime.datetime object) and value is
+    the File object.
+    """
+    out_dict = {}
+    for f in file_list:
+        fn = f.path
+        with open(fn, 'r') as fi:
+            data = json.load(fi)
+        dt = parse(data['AcquisitionTime'])
+        out_dict[dt] = f
+    return out_dict
+
+# Get json files for field maps
+fmap_jsons = layout.get(subject= subj, datatype='fmap', extensions='.json')
+fmap_jsons = layout.get(subject= subj, datatype='fmap', extensions='.json')
+
+for type in ['fmap_jsons', 'dwi_jsons']: #not sure this is working
+    # Run field map directions independently
+    dir_jsons = [fm for fm in type]
+    fmap_dict = files_to_dict(dir_jsons)
+    dts = sorted(fmap_dict.keys())
+
+    for fmap_file in fmap_dict.keys():
+        with open(fmap_file, 'r') as fi:
+            data = json.load(fi)
+
+        # No overwriting, for now
+        if 'TotalReadoutTime' not in data.keys():
+            data['TotalReadoutTime'] = 0.0959097
+            with open(fmap_file, 'w') as fo:
+                json.dump(data, fo)

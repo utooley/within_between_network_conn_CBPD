@@ -4,14 +4,15 @@ listdir='/data/picsl/mackey_group/Ursula/projects/in_progress/within_between_net
 outdir='/data/picsl/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/Schaefer400zNetworks'
 
 %running with the cluster mounted locally
-datadir=fullfile('~/Desktop/cluster/BPD/CBPD_bids/derivatives/xcpEngine_nogsr_nospkreg/')
-listdir='~/Desktop/cluster/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists/'
-z_outdir='~/Desktop/cluster/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/Schaefer400zNetworks'
-noz_outdir='~/Desktop/cluster/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/Schaefer400Networks'
+datadir=fullfile('~/Desktop/cluster/picsl/mackey_group/BPD/CBPD_bids/derivatives/xcpEngine_nogsr_nospkreg/')
+listdir='/Users/utooley/Desktop/cluster/picsl/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists/'
+z_outdir='~/Desktop/cluster/picsl/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/Schaefer400zNetworks'
+noz_outdir='~/Desktop/cluster/picsl/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/Schaefer400Networks'
 
 
 %get the subject list,excluding those who have NAs
 subjlist=readtable(fullfile(listdir,'n47_cohort_usable_t1_rest_1mm_outliers_10_2mm_11718.csv'),'Delimiter',',')
+subjlist=readtable('/Users/utooley/Desktop/cluster/picsl/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists/n47_cohort_usable_t1_rest_1mm_outliers_10_2mm_11718.csv', 'Delimiter',',')
 subjlist=subjlist(:,1);
 %% Z-score FC matrices
 for n=1:height(subjlist)
@@ -46,8 +47,8 @@ end
 
 %% Within and between network connectivity
 %cluster mounted locally
-datadir='~/Desktop/cluster/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/Schaefer400zNetworks'
-yeo_nodes=dlmread('~/Desktop/cluster/tools/schaefer400/schaefer400x7CommunityAffiliation.1D.txt')
+datadir='~/Desktop/cluster/picsl/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/Schaefer400zNetworks'
+yeo_nodes=dlmread('~/Desktop/cluster/picsl/mackey_group/tools/schaefer400/schaefer400x7CommunityAffiliation.1D.txt')
 system_segreg=zeros(height(subjlist),1);
 mean_within_sys=zeros(height(subjlist),1);
 mean_between_sys=zeros(height(subjlist),1);
@@ -61,6 +62,7 @@ for n=1:height(subjlist)
     end
 
 %average whole system segregation, from Micaela Chan 2018
+avgweight(n,1)=mean(subfcmat(subfcmat~=0));
 [S, W, B] = segregation(subfcmat,yeo_nodes);
 system_segreg(n,1)=S;
 mean_within_sys(n,1)=W;
@@ -95,11 +97,11 @@ system_conn_vector = reshape(system_connectivity',[],1)';
 system_conn(n,:)=system_conn_vector;
 
 end
-outdir='~/Desktop/cluster/Ursula/projects/in_progress/within_between_network_conn_CBPD/output/data'
-outfile=dataset(char(subjlist.id0), system_segreg, mean_within_sys, mean_between_sys, system_conn)
+outdir='~/Desktop/cluster/picsl/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/output/data'
+outfile=dataset(char(subjlist.id0), avgweight, system_segreg, mean_within_sys, mean_between_sys, system_conn)
 %this isn't working at the moment-figure out header.
 header={'subjlist', 'system_segreg', 'mean_within_sys', 'mean_between_sys', '1to1','1to2','1to3','1to4','1to5','1to6','1to7','2to1','2to2','2to3','2to4','2to5','2to6','2to7','3to1','3to2','3to3','3to4','3to5','3to6','3to7','4to1','4to2','4to3','4to4','4to5','4to6','4to7','5to1','5to2','5to3','5to4','5to5','5to6','5to7','6to1','6to2','6to3','6to4','6to5','6to6','6to7','7to1','7to2','7to3','7to4','7to5','7to6','7to7'}
  
 
-export(outfile,'File',fullfile(outdir,'n47_within_between_Yeo7_Schaefer400.csv'),'Delimiter',',')
+export(outfile,'File',fullfile(outdir,'n47_within_between_Yeo7_Schaefer400_withavgweight.csv'),'Delimiter',',')
 

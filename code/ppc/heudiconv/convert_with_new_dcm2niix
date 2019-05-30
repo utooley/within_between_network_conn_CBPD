@@ -1,0 +1,13 @@
+#/bin/bash
+
+# obtain scan and session labels
+scans=/data/picsl/mackey_group/BPD/niftis
+
+#declare -a sublist=("CBPD0026" "CBPD0133" "CBPD0075_2")
+
+for sub in CBPD0026 CBPD0133 CBPD0075_2;
+	do
+
+  singularity run -B /data/picsl/mackey_group/BPD:/mnt --cleanenv /data/picsl/mackey_group/tools/singularity/heudiconv-new.simg -d /mnt/dicoms/{subject}/*.dcm -o /mnt/test_bids -f /mnt/scripts/processing/dicomconvert/heuristic.py -s ${sub}  -c dcm2niix -b;
+
+done
