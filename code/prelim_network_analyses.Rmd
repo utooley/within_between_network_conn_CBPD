@@ -31,7 +31,7 @@ main_rest <- filter(main,usable_rest==1)
 main_under9 <- filter(main_rest, age_scan <=9)
 
 #look at mean within and between with age
-l <- lm(mean_within_sys~age_scan+male+fd_mean+mean_between_sys, data=main_rest)
+l <- lm(mean_within_sys~age_scan+male+fd_mean, data=main_rest)
 summary(l)
 lm.beta(l)
 l <- lm(mean_between_sys~age_scan+male+fd_mean, data=main_rest)
@@ -44,7 +44,7 @@ nets <- colnames(networks)
 #look at non-linear interaction between age and envSES 
 for (net in nets){
   name<-paste0("lm_",net)
-  formula<-formula(paste0(net, '~age_scan+male+fd_mean+mean_between_sys'))
+  formula<-formula(paste0(net, '~age_scan+male+fd_mean'))
   assign(name, lm(formula, data=main_rest))
   #p_val[net] <- summary(name)$coefficients[2,4]
 }
