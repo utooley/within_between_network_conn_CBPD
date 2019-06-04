@@ -1,10 +1,9 @@
 #$ -j y
-#$ -t 1-1
 #$ -l h_vmem=25.1G,s_vmem=25G
 #$ -o /data/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/output/qsub_output
 #$ -q himem.q,all.q,basic.q,gpu.q
 
-#BIDS_folder=/data/picsl/mackey_group/BPD/niftis
+MACKEY_HOME=/data/picsl/mackey_group
 BIDS_folder=/data/picsl/mackey_group/BPD/CBPD_bids
 working_dir=/data/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/fmriprep_working
 subject=${1}

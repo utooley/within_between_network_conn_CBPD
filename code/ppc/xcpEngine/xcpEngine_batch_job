@@ -1,10 +1,11 @@
 #!/bin/bash
 MACKEY_HOME=/data/picsl/mackey_group
-project_dir=/picsl/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD
-sublist_dir=/data/picsl/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists
-tools_dir=${MACKEY_HOME}/tools/singularity
+project_dir=/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD
+sublist_dir=/data/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists
+#tools_dir=${MACKEY_HOME}/tools/singularity
+tools_dir=/data/joy/BBL/applications/bids_apps
 
-FULL_COHORT=${sublist_dir}/n47_rerun_4subjs.csv
+FULL_COHORT=${sublist_dir}/n10_add_cohort_usable_t1_rest_1mm_outliers_10_2mm_060319.csv
 
 #FULL_COHORT=${sublist_dir}/data/subjectLists/test_cohort_2subs.csv
 NJOBS=`wc -l < $FULL_COHORT`
@@ -37,8 +38,8 @@ echo \$LINE >> \$TEMP_COHORT
 
 \$SNGL run --cleanenv -B /data:/mnt \$SIMG \\
   -c /mnt\${TEMP_COHORT#/data} \\
-  -d /mnt${project_dir}/code/ppc/fc-36p-nogsr-meancsfwm-censor-fd1.25-dv2.dsn \\
-  -o /mnt/picsl/mackey_group//BPD/CBPD_bids/derivatives/xcpEngine_nogsr_censor_fd1.25dvars2 \\
+  -d /mnt${project_dir}/code/ppc/fc-36p-nogsr-meancsfwm.dsn \\
+  -o /mnt/picsl/mackey_group//BPD/CBPD_bids/derivatives/xcpEngine_nogsr_nospkreg \\
   -i \$TMPDIR
 
 EOF

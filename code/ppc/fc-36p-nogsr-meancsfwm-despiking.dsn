@@ -33,7 +33,7 @@
 ###################################################################
 
 analysis=fc_$(whoami)
-design=/mnt/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/code/ppc/fc-36p-nogsr-meancsfwm.dsn
+design=/mnt/picsl/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/code/ppc/fc-36p-nogsr-meancsfwm.dsn
 sequence=anatomical
 standard=MNI%2x2x2
 
@@ -93,7 +93,7 @@ regress_usan[3]=default
 regress_usan_space[3]=
 regress_rerun[3]=0
 regress_cleanup[3]=1
-regress_process[3]=DMT-TMP-REG
+regress_process[3]=DMT-DSP-TMP-REG
 
 ###################################################################
 # 4 FCON
