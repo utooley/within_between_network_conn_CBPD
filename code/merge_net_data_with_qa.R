@@ -51,6 +51,14 @@ master <- right_join(file2,master, by=c("ID", "run"))
 
 #filter out extraneous QA variables 
 master <- master %>% select(., -c(aor:fber)) %>% select(.,-c(fwhm_avg:size_z)) %>% select(.,-c(spacing_tr:summary_fg_stdv))
+
+# Make a second rest run a second column? ----------------------------------------------------------
+## Include number of volumes and the number of bad vols/outliers/censored vols in each run 
+
+## Include baseline number of vols in each run from MRIQC
+
+## Include Jaccard and other indices, make sure no outliers?
+
 # Write out Data ----------------------------------------------------------
 
 #write the network data file back into the output folder
