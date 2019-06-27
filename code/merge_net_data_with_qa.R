@@ -3,26 +3,36 @@ library(psych)
 library(mgcv)
 library(stringi)
 library(stringr)
+library(R.matlab)
 
 # SETUP -------------------------------------------------------------------
 #Cluster mounted locally on personal computer
-netdatadir="~/Desktop/cluster/Ursula/projects/in_progress/within_between_network_conn_CBPD/output/data/"
-sublistdir="~/Desktop/cluster/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists/"
-qadir="~/Desktop/cluster/BPD/CBPD_bids/derivatives/mriqc_fd_.5mm/"
+netdatadir="~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_censor_5contig_fd1.25dvars2_drpvls/"
+sublistdir="~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists/"
+qadir="~/Desktop/cluster/picsl/mackey_group/BPD/CBPD_bids/derivatives/mriqc_fd_2_mm/"
+xcpdir="~/Desktop/cluster/picsl/mackey_group/BPD/CBPD_bids/derivatives/xcpEngine_gsr_censor_5contig_fd1.25dvars2_drpvls/"
 analysis_dir="~/Documents/bassett_lab/tooleyEnviNetworks/analyses/"
 
 
 # Read in files -----------------------------------------------------------
-
-file1<-read.csv(paste0(netdatadir, "n47_within_between_Yeo7_Schaefer400.csv"))
+#net data
+#file1<-read.csv(paste0(netdatadir, "n47_within_between_Yeo7_Schaefer400.csv"))
+file1 <- read.csv(paste0(netdatadir, "n64_within_between_Yeo7_Schaefer400_withmodul.csv"))
+#MRIQC Data
 file2<-read.table(paste0(qadir, "group_bold.tsv"), sep = '\t', header = TRUE)
-subjlist <- read.csv(paste0(sublistdir, "sub_list_rest_good_t1_under_1mm_avg_and_under_10_outliers_11518.txt"), header = FALSE)
+#subject list
+subjlist <- read.csv(paste0(sublistdir, "n64_cohort_mult_runs_usable_t1_rest_1mm_outliers_10_2mm_060419.csv"), header = TRUE)
+#xcp quality data
+qa2 <- read.csv(paste0(xcpdir, "XCP_QAVARS.csv"))
 
 # Data Cleaning -----------------------------------------------------------
 file1<-dplyr::rename(file1, ID=Var1)
-subjlist<-dplyr::rename(subjlist, run=V3)
-subjlist<-dplyr::rename(subjlist, ID=V1)
-subjlist <- dplyr::select(subjlist, -V2)
+file1<-dplyr::rename(file1, run=Var2)
+subjlist<-dplyr::rename(subjlist, run=id1)
+subjlist<-dplyr::rename(subjlist, ID=id0)
+qa2<-dplyr::rename(qa2, run=id1)
+qa2<-dplyr::rename(qa2, ID=id0)
+subjlist <- dplyr::select(subjlist, -img)
 
 #make ID a character vector
 subjlist$ID <- as.character(subjlist$ID)
@@ -32,7 +42,7 @@ file1$ID <- as.character(file1$ID)
 file2$ID <-  stri_split_fixed(file2$bids_name,"_", simplify = TRUE)[,1]
 file2$scan_type <-stri_split_fixed(file2$bids_name,"_", simplify = TRUE)[,2] 
 file2$run <- stri_split_fixed(file2$bids_name,"_", simplify = TRUE)[,3]
-file2$run <- as.numeric(str_replace(file2$run,"run-0",""))
+#file2$run <- as.numeric(str_replace(file2$run,"run-0",""))
 file2 <- moveMe(file2, c("ID", "run","scan_type"), "after", "bids_name")
 
 #write the QA file back out into the MRIQC folder for future use
@@ -45,12 +55,14 @@ file2 <- file2 %>% filter(.,scan_type=="task-rest")
 #add 'sub' prefix to the subject list so it matches
 subjlist$ID <- paste0("sub-",subjlist$ID)
 #merge the network data with the subject list with the run that was used to calculate it
-master<-right_join(subjlist,file1, by="ID")
+master<-right_join(subjlist,file1, by=c("ID", "run"))
 #merge in the QA data, ignoring runs that were not used for network calculations
 master <- right_join(file2,master, by=c("ID", "run"))
+#merge in the xcp quality data
+master <- right_join(qa2,master, by=c("ID", "run"))
 
 #filter out extraneous QA variables 
-master <- master %>% select(., -c(aor:fber)) %>% select(.,-c(fwhm_avg:size_z)) %>% select(.,-c(spacing_tr:summary_fg_stdv))
+master <- master %>% select(., -c(aor:fber)) %>% select(.,-c(spacing_tr:summary_fg_stdv))
 
 # Make a second rest run a second column? ----------------------------------------------------------
 ## Include number of volumes and the number of bad vols/outliers/censored vols in each run 
@@ -62,8 +74,8 @@ master <- master %>% select(., -c(aor:fber)) %>% select(.,-c(fwhm_avg:size_z)) %
 # Write out Data ----------------------------------------------------------
 
 #write the network data file back into the output folder
-write.csv(master,"~/Downloads/n47_within_between_Yeo_Schaefer400_with_qa.csv")
-write.csv(master,paste0(netdatadir,"n47_within_between_Yeo_Schaefer400_with_QA.csv"))
+write.csv(master,"~/Downloads/n64_within_between_Yeo_Schaefer400_gsr_censor_5contig_fd1.25dvars2_drpvls_with_qa.csv")
+write.csv(master,paste0(netdatadir,"n64_within_between_Yeo_Schaefer400_gsr_censor_5contig_fd1.25dvars2_drpvls_with_QA.csv"))
 
 # MoveMe Function ---------------------------------------------------------
 
