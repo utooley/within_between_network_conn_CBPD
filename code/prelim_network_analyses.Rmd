@@ -3,20 +3,17 @@ title: "CBPD Flux Analyses"
 output: html_notebook
 ---
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
-
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
-
+## Load data
 ```{r setup}
 library(dplyr)
 library(stats)
 library(parallel)
 library(lm.beta)
 subjdata_dir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/subjectData/"
-main <- read.csv(paste0(subjdata_dir, "cbpd_190321_fromallyson.csv"))
-main <- read.csv("~/Box/Mackey_Lab/CBPD (825656)/Data/Redcap Data/CBPD_data_190620_forJulia.csv")
+#main <- read.csv(paste0(subjdata_dir, "cbpd_190321_fromallyson.csv"))
+main <- read.csv("~/Box/Mackey_Lab/CBPD (825656)/Data/Redcap Data/CBPD_data_190620_forJulia.csv") #find most recent CBPD data
 
-avgweight_dir="~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_censor_5contig_fd0.5dvars1.75_drpvls//"
+avgweight_dir="~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_censor_5contig_fd0.5dvars1.75_drpvls/"
 withavgweight <- read.csv(paste0(avgweight_dir,"n64_within_between_Yeo_Schaefer400_gsr_censor_5contig_fd0.5dvars1.75_drpvls_with_QA.csv"))
 
 #filter out extra variables in average weight
@@ -31,8 +28,14 @@ main$male <- factor(main$male, levels=c(0,1), labels=c("Female", "Male"))
 main <- main %>% select(.,-c(cbcl_18mo_admin:cbcl_6yr_complete))
 #main <- main %>% select(.,-c(has_diagnoses:letterword_identification_comple))
 ```
+## Data cleaning
+Filter out runs from participants with < 50% of frames remaining after the 0.5mm and 1.75 DVARS thresholds, then melt it into wide format and average across participants with more than one run
+```{r Data cleaning}
 
+```
 
+## Age and networks
+Need to control for the amount of good data a participant has.
 ```{r Age and networks}
 #filter on usable rest data
 #main_rest <- filter(main,usable_rest==1)
