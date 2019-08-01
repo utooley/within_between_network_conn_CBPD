@@ -2,10 +2,11 @@
 
 MACKEY_HOME=/data/picsl/mackey_group/
 #BIDS_folder=/data/picsl/mackey_group/BPD/niftis
-#BIDS_folder=/data/picsl/mackey_group/BPD/CBPD_bids
-project_dir=picsl/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD
+BIDS_folder=/data/picsl/mackey_group/BPD/CBPD_bids
+project_dir=jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD
 subject=${1}
-tools_dir=${MACKEY_HOME}/tools/singularity
+#tools_dir=${MACKEY_HOME}/tools/singularity
+tools_dir=/data/joy/BBL/applications/bids_apps
 output_dir=${BIDS_folder}/derivatives/xcpEngine_nogsr_nospkreg
 
 unset PYTHONPATH;

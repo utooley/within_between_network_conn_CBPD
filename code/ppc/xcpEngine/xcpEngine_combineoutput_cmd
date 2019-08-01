@@ -1,0 +1,33 @@
+#command for running the whole cohort as a group to collate output
+#!/bin/bash
+MACKEY_HOME=/data/picsl/mackey_group
+project_dir=/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD
+sublist_dir=/data/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists
+tools_dir=${MACKEY_HOME}/tools/singularity
+#tools_dir=/data/joy/BBL/applications/bids_apps
+
+#run this command to start the xco container interaactively
+singularity shell --cleanenv -B /data:/mnt ${tools_dir}/xcpEngine-060319.simg
+
+#then run this command
+outputdir=/mnt/picsl/mackey_group/BPD/CBPD_bids/derivatives/xcpEngine_gsr_censor_5contig_fd1.25dvars2_drpvls/
+
+${XCPEDIR}/utils/combineOutput \
+   -p $outputdir  \
+   -f "*quality.csv" \
+   -o XCP_QAVARS.csv \
+
+${XCPEDIR}/utils/combineOutput \
+    -p $outputdir  \
+    -f "*audit.csv" \
+    -o XCP_AUDIT.csv \
+
+   # unset PYTHONPATH;
+   # singularity run --cleanenv -B /data:/mnt  \
+   #    ${tools_dir}/xcpEngine.simg \
+   #    -d /mnt${project_dir}/code/ppc/xcpEngine/fc-36p_despike.dsn \
+   #    -c /mnt${project_dir}/data/subjLists/n27_cohort_file_one_run_only_21019.csv  \
+   #    -o /mnt/jux/mackey_group/public_data/ABCD/bids_fast_track_site14/derivatives/xcpEngine_despike_onerun \
+   #    -r /mnt/jux/mackey_group/public_data/ABCD/bids_fast_track_site14/derivatives/fmriprep \
+   #    -i $TMPDIR \
+   #    -t 1 \

@@ -34,6 +34,9 @@ Filter out runs from participants with < 50% of frames remaining after the 0.5mm
 
 ```
 
+# Look at the distribution of motion in our sample
+
+
 ## Age and networks
 Need to control for the amount of good data a participant has.
 ```{r Age and networks}
@@ -114,3 +117,8 @@ networks_Age_pvals <- as.data.frame(networks_Age_pvals)
 networks_Age_pvals_fdr <- p.adjust(networks_Age_pvals$V1, method="fdr")
 ```
 
+# Non-linear effects of age?
+
+#Look at modularity and system segreg and participation coefficient
+
+#Does number of communities detected with modul change with age?
