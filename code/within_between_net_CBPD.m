@@ -5,23 +5,23 @@ outdir='/data/picsl/mackey_group/Ursula/projects/in_progress/within_between_netw
 
 %running with the cluster mounted locally
 % MODIFY THIS FOR DIFFERENT PIPELINES
-datadir=fullfile('~/Desktop/cluster/picsl/mackey_group/BPD/CBPD_bids/derivatives/xcpEngine_nogsr_nospkreg_nodespike_bestrunonly/')
+datadir=fullfile('~/Desktop/cluster/picsl/mackey_group/BPD/CBPD_bids/derivatives/xcpEngine_gsr_censor_5contig_fd1.25dvars2_drpvls/')
 listdir='/Users/utooley/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists/'
-z_outdir='~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/nogsr_nospkreg_nodespike_bestrunonly/Schaefer400zNetworks'
-noz_outdir='~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/nogsr_nospkreg_nodespike_bestrunonly/Schaefer400Networks'
+z_outdir='~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_censor_5contig_fd1.25dvars2_drpvls/Schaefer400zNetworks'
+noz_outdir='~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_censor_5contig_fd1.25dvars2_drpvls/Schaefer400Networks'
 
 %get the subject list,excluding those who have NAs
-subjlist=readtable(fullfile(listdir,'n64_total_subjs_usable_t1_rest_1mm_outliers_10_2mm_060419'),'Delimiter',',','ReadVariableNames', 0)
+subjlist=readtable(fullfile(listdir,'n76_cohort_mult_runs_usable_t1_rest_1mm_outliers_10_2mm_80119.csv'),'Delimiter',',','ReadVariableNames', 1)
 %subjlist=readtable('/Users/utooley/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists/n64_cohort_mult_runs_usable_t1_rest_1mm_outliers_10_2mm_060419.csv', 'Delimiter',',')
 %subjlist=subjlist(:,1:2);
 %% Z-score FC matrices
 for n=1:height(subjlist)
-    sub=char(subjlist.Var1(n)) %look at this
-    %run=char(subjlist.id1(n))
-    %file=fullfile(datadir,strcat(sub,'/',run,'/fcon/schaefer400/',sub,'_',run,'_schaefer400_network.txt'));
-    file=fullfile(datadir,strcat(sub,'/fcon/schaefer400/',sub,'_schaefer400_network.txt'));
-    %outfile=fullfile(z_outdir, strcat(num2str(sub),'_',run,'_Schaefer400MNI_znetwork.txt'));
-    outfile=fullfile(z_outdir, strcat(num2str(sub),'_Schaefer400MNI_znetwork.txt'));
+    sub=char(subjlist.id0(n)) %look at this
+    run=char(subjlist.id1(n))
+    file=fullfile(datadir,strcat(sub,'/',run,'/fcon/schaefer400/',sub,'_',run,'_schaefer400_network.txt'));
+    %file=fullfile(datadir,strcat(sub,'/fcon/schaefer400/',sub,'_schaefer400_network.txt'));
+    outfile=fullfile(z_outdir, strcat(num2str(sub),'_',run,'_Schaefer400MNI_znetwork.txt'));
+    %outfile=fullfile(z_outdir, strcat(num2str(sub),'_Schaefer400MNI_znetwork.txt'));
     if (exist(outfile)==2) %if it's already written don't do it again
        fprintf('Sub %s already exists. \n', sub);
     else
@@ -31,8 +31,8 @@ for n=1:height(subjlist)
         adj_mat=size_vec;
         adj_mat(adj_mat==1)=subfcmat;
         subfcmat=adj_mat+adj_mat';
-        %outfile=fullfile(noz_outdir,strcat(sub,'_',run,'_schaefer400_network.txt'));
-        outfile=fullfile(noz_outdir,strcat(sub,'_schaefer400_network.txt'));
+        outfile=fullfile(noz_outdir,strcat(sub,'_',run,'_schaefer400_network.txt'));
+        %outfile=fullfile(noz_outdir,strcat(sub,'_schaefer400_network.txt'));
         csvwrite(outfile, subfcmat);
         %elimate parcel 52 (parcel index 103), delete row 103
         %subfcmat=removerows(subfcmat, 'ind', [103]);
@@ -49,8 +49,8 @@ for n=1:height(subjlist)
             %for each value
             zfc(:,i)=fisherz(subfcmat(:,i));
         end
-        %outfile=fullfile(z_outdir, strcat(num2str(sub),'_',run,'_Schaefer400MNI_znetwork.txt'));
-        outfile=fullfile(z_outdir, strcat(num2str(sub),'_Schaefer400MNI_znetwork.txt'));
+        outfile=fullfile(z_outdir, strcat(num2str(sub),'_',run,'_Schaefer400MNI_znetwork.txt'));
+        %outfile=fullfile(z_outdir, strcat(num2str(sub),'_Schaefer400MNI_znetwork.txt'));
         csvwrite(outfile, zfc);
     end
 end
@@ -65,17 +65,21 @@ clear system_segreg
 clear mean_within_sys
 clear mean_between_sys
 clear system_conn
-datadir='~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/nogsr_nospkreg_nodespike_bestrunonly/Schaefer400zNetworks'
+clear part_coef_pos
+clear part_coef_neg
+datadir='~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/nogsr_spkreg_fd1.25dvars2_drpvls/Schaefer400zNetworks'
 yeo_nodes=dlmread('~/Desktop/cluster/picsl/mackey_group/tools/schaefer400/schaefer400x7CommunityAffiliation.1D.txt')
 system_segreg=zeros(height(subjlist),1);
 mean_within_sys=zeros(height(subjlist),1);
 mean_between_sys=zeros(height(subjlist),1);
+part_coef_pos=zeros(height(subjlist),1);
+part_coef_neg=zeros(height(subjlist),1);
 
 for n=1:height(subjlist)
-    sub=char(subjlist.Var1(n)) %look at this
-    %run=char(subjlist.id1(n))
-    %file=fullfile(datadir,strcat(num2str(sub),'_',run,'_Schaefer400MNI_znetwork.txt'))
-    file=fullfile(datadir,strcat(num2str(sub),'_Schaefer400MNI_znetwork.txt'))
+    sub=char(subjlist.id0(n)) %look at this
+    run=char(subjlist.id1(n))
+    file=fullfile(datadir,strcat(num2str(sub),'_',run,'_Schaefer400MNI_znetwork.txt'))
+    %file=fullfile(datadir,strcat(num2str(sub),'_Schaefer400MNI_znetwork.txt'))
     subfcmat = load(file);
     for x=1:359
         subfcmat(x,x)=0;
@@ -122,12 +126,19 @@ system_conn(n,:)=system_conn_vector;
 modul(n,1)=Q;
 num_comms_modul(n,1)=length(unique(M));%also save the number of communities detected.
 
+%average participation coefficient!
+[Ppos, Pneg]=participation_coef_sign(subfcmat, yeo_nodes);
+part_coef_pos(n,1)=mean(Ppos);
+part_coef_neg(n,1)=mean(Pneg);
+
 end
-outdir='~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/nogsr_nospkreg_nodespike_bestrunonly/'
-outfile=dataset(char(subjlist.Var1), avgweight, modul, num_comms_modul, system_segreg, mean_within_sys, mean_between_sys, system_conn)
-%this isn't working at the moment-figure out header.
-header={'subjlist', 'system_segreg', 'mean_within_sys', 'mean_between_sys', '1to1','1to2','1to3','1to4','1to5','1to6','1to7','2to1','2to2','2to3','2to4','2to5','2to6','2to7','3to1','3to2','3to3','3to4','3to5','3to6','3to7','4to1','4to2','4to3','4to4','4to5','4to6','4to7','5to1','5to2','5to3','5to4','5to5','5to6','5to7','6to1','6to2','6to3','6to4','6to5','6to6','6to7','7to1','7to2','7to3','7to4','7to5','7to6','7to7'}
- 
-save(fullfile(outdir, 'n64_within_between_Yeo7_Schaefer400_withmodul.mat'), 'outfile')
-export(outfile,'File',fullfile(outdir,'n64_within_between_Yeo7_Schaefer400_withmodul.csv'),'Delimiter',',')
+outdir='~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/nogsr_spkreg_fd1.25dvars2_drpvls/'
+header={'subjlist', 'run', 'avgweight', 'modul', 'num_comms_modul','part_coef_pos','part_coef_neg', 'system_segreg', 'mean_within_sys', 'mean_between_sys', 'sys1to1','sys1to2','sys1to3','sys1to4','sys1to5','sys1to6','sys1to7','sys2to1','sys2to2','sys2to3','sys2to4','sys2to5','sys2to6','sys2to7','sys3to1','sys3to2','sys3to3','sys3to4','sys3to5','sys3to6','sys3to7','sys4to1','sys4to2','sys4to3','sys4to4','sys4to5','sys4to6','sys4to7','sys5to1','sys5to2','sys5to3','sys5to4','sys5to5','sys5to6','sys5to7','sys6to1','sys6to2','sys6to3','sys6to4','sys6to5','sys6to6','sys6to7','sys7to1','sys7to2','sys7to3','sys7to4','sys7to5','sys7to6','sys7to7'}
+
+outfile=table(char(subjlist.id0), char(subjlist.id1), avgweight, modul, num_comms_modul, part_coef_pos, part_coef_neg, system_segreg, mean_within_sys, mean_between_sys, system_conn)
+outfile2=splitvars(outfile, 'system_conn')
+outfile2.Properties.VariableNames=header
+
+save(fullfile(outdir, 'n76_within_between_Yeo7_Schaefer400_withmodulpartcoef.mat'), 'outfile2')
+writetable(outfile2,fullfile(outdir,'n76_within_between_Yeo7_Schaefer400_withmodulpartcoef.csv'))
 
