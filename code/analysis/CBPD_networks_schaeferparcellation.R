@@ -6,7 +6,7 @@ library(parallel)
 library(lm.beta)
 library(packrat)
 library(summarytools)
-library(MASS)
+#library(MASS)
 # Load Data ---------------------------------------------------------------
 subjdata_dir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/subjectData/"
 outdir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_censor_5contig_fd0.5dvars1.75_drpvls/"
@@ -24,7 +24,7 @@ main$ID <- paste0("sub-",main$record_id)
 main <- merge(withavgweight,main, by="ID")
 
 #take out the participant with the glitter in her hair and artifact in rest?
-#main <- main %>% filter(.,ID!="sub-CBPD0020")
+main <- main %>% filter(.,ID!="sub-CBPD0020")
 
 # Data Cleaning -----------------------------------------------------------
 #make factor variables as factors
@@ -75,7 +75,7 @@ main_replicate$ID <- paste0("sub-",main_replicate$record_id)
 main_replicate <- merge(withavgweight,main_replicate, by="ID")
 
 #take out the participant with the glitter in her hair and artifact in rest?
-#main_replicate <- main_replicate %>% filter(.,ID!="sub-CBPD0020")
+main_replicate <- main_replicate %>% filter(.,ID!="sub-CBPD0020")
 
 # Data Cleaning -----------------------------------------------------------
 #make factor variables as factors
@@ -206,7 +206,7 @@ networks_age_pvals_fdr_replicate <- data.frame(networks_Age_pvals_fdr_replicate,
 # Environmental effects on networks -------------------------------------------------
 
 #look at segreg measures with SES
-lm_within_sys_age <- lm(mean_within_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+childaces_sum_ignorenan , data=main_unique)
+lm_within_sys_age <- lm(mean_within_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t , data=main_unique)
 summary(lm_within_sys_age)
 lm.beta(l)
 lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+childaces_sum_ignorenan, data=main_unique)

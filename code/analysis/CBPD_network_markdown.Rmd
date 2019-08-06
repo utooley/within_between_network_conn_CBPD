@@ -1,15 +1,17 @@
 ---
 title: "CBPD Functional Network Results"
 author: "Ursula Tooley"
-date: "8/3/2019"
+date: "8/7/2019"
 output:
+  pdf_document:
+    toc: yes
+    toc_depth: '6'
   html_document:
-    toc: true
     theme: united
+    toc: yes
     toc_depth: 6
-editor_options: 
+editor_options:
   chunk_output_type: console
-  
 ---
 
 ```{r setup, include=FALSE, echo=FALSE}
@@ -144,7 +146,7 @@ In summary, there are no main effects of SES, race, or ACES sum on any of the me
 
 Using the same models as above, ``age_scan + male + fd_mean + avgweight + pctSpikesFD + size_t``, we see no significant associations between any of the measures of network segregation and either parent 1 education, family income (median of bin), or an SES composite of the two. Race is also not significantly associated with any of the measures of network segregation. I also looked at the sum of child ACES, which doesn't show any significant associations in the model above.
 
-What about the neighborhood questionnaire? That is not in the data that I have.
+Didn't look at neighborhood questionnaire, not in the data that I have from Julia.
 
 ### Interactions between environment and age
 
@@ -179,7 +181,7 @@ for (net in nets){
   formula<-formula(paste0(net, '~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+income_median'))
   assign(name3, lm(formula, data=main_unique))
 }
-summary(lm_sys1to3)
+summary(lm_paredu_sys1to3)
 summary(lm_sys3to7)
 summary(lm_sys4to7)
 ```
@@ -187,6 +189,7 @@ summary(lm_sys4to7)
 __Visual to DAN__
 
 * Significant + effect of parent education on avg connectivity (*p* = 0.01)
+
 ```{r VIS-DAN main effect environment plots, echo=FALSE, include=TRUE}
 visreg(lm_paredu_sys1to3, "age_scan", by="parent1_edu", overlay=TRUE, breaks = 2)
 ```
@@ -255,10 +258,15 @@ __DMN to VAN__
 * Marginal interaction between age and income on avg connectivity (*p* = 0.09)
 
 
-## Notes
+## Questions, Notes, & Future Directions
 
-There are also sometimes outliers on some of the measures that flatten out age or environment trends, I have been looking into using robust regression to examine these trends instead, but did not go through all the trouble to bootstrap p-values for this time around. However, I think it's possible that robust regression might be a more defensible choice.
 
+* Other ways to make this more interesting/unique? Specific directions to investigate?
+  * Sig SES interactions are in visual!
+* There are also sometimes outliers on some of the measures that flatten out age or environment trends, I have been looking into using robust regression to examine these trends instead, but did not go through all the trouble to bootstrap p-values for this time around. However, I think it's possible that robust regression might be a more defensible choice.
+* Permutation tests?
+* Spin tests for parcellations/cortical regions: https://github.com/frantisekvasa/rotate_parcellation
+  * Can you do this for networks somehow--is this relevant? Graham has done it before, maybe?
 
 ## Replication parcellation: Schaefer200
 
@@ -344,7 +352,8 @@ summary(lm_paredu_sys4to7)
 __Visual to DAN__
 
 * Significant + effect of parent education on avg connectivity (*p* = 0.01)
-```{r replicate VIS-DAN main effect environment plots, echo=FALSE, include=TRUE}
+
+```{r replicate VIS-DAN main effect environment plots, echo=FALSE, include=TRUE,fig.show='hold', out.width='33.33%', fig.align='default'}
 visreg(lm_paredu_sys1to3, "age_scan", by="parent1_edu", overlay=TRUE, breaks = 2)
 ```
 
