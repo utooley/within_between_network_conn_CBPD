@@ -28,7 +28,7 @@ library(RLRsim)
 #load the .RDS file
 network_dir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_censor_5contig_fd0.5dvars1.75_drpvls/"
 
-load(paste0(network_dir,"CBPD_n76_schaefer400.Rdata"))
+load(paste0(network_dir,"CBPD_n75_schaefer400.Rdata"))
 ```
 
 ## Data Descriptives
@@ -68,10 +68,10 @@ lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean+avgweight+pctSpi
 
 lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 
-lm_modul_age <- lm(modul~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_modul_age <- lm(modul_avg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 
 lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
-lm_num_comms_age <- lm(num_comms_modul~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_num_comms_age <- lm(num_comms_modul_avg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 
 ```
 
@@ -86,8 +86,7 @@ visreg(lm_num_comms_age,"age_scan")
 ```
 
 
-Interestingly, as a side note, the number of communities detected using modularity maximization on this data decreases slightly with age (range in k is `r range(main_unique$num_comms_modul)`), but that looks to just be that we don't have many samples above 8 years old.
-
+The number of communities detected using modularity maximization on this data does not significantly decrease with age (each subject ran 100x, averaged Q and *k*, range in k is `r range(main_unique$num_comms_modul_avg)`).
 ###Non-linear effects of age?
 
 We also used restricted least ratio tests to test for the presence of non-linearity in our data. As you can see in the plots below, which use GAMs, most measures are linear and look no different from the linear models above.
@@ -102,8 +101,8 @@ exactRLRT(model)
 gam_segreg_age<- gam(system_segreg~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 model<- gamm(system_segreg~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)$lme
 exactRLRT(model)
-gam_modul_age <- gam(modul~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
-model<- gamm(modul~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)$lme
+gam_modul_age <- gam(modul_avg~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+model<- gamm(modul_avg~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)$lme
 exactRLRT(model)
 gam_part_coef_age <- gam(part_coef~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 model<- gamm(part_coef~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)$lme
@@ -327,10 +326,10 @@ lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean+avgweight+pctSpi
 
 lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
 
-lm_modul_age <- lm(modul~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
+lm_modul_age <- lm(modul_avg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
 
 lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
-lm_num_comms_age <- lm(num_comms_modul~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
+lm_num_comms_age <- lm(num_comms_modul_avg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
 
 ```
 
