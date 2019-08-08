@@ -1,5 +1,3 @@
-
-
 library(dplyr)
 library(stats)
 library(parallel)
@@ -12,16 +10,20 @@ subjdata_dir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/
 outdir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_censor_5contig_fd0.5dvars1.75_drpvls/"
 netdata_dir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_censor_5contig_fd0.5dvars1.75_drpvls/"
 
-main <- read.csv(paste0(subjdata_dir,"CBPD_data_190729_age_ses_ccti.csv")) #find most recent CBPD data wherever it is
-withavgweight <- read.csv(paste0(netdata_dir,"n76_within_between_Yeo7_Schaefer400_gsr_censor_5contig_fd0.5dvars1.75_drpvls_withmodulpartcoef_with_QA 1.csv"))
+ages <- read.csv(paste0(subjdata_dir,"CBPD_data_190729_age_ses_ccti.csv")) #find most recent CBPD data wherever it is
+main <- read.csv(paste0(subjdata_dir,"CBPD_parent_questionnaires_upto_177_080819.csv")) #find most recent CBPD data wherever it is
+withavgweight <- read.csv(paste0(netdata_dir,"n75_within_between_Yeo7_Schaefer400_gsr_censor_5contig_fd0.5dvars1.75_drpvls_withmodulpartcoef_with_QA.csv"))
 
-#load cognitive data here
 
 #filter out extra variables in average weight
-#withavgweight$cbpdid<- paste0("sub-",withavgweight$Var1)
 withavgweight$record_id <- withavgweight$ID
+#merge in main CBPD data
 main$ID <- paste0("sub-",main$record_id)
 main <- merge(withavgweight,main, by="ID")
+#keep only ages, merge those in
+ages$ID <- paste0("sub-",ages$record_id)
+ages <- ages %>% select(., ID,dob_entered:age_ques)
+main <- merge(main,ages, by="ID")
 
 #take out the participant with the glitter in her hair and artifact in rest?
 main <- main %>% filter(.,ID!="sub-CBPD0020")
@@ -46,6 +48,10 @@ main <- main %>% select(., -c(colorado_child_temperament_index_timestamp:ccti_su
 
 main$ses_composite <- as.numeric(scale(main$parent1_edu)+scale(main$income_median))
 
+#make categorical child aces
+main$aces3category <- ifelse(main$childaces_sum_ignorenan <= 1, 0, ifelse(main$childaces_sum_ignorenan == 2, 1, ifelse(main$childaces_sum_ignorenan>=3, 2, NA)))
+main$aces3category <- factor(main$aces3category, labels=c("None or One", "Two", "Three+"))
+
 #Filter out runs from participants with < 50% of frames remaining after the 0.5mm and 1.75 DVARS thresholds
 main$pctVolsCensored <- main$nVolsCensored/main$size_t
 main$pctVolsCensored <- main$nVolCensored/main$size_t
@@ -63,16 +69,20 @@ subjdata_dir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/
 outdir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_censor_5contig_fd0.5dvars1.75_drpvls/"
 netdata_dir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_censor_5contig_fd0.5dvars1.75_drpvls/"
 
-main_replicate <- read.csv(paste0(subjdata_dir,"CBPD_data_190729_age_ses_ccti.csv")) #find most recent CBPD data wherever it is
-withavgweight <- read.csv(paste0(netdata_dir,"n76_within_between_Yeo7_Schaefer200_gsr_censor_5contig_fd0.5dvars1.75_drpvls_withmodulpartcoef_with_QA.csv"))
-
-#load cognitive data here
+ages <- read.csv(paste0(subjdata_dir,"CBPD_data_190729_age_ses_ccti.csv")) #find most recent CBPD data wherever it is
+main_replicate <- read.csv(paste0(subjdata_dir,"CBPD_parent_questionnaires_upto_177_080819.csv")) #find most recent CBPD data wherever it is
+withavgweight <- read.csv(paste0(netdata_dir,"n75_within_between_Yeo7_Schaefer400_gsr_censor_5contig_fd0.5dvars1.75_drpvls_withmodulpartcoef_with_QA.csv"))
 
 #filter out extra variables in average weight
-#withavgweight$cbpdid<- paste0("sub-",withavgweight$Var1)
 withavgweight$record_id <- withavgweight$ID
+#merge in main_replicate CBPD data
 main_replicate$ID <- paste0("sub-",main_replicate$record_id)
 main_replicate <- merge(withavgweight,main_replicate, by="ID")
+#keep only ages, merge those in
+ages$ID <- paste0("sub-",ages$record_id)
+ages <- ages %>% select(., ID,dob_entered:age_ques)
+main_replicate <- merge(main_replicate,ages, by="ID")
+
 
 #take out the participant with the glitter in her hair and artifact in rest?
 main_replicate <- main_replicate %>% filter(.,ID!="sub-CBPD0020")
@@ -96,6 +106,10 @@ main_replicate <- main_replicate %>% dplyr::select(., -c(colorado_child_temperam
 #main_replicate <- main_replicate %>% select(.,-c(has_diagnoses:letterword_identification_comple))
 
 main_replicate$ses_composite <- as.numeric(scale(main_replicate$parent1_edu)+scale(main_replicate$income_median))
+
+#make categorical child aces
+main_replicate$aces3category <- ifelse(main_replicate$childaces_sum_ignorenan <= 1, 0, ifelse(main_replicate$childaces_sum_ignorenan == 2, 1, ifelse(main_replicate$childaces_sum_ignorenan>=3, 2, NA)))
+main_replicate$aces3category <- factor(main_replicate$acescategory, labels=c("None or One", "Two", "Three+"))
 
 #Filter out runs from participants with < 50% of frames remain_replicateing after the 0.5mm and 1.75 DVARS thresholds
 main_replicate$pctVolsCensored <- main_replicate$nVolsCensored/main_replicate$size_t
