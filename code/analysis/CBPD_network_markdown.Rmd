@@ -3,13 +3,13 @@ title: "CBPD Functional Network Results"
 author: "Ursula Tooley"
 date: "8/7/2019"
 output:
-  pdf_document:
-    toc: yes
-    toc_depth: '6'
   html_document:
     theme: united
     toc: yes
     toc_depth: 6
+  pdf_document:
+    toc: yes
+    toc_depth: '6'
 editor_options:
   chunk_output_type: console
 ---
@@ -172,18 +172,20 @@ par(mfrow=c(1,2))
 nets=c("sys1to3", "sys3to7", "sys4to7")
 for (net in nets){
   name<-paste0("lm_sescomp",net)
-  formula<-formula(paste0(net, '~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite'))
+  formula<-formula(paste0(net, '~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite+childaces_sum_ignorenan'))
   assign(name, lm(formula, data=main_unique))
   name2<-paste0("lm_paredu_",net)
-  formula<-formula(paste0(net, '~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+parent1_edu'))
+  formula<-formula(paste0(net, '~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+parent1_edu+childaces_sum_ignorenan'))
   assign(name2, lm(formula, data=main_unique))
   name3<-paste0("lm_income_",net)
-  formula<-formula(paste0(net, '~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+income_median'))
+  formula<-formula(paste0(net, '~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+income_median+childaces_sum_ignorenan'))
   assign(name3, lm(formula, data=main_unique))
 }
 summary(lm_paredu_sys1to3)
-summary(lm_sys3to7)
-summary(lm_sys4to7)
+summary(lm_sescompsys3to7)
+summary(lm_paredu_sys3to7)
+summary(lm_income_sys3to7)
+
 ```
 
 __Visual to DAN__
@@ -209,12 +211,33 @@ visreg(lm_income_sys3to7, "age_scan", by="income_median", overlay=TRUE, breaks =
 __DMN to VAN__
 
  * Nothing
+ 
+#### All systems connectivity and environment main effects
+
+As Allyson suggested on 8/6, I ran models looking for a main effect of environment across all networks and fdr-corrected. I chose the SES composite for this analysis, since that seemed the most principled. No networks showed significant main effects of the environment after FDR correction.
+Networks that showed marginal effects of the environment were MOT-FPN, *p_FDR*=`r networks_ses_pvals_fdr$networks_ses_pvals_fdr[networks_ses_pvals_fdr$names.main_unique...50.77.. =="sys2to6"]`, VAN-LIM *p_fdr*=`r networks_ses_pvals_fdr$networks_ses_pvals_fdr[networks_ses_pvals_fdr$names.main_unique...50.77.. =="sys4to5"]`, and LIM-LIM *p_fdr= `r networks_ses_pvals_fdr$networks_ses_pvals_fdr[networks_ses_pvals_fdr$names.main_unique...50.77.. =="sys5to5"]`.
+
+```{r All systems fdr-corrected ses main effect environment plots, echo=FALSE, include=TRUE, results='hide', warning=FALSE, message=FALSE, error = FALSE, fig.show='hold', out.width='33.33%', fig.align='default'}
+networks <- select(main_unique, sys1to1:sys7to7)
+networks <- select(networks, -c(ID))
+nets <- colnames(networks)
+#look at non-linear interaction between age and envSES 
+for (net in nets){
+  name<-paste0("lm_ses_main",net)
+  formula<-formula(paste0(net, '~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite'))
+  assign(name, lm(formula, data=main_unique))
+  #p_val[net] <- summary(name)$coefficients[2,4]
+}
+visreg(lm_ses_mainsys2to6, "age_scan", by="ses_composite", overlay=TRUE, breaks=2) #increase with age
+visreg(lm_ses_mainsys4to5, "age_scan", by="ses_composite", overlay=TRUE, breaks=2) #increase with age #increase with age
+visreg(lm_ses_mainsys5to5,"age_scan", by="ses_composite", overlay=TRUE, breaks=2) #increase with age
+```
 
 ###System-specific connectivity and environment interactions
 
 ```{r system specific interactions models, echo=FALSE, include=TRUE, results='hide'}
 par(mfrow=c(1,2))
-nets=c("sys1to3", "sys3to7", "sys4to7")
+nets=c("sys1to3", "sys3to7", "sys4to7", "sys1to1", "sys7to7", "sys6to7")
 for (net in nets){
   name<-paste0("lm_sescomp_inter",net)
   formula<-formula(paste0(net, '~age_scan*ses_composite+male+fd_mean+avgweight+pctSpikesFD+size_t'))
@@ -229,12 +252,23 @@ for (net in nets){
 summary(lm_sescomp_intersys1to3)
 summary(lm_sescomp_intersys3to7)
 summary(lm_sescomp_intersys4to7)
+summary(lm_sescomp_intersys1to1)
+summary(lm_sescomp_intersys7to7)
+summary(lm_sescomp_intersys6to7)
+
 summary(lm_income_intersys1to3)
 summary(lm_income_intersys3to7)
 summary(lm_income_intersys4to7)
+summary(lm_income_intersys1to1)
+summary(lm_income_intersys7to7)
+summary(lm_income_intersys6to7)
+
 summary(lm_paredu_intersys1to3)
 summary(lm_paredu_intersys3to7)
 summary(lm_paredu_intersys4to7)
+summary(lm_paredu_intersys1to1)
+summary(lm_paredu_intersys7to7)
+summary(lm_paredu_intersys6to7)
 ```
 
 __Visual to DAN__  
@@ -257,9 +291,21 @@ __DMN to VAN__
 * Marginal interaction between age and ses composite on avg connectivity (*p* = 0.08)
 * Marginal interaction between age and income on avg connectivity (*p* = 0.09)
 
+As suggested by Allyson on 8/6, I also ran some models looking at whether VIS-VIS, DMN-DMN, or FPN-DMN show age x SES interactions.
+
+__Vis to Vis__  
+
+ * Nothing
+ 
+ __DMN to DMN__  
+
+ * Nothing
+ 
+ __DMN to FPN__  
+
+ * Nothing
 
 ## Questions, Notes, & Future Directions
-
 
 * Other ways to make this more interesting/unique? Specific directions to investigate?
   * Sig SES interactions are in visual!
@@ -373,11 +419,15 @@ __DMN to DAN__
 
 * Nothing
 
+#### All systems connectivity and environment main effects
+
+As Allyson suggested on 8/6, I ran models instead looking for a main effect of environment across all networks and fdr-corrected in the replication parcellation as well. I chose the SES composite for this analysis, since that seemed the most principled. No networks showed significant or marginal main effects of the environment after FDR correction.
+
 ###System-specific connectivity and environment interactions
 
 
 ```{r replicate system specific interactions models, echo=FALSE, include=TRUE, results='hide'}
-nets=c("sys1to3", "sys3to7", "sys4to7")
+nets=c("sys1to3", "sys3to7", "sys4to7", "sys1to1", "sys7to7", "sys6to7")
 for (net in nets){
   name<-paste0("lm_sescomp_inter",net)
   formula<-formula(paste0(net, '~age_scan*ses_composite+male+fd_mean+avgweight+pctSpikesFD+size_t'))
@@ -392,12 +442,23 @@ for (net in nets){
 summary(lm_sescomp_intersys1to3)
 summary(lm_sescomp_intersys3to7)
 summary(lm_sescomp_intersys4to7)
+summary(lm_sescomp_intersys1to1)
+summary(lm_sescomp_intersys7to7)
+summary(lm_sescomp_intersys6to7)
+
 summary(lm_income_intersys1to3)
 summary(lm_income_intersys3to7)
 summary(lm_income_intersys4to7)
+summary(lm_income_intersys1to1)
+summary(lm_income_intersys7to7)
+summary(lm_income_intersys6to7)
+
 summary(lm_paredu_intersys1to3)
 summary(lm_paredu_intersys3to7)
 summary(lm_paredu_intersys4to7)
+summary(lm_paredu_intersys1to1)
+summary(lm_paredu_intersys7to7)
+summary(lm_paredu_intersys6to7)
 ```
 
 __Visual to DAN__  
@@ -417,4 +478,16 @@ __DMN to DAN__
 __DMN to VAN__
 
 * Nothing.
+
+__Vis to Vis__  
+
+ * Nothing
+ 
+ __DMN to DMN__  
+
+ * Nothing
+ 
+ __DMN to FPN__  
+
+ * Nothing
 

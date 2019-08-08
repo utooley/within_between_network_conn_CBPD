@@ -13,7 +13,7 @@ outdir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/i
 netdata_dir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_censor_5contig_fd0.5dvars1.75_drpvls/"
 
 main <- read.csv(paste0(subjdata_dir,"CBPD_data_190729_age_ses_ccti.csv")) #find most recent CBPD data wherever it is
-withavgweight <- read.csv(paste0(netdata_dir,"n76_within_between_Yeo7_Schaefer400_gsr_censor_5contig_fd0.5dvars1.75_drpvls_withmodulpartcoef_with_QA 1.csv"))
+withavgweight <- read.csv(paste0(netdata_dir,"n76_within_between_Yeo7_Schaefer400_gsr_censor_5contig_fd0.5dvars1.75_drpvls_withmodulpartcoef_with_QA.csv"))
 
 #load cognitive data here
 
@@ -45,6 +45,10 @@ main <- main %>% select(., -c(colorado_child_temperament_index_timestamp:ccti_su
 #main <- main %>% select(.,-c(has_diagnoses:letterword_identification_comple))
 
 main$ses_composite <- as.numeric(scale(main$parent1_edu)+scale(main$income_median))
+
+#child aces factor
+main$aces3category <- ifelse(main$childaces_sum_ignorenan==0, 0, ifelse(main$childaces_sum_ignorenan == 1, 1, ifelse(main$childaces_sum_ignorenan==2, 2, ifelse(main$childaces_sum_ignorenan>3, 3, 9))))
+main$aces3category <- factor(main$aces3category, labels=c("Zero", "One", "Two", "Three or More", "NaN"))
 
 #Filter out runs from participants with < 50% of frames remaining after the 0.5mm and 1.75 DVARS thresholds
 main$pctVolsCensored <- main$nVolsCensored/main$size_t
@@ -97,6 +101,10 @@ main_replicate <- main_replicate %>% dplyr::select(., -c(colorado_child_temperam
 
 main_replicate$ses_composite <- as.numeric(scale(main_replicate$parent1_edu)+scale(main_replicate$income_median))
 
+#child aces factor
+main_replicate$aces3category <- ifelse(main_replicate$childaces_sum_ignorenan==0, 0, ifelse(main_replicate$childaces_sum_ignorenan == 1, 1, ifelse(main_replicate$childaces_sum_ignorenan==2, 2, ifelse(main_replicate$childaces_sum_ignorenan>3, 3, 9))))
+main_replicate$aces3category <- factor(main_replicate$aces3category, labels=c("Zero", "One", "Two", "Three or More", "NaN"))
+
 #Filter out runs from participants with < 50% of frames remain_replicateing after the 0.5mm and 1.75 DVARS thresholds
 main_replicate$pctVolsCensored <- main_replicate$nVolsCensored/main_replicate$size_t
 main_replicate$pctVolsCensored <- main_replicate$nVolCensored/main_replicate$size_t
@@ -138,13 +146,13 @@ l <- gam(modul~s(ageAtScan1cent)+sex+avgweight+envSES, data=master, method = "RE
 #This is in the RMarkdown document.
 
 # Separate Networks and Effects of Age ------------------------------------
-networks <- select(main_replicate_unique, sys1to1:sys7to7)
+networks <- select(main_unique, sys1to1:sys7to7)
 nets <- colnames(networks)
 #look at non-linear interaction between age and envSES 
 for (net in nets){
   name<-paste0("lm_",net)
   formula<-formula(paste0(net, '~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t'))
-  assign(name, lm(formula, data=main_replicate_unique))
+  assign(name, lm(formula, data=main_unique))
   #p_val[net] <- summary(name)$coefficients[2,4]
 }
 summary(lm_sys1to1) #increase with age
@@ -159,7 +167,7 @@ summary(lm_sys2to2)
 summary(lm_sys2to3)
 summary(lm_sys2to4)
 summary(lm_sys2to5)
-summary(lm_sys2to6)
+summary(lm_sys2to6) #effect of SES composite
 summary(lm_sys2to7)
 summary(lm_sys6to6)
 summary(lm_sys6to3)
@@ -178,7 +186,7 @@ summary(lm_sys7to5)
 covariates="~ age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t"
 
 #make a dataframe with no repeats of net comparisons
-main_unique <- select(main_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
+main_unique <- dplyr::select(main_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
 #run and compare for multiple comparisons again
 m <- mclapply(names(main_unique[,50:77]), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
 networks_Age_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_unique))$coefficients[2,4]},mc.cores=1)
@@ -191,7 +199,7 @@ networks_age_pvals_fdr <- data.frame(networks_Age_pvals_fdr,names(main_unique[,5
 #FDR correction shows DMN to attentional networks and visual to dorsal attention is marginal.
 
 #make a dataframe with no repeats of net comparisons
-main_replicate_unique <- select(main_replicate_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
+main_replicate_unique <- dplyr::select(main_replicate_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
 #run and compare for multiple comparisons again
 m <- mclapply(names(main_replicate_unique[,78:105]), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
 networks_Age_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_replicate_unique))$coefficients[2,4]},mc.cores=1)
@@ -202,6 +210,35 @@ networks_Age_pvals <- as.data.frame(networks_Age_pvals)
 networks_Age_pvals_fdr_replicate <- p.adjust(networks_Age_pvals$V1, method="fdr")
 networks_age_pvals_fdr_replicate <- data.frame(networks_Age_pvals_fdr_replicate,names(main_replicate_unique[,78:105]))
 #FDR correction shows DMN to attentional networks and visual to dorsal attention is marginal.
+
+# Separate Networks and Effects of SES ------------------------------------
+covariates="~ age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite"
+#make a dataframe with no repeats of net comparisons
+main_unique <- dplyr::select(main_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
+#run and compare for multiple comparisons again
+m <- mclapply(names(main_unique[,50:77]), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
+networks_ses_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_unique))$coefficients[8,4]},mc.cores=1)
+networks_ses_pvals <- as.data.frame(networks_ses_pvals)
+networks_ses_pvals <- t(networks_ses_pvals)
+networks_ses_pvals <- as.data.frame(networks_ses_pvals)
+#bonferroni correct
+networks_ses_pvals_fdr <- p.adjust(networks_ses_pvals$V1, method="fdr")
+networks_ses_pvals_fdr <- data.frame(networks_ses_pvals_fdr,names(main_unique[,50:77]))
+
+#make a dataframe with no repeats of net comparisons
+main_replicate_unique <- dplyr::select(main_replicate_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
+#run and compare for multiple comparisons again
+m <- mclapply(names(main_replicate_unique[,78:105]), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
+networks_ses_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_replicate_unique))$coefficients[8,4]},mc.cores=1)
+networks_ses_pvals <- as.data.frame(networks_ses_pvals)
+networks_ses_pvals <- t(networks_ses_pvals)
+networks_ses_pvals <- as.data.frame(networks_ses_pvals)
+#bonferroni correct
+networks_ses_pvals_fdr_replicate <- p.adjust(networks_ses_pvals$V1, method="fdr")
+networks_ses_pvals_fdr_replicate <- data.frame(networks_ses_pvals_fdr_replicate,names(main_unique[,50:77]))
+
+# Save models for use in markdown file ------------------------------------
+save(main, main_filt, main_unique, networks_age_pvals_fdr,networks_ses_pvals_fdr, networks_age_pvals_fdr_replicate, main_replicate, main_replicate_filt, main_replicate_unique, file=paste0(outdir,"CBPD_n76_schaefer400.Rdata"))
 
 # Environmental effects on networks -------------------------------------------------
 
@@ -243,33 +280,5 @@ summary(lm_part_coef_age)
 
 visreg(lm_within_sys_age, "age_scan", by="income_median")
 visreg(lm_between_sys_age, "age_scan", by="income_median")
-
-
-# Specific Networks and Environment ---------------------------------------
-nets=c("sys1to3", "sys3to7", "sys4to7")
-for (net in nets){
-  name<-paste0("lm_",net)
-  formula<-formula(paste0(net, '~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite'))
-  assign(name, lm(formula, data=main_unique))
-  #p_val[net] <- summary(name)$coefficients[2,4]
-}
-summary(lm_sys1to3)
-summary(lm_sys3to7)
-summary(lm_sys4to7)
-visreg(lm_sys1to3)
-visreg(lm_sys3to7)
-
-for (net in nets){
-  name<-paste0("lm_",net)
-  formula<-formula(paste0(net, '~age_scan*parent1_edu+male+fd_mean+avgweight+pctSpikesFD+size_t'))
-  assign(name, lm(formula, data=main_unique))
-  #p_val[net] <- summary(name)$coefficients[2,4]
-}
-summary(lm_sys1to3)
-summary(lm_sys3to7)
-summary(lm_sys4to7)
-
-# Save models for use in markdown file ------------------------------------
-save(main, main_filt, main_unique, networks_age_pvals_fdr,networks_age_pvals_fdr_replicate, main_replicate, main_replicate_filt, main_replicate_unique, file=paste0(outdir,"CBPD_n76_schaefer400.Rdata"))
 
 
