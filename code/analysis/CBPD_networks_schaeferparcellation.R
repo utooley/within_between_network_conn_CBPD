@@ -4,6 +4,9 @@ library(parallel)
 library(lm.beta)
 library(packrat)
 library(summarytools)
+library(psych)
+library(polycor)
+library(psy)
 #library(MASS)
 # Load Data ---------------------------------------------------------------
 subjdata_dir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/subjectData/"
@@ -207,7 +210,7 @@ networks_age_pvals_fdr <- data.frame(networks_Age_pvals_fdr,names(main_unique[,5
 #make a dataframe with no repeats of net comparisons
 main_replicate_unique <- select(main_replicate_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
 #run and compare for multiple comparisons again
-m <- mclapply(names(main_replicate_unique[,78:105]), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
+m <- mclapply(names(main_replicate_unique[,50:77]), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
 networks_Age_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_replicate_unique))$coefficients[2,4]},mc.cores=1)
 networks_Age_pvals <- as.data.frame(networks_Age_pvals)
 networks_Age_pvals <- t(networks_Age_pvals)
@@ -220,17 +223,17 @@ networks_age_pvals_fdr_replicate <- data.frame(networks_Age_pvals_fdr_replicate,
 # Environmental effects on networks -------------------------------------------------
 
 #look at segreg measures with SES
-lm_within_sys_age <- lm(mean_within_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t , data=main_unique)
+lm_within_sys_age <- lm(mean_within_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+firststressfactor , data=main_unique)
 summary(lm_within_sys_age)
 lm.beta(l)
-lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+childaces_sum_ignorenan, data=main_unique)
+lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+firststressfactor, data=main_unique)
 summary(lm_between_sys_age)
 lm.beta(l)
-lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+childaces_sum_ignorenan, data=main_unique)
+lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+firststressfactor, data=main_unique)
 summary(lm_segreg_age)
-lm_modul_age <- lm(modul~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+childaces_sum_ignorenan, data=main_unique)
+lm_modul_age <- lm(modul_avg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+firststressfactor, data=main_unique)
 summary(lm_modul_age)
-lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+childaces_sum_ignorenan, data=main_unique)
+lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+firststressfactor, data=main_unique)
 summary(lm_part_coef_age)
 
 
@@ -242,17 +245,17 @@ visreg(lm_part_coef_age)
 visreg(lm_num_comms_age)
 
 #look at whether there is an interaction
-lm_within_sys_age_income <- lm(mean_within_sys~age_scan*income_median+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
-summary(lm_within_sys_age)$pvals
+lm_within_sys_age_income <- lm(mean_within_sys~age_scan*firststressfactor+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+summary(lm_within_sys_age_income)
 lm.beta(l)
-lm_between_sys_age_income <- lm(mean_between_sys~age_scan*income_median+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
-summary(lm_between_sys_age)
+lm_between_sys_age_income <- lm(mean_between_sys~age_scan*firststressfactor+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+summary(lm_between_sys_age_income)
 lm.beta(l)
-lm_segreg_age<- lm(system_segreg~age_scan*income_median+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_segreg_age<- lm(system_segreg~age_scan*firststressfactor+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 summary(lm_segreg_age)
-lm_modul_age <- lm(modul~age_scan*income_median+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_modul_age <- lm(modul_avg~age_scan*firststressfactor+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 summary(lm_modul_age)
-lm_part_coef_age <- lm(part_coef~age_scan*income_median+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_part_coef_age <- lm(part_coef~age_scan*firststressfactor+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 summary(lm_part_coef_age)
 
 visreg(lm_within_sys_age, "age_scan", by="income_median")
@@ -263,7 +266,7 @@ visreg(lm_between_sys_age, "age_scan", by="income_median")
 nets=c("sys1to3", "sys3to7", "sys4to7")
 for (net in nets){
   name<-paste0("lm_",net)
-  formula<-formula(paste0(net, '~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite'))
+  formula<-formula(paste0(net, '~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t'))
   assign(name, lm(formula, data=main_unique))
   #p_val[net] <- summary(name)$coefficients[2,4]
 }
@@ -275,7 +278,7 @@ visreg(lm_sys3to7)
 
 for (net in nets){
   name<-paste0("lm_",net)
-  formula<-formula(paste0(net, '~age_scan*parent1_edu+male+fd_mean+avgweight+pctSpikesFD+size_t'))
+  formula<-formula(paste0(net, '~age_scan*firststressfactor+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite'))
   assign(name, lm(formula, data=main_unique))
   #p_val[net] <- summary(name)$coefficients[2,4]
 }
@@ -283,7 +286,45 @@ summary(lm_sys1to3)
 summary(lm_sys3to7)
 summary(lm_sys4to7)
 
+
+
+# Exploratory Factor Analysis of Stress -----------------------------------
+#Child ACES, PSS, WLBQ items
+stress_variables <- main %>% select(.,ID,pss_q1:pss_q10,wlbq_q1:wlbq_q12)
+#stress_variables <- main %>% select(.,childaces_q1:childaces_q10b_notreversed, pss_q1:pss_q10,wlbq_q1:wlbq_q12)
+#remove variables with no variance
+#stress_variables <- stress_variables%>% select(.,-c(childaces_q8,childaces_q9,childaces_q6b,childaces_q6a,childaces_q6d,  pss_q4_notreversed,pss_q5_notreversed,pss_q8_notreversed))
+stress_variables <- stress_variables%>% select(.,-c(pss_q4_notreversed,pss_q5_notreversed,pss_q8_notreversed))
+stress_variables <- stress_variables[complete.cases(stress_variables),]
+stress_variables_id <- stress_variables$ID
+stress_variables <- select(stress_variables, -ID)
+view(dfSummary(main_unique))
+#since this is a mix of continuous and dichotomous variables, need to get a correlation matrix in some other way
+#convert variables with < 4 categories to factor? Easier if they're continuous!
+# col_names <- sapply(stress_variables, function(col) length(unique(col)) <= 4)
+# stress_variables[ , col_names] <- lapply(stress_variables[ , col_names] , factor)
+
+fit <- factanal(stress_variables, factors = 4, rotation = "varimax", scores = "regression")
+firststressfactor <- fit$scores[,1]
+temp <- data.frame(stress_variables_id,firststressfactor)
+colnames(temp) <- c("ID","firststressfactor")
+main_unique<- right_join(temp,main_unique,by="ID")
+#filter out only unique values again
+main_unique <- main_unique %>% group_by(ID) %>% filter(row_number() == 1)
+
+fa.2 <- fa(r = cormat$correlations, nfactors = 5, n.obs = nrow(stress_variables))
+factorscores <- factor.scores(main_unique, fit)
+#get loadings for first factor
+loadings <- fit$loadings[,1]
+loadings <- loadings[loadings>0.1]
+#mixedCor(data=stress_variables,d=1:9,p=10:17, c=18:29) #for some reason it doesn't like pss_q5_notreversed or pss_q8_notreversed, take those out-not working
+cormat <- polycor::hetcor(stress_variables)
+
+fit <- factanal(covmat = cormat$correlations, factors = 3, rotation = "varimax")
+scree.plot(fit$correlation)
+fa.2 <- fa(r = cormat$correlations, nfactors = 3, n.obs = nrow(stress_variables))
+
 # Save models for use in markdown file ------------------------------------
-save(main, main_filt, main_unique, networks_age_pvals_fdr,networks_age_pvals_fdr_replicate, main_replicate, main_replicate_filt, main_replicate_unique, file=paste0(outdir,"CBPD_n76_schaefer400.Rdata"))
+save(main, main_filt, main_unique, networks_age_pvals_fdr,networks_age_pvals_fdr_replicate, main_replicate, main_replicate_filt, main_replicate_unique, file=paste0(outdir,"CBPD_n75_schaefer400.Rdata"))
 
 
