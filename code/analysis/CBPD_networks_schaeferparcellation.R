@@ -7,6 +7,7 @@ library(summarytools)
 library(psych)
 library(polycor)
 library(psy)
+library(nFactors)
 #library(MASS)
 # Load Data ---------------------------------------------------------------
 subjdata_dir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/subjectData/"
@@ -24,7 +25,7 @@ main$ID <- paste0("sub-",main$record_id)
 main <- merge(withavgweight,main, by="ID")
 #keep only ages, merge those in
 ages$ID <- paste0("sub-",ages$record_id)
-ages <- ages %>% select(., ID,dob_entered:age_ques)
+ages <- ages %>% dplyr::select(., ID,dob_entered:age_ques)
 main <- merge(main,ages, by="ID")
 
 #take out the participant with the glitter in her hair and artifact in rest?
@@ -44,7 +45,7 @@ main$race2 <- ifelse(main$race_americanindian==1, 3, ifelse(main$race_asian == 1
 main$race2 <- factor(main$race2, labels=c("White", "Black", "Other"))
 main$ethnicity <- factor(main$ethnicity, labels=c("Not Hispanic or Latino","Hispanic or Latino"))
 #filter out some unneeded variables
-main <- main %>% select(., -c(colorado_child_temperament_index_timestamp:ccti_sum))
+main <- main %>% dplyr::select(., -c(colorado_child_temperament_index_timestamp:ccti_sum))
 #main <- main %>% select(.,-c(cbcl_18mo_admin:cbcl_6yr_complete))
 #main <- main %>% select(.,-c(has_diagnoses:letterword_identification_comple))
 
@@ -82,7 +83,7 @@ main_replicate$ID <- paste0("sub-",main_replicate$record_id)
 main_replicate <- merge(withavgweight,main_replicate, by="ID")
 #keep only ages, merge those in
 ages$ID <- paste0("sub-",ages$record_id)
-ages <- ages %>% select(., ID,dob_entered:age_ques)
+ages <- ages %>% dplyr::select(., ID,dob_entered:age_ques)
 main_replicate <- merge(main_replicate,ages, by="ID")
 
 
@@ -109,9 +110,9 @@ main_replicate <- main_replicate %>% dplyr::select(., -c(colorado_child_temperam
 
 main_replicate$ses_composite <- as.numeric(scale(main_replicate$parent1_edu)+scale(main_replicate$income_median))
 
-#child aces factor
-main_replicate$aces3category <- ifelse(main_replicate$childaces_sum_ignorenan==0, 0, ifelse(main_replicate$childaces_sum_ignorenan == 1, 1, ifelse(main_replicate$childaces_sum_ignorenan==2, 2, ifelse(main_replicate$childaces_sum_ignorenan>3, 3, 9))))
-main_replicate$aces3category <- factor(main_replicate$aces3category, labels=c("Zero", "One", "Two", "Three or More", "NaN"))
+#make categorical child aces
+main_replicate$aces3category <- ifelse(main_replicate$childaces_sum_ignorenan <= 1, 0, ifelse(main_replicate$childaces_sum_ignorenan == 2, 1, ifelse(main_replicate$childaces_sum_ignorenan>=3, 2, NA)))
+main_replicate$aces3category <- factor(main_replicate$aces3category, labels=c("None or One", "Two", "Three+"))
 
 #Filter out runs from participants with < 50% of frames remain_replicateing after the 0.5mm and 1.75 DVARS thresholds
 main_replicate$pctVolsCensored <- main_replicate$nVolsCensored/main_replicate$size_t
@@ -121,6 +122,168 @@ main_replicate_filt <- main_replicate %>% filter(., pctSpikesFD < 0.5 & relMaxRM
 #filter out only kids under 8
 main_replicate_under9 <- filter(main_replicate_filt, age_scan <=9)
 main_replicate_unique <- main_replicate_filt %>% group_by(ID) %>% filter(row_number() == 1)
+
+# Look at each column and correct for multiple comparisons
+covariates="~ age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t"
+
+#make a dataframe with no repeats of net comparisons
+main_unique <- dplyr::select(main_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
+#run and compare for multiple comparisons again
+m <- mclapply(names(main_unique[,50:77]), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
+networks_Age_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_unique))$coefficients[2,4]},mc.cores=1)
+networks_Age_pvals <- as.data.frame(networks_Age_pvals)
+networks_Age_pvals <- t(networks_Age_pvals)
+networks_Age_pvals <- as.data.frame(networks_Age_pvals)
+#bonferroni correct
+networks_Age_pvals_fdr <- p.adjust(networks_Age_pvals$V1, method="fdr")
+networks_age_pvals_fdr <- data.frame(networks_Age_pvals_fdr,names(main_unique[,50:77]))
+colnames(networks_age_pvals_fdr) <- c("pvalue", "network")
+#FDR correction shows DMN to attentional networks and visual to dorsal attention is marginal.
+
+#make a dataframe with no repeats of net comparisons
+main_replicate_unique <- dplyr::select(main_replicate_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
+#run and compare for multiple comparisons again
+m <- mclapply(names(main_replicate_unique[,50:77]), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
+networks_Age_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_replicate_unique))$coefficients[2,4]},mc.cores=1)
+networks_Age_pvals <- as.data.frame(networks_Age_pvals)
+networks_Age_pvals <- t(networks_Age_pvals)
+networks_Age_pvals <- as.data.frame(networks_Age_pvals)
+#bonferroni correct
+networks_Age_pvals_fdr_replicate <- p.adjust(networks_Age_pvals$V1, method="fdr")
+networks_age_pvals_fdr_replicate <- data.frame(networks_Age_pvals_fdr_replicate,names(main_replicate_unique[,78:105]))
+#FDR correction shows DMN to attentional networks and visual to dorsal attention is marginal.
+colnames(networks_age_pvals_fdr_replicate) <- c("pvalue", "network")
+
+# Separate Networks and Effects of SES ------------------------------------
+covariates="~ age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+aces3category"
+#make a dataframe with no repeats of net comparisons
+main_unique <- dplyr::select(main_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
+#run and compare for multiple comparisons again
+m <- mclapply(names(main_unique[,54:81]), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
+networks_ses_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_unique))$coefficients[8,4]},mc.cores=1)
+networks_ses_pvals <- as.data.frame(networks_ses_pvals)
+networks_ses_pvals <- t(networks_ses_pvals)
+networks_ses_pvals <- as.data.frame(networks_ses_pvals)
+#bonferroni correct
+networks_ses_pvals_fdr <- p.adjust(networks_ses_pvals$V1, method="fdr")
+networks_ses_pvals_fdr <- data.frame(networks_ses_pvals_fdr,names(main_unique[,50:77]))
+colnames(networks_ses_pvals_fdr) <- c("pvalue", "network")
+networks_ses_pvals_fdr
+
+#make a dataframe with no repeats of net comparisons
+main_replicate_unique <- dplyr::select(main_replicate_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
+#run and compare for multiple comparisons again
+m <- mclapply(names(main_replicate_unique[,54:81]), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
+networks_ses_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_replicate_unique))$coefficients[8,4]},mc.cores=1)
+networks_ses_pvals <- as.data.frame(networks_ses_pvals)
+networks_ses_pvals <- t(networks_ses_pvals)
+networks_ses_pvals <- as.data.frame(networks_ses_pvals)
+#bonferroni correct
+networks_ses_pvals_fdr_replicate <- p.adjust(networks_ses_pvals$V1, method="fdr")
+networks_ses_pvals_fdr_replicate <- data.frame(networks_ses_pvals_fdr_replicate,names(main_unique[,50:77]))
+colnames(networks_ses_pvals_fdr_replicate) <- c("pvalue", "network")
+networks_ses_pvals_fdr_replicate
+# Exploratory Factor Analysis of Stress -----------------------------------
+#Child ACES, PSS, WLBQ items
+#per Allyson on 8-9, used ACES sum score, PSS sum score, and WLBQ individual items for stress, along with neighborhood safety 
+#sum the two neighborhood safety scores
+stress_variables <- main_unique %>% dplyr::select(.,ID,pss_sum, childaces_sum_ignorenan, wlbq_q1:wlbq_q12,neighborhood_q1,neighborhood_q2) %>% data.frame()
+#stress_variables <- main %>% dplyr::select(.,childaces_q1:childaces_q10b_notreversed, pss_q1:pss_q10,wlbq_q1:wlbq_q12)
+#remove variables with no variance
+#stress_variables <- stress_variables%>% dplyr::select(.,-c(childaces_q8,childaces_q9,childaces_q6b,childaces_q6a,childaces_q6d,  pss_q4_notreversed,pss_q5_notreversed,pss_q8_notreversed))
+#stress_variables <- stress_variables%>% dplyr::select(.,-c(pss_q4_notreversed,pss_q5_notreversed,pss_q8_notreversed, pss_q7_notreversed))
+stress_variables <- stress_variables[complete.cases(stress_variables),]
+stress_variables_id <- stress_variables$ID
+stress_variables <- dplyr::select(stress_variables, -ID)
+view(dfSummary(stress_variables))
+#since this is a mix of continuous and dichotomous variables, need to get a correlation matrix in some other way
+#convert variables with < 4 categories to factor? Easier if they're continuous!
+# col_names <- sapply(stress_variables, function(col) length(unique(col)) <= 4)
+# stress_variables[ , col_names] <- lapply(stress_variables[ , col_names] , factor)
+
+#one factor analysis with factanal()
+fit <- factanal(stress_variables, factors = 2, rotation = "varimax", scores = "regression")
+fit
+scree.plot(fit$correlation)
+#a different scree plot
+ev <- eigen(cor(stress_variables)) # get eigenvalues
+ap <- parallel(subject=nrow(stress_variables),var=ncol(stress_variables), rep=100, cent=.05)
+nS <- nScree(x=ev$values, aparallel=ap$eigen$qevpea)
+plotnScree(nS) #looks like should be extracting 3 or 4 factors
+firststressfactor <- fit$scores[,2]
+temp <- data.frame(stress_variables_id,firststressfactor)
+colnames(temp) <- c("ID","firststressfactor")
+main_unique<- right_join(temp,main_unique,by="ID")
+main_replicate_unique<- right_join(temp,main_replicate_unique,by="ID")
+
+#another factor analysis with fa()
+#main_unique <- main_unique %>% group_by(ID) %>% filter(row_number() == 1)
+fa.2 <- fa(stress_variables, nfactors = 2, rotate = "varimax")
+print(fa.2, cut = 0.1)
+factorscores <- factor.scores(stress_variables, fa.2)$scores[,2]
+temp <- data.frame(stress_variables_id,factorscores)
+colnames(temp) <- c("ID","firststressfactor1")
+main_unique<- right_join(temp,main_unique,by="ID")
+main_replicate_unique<- right_join(temp,main_replicate_unique,by="ID")
+
+#trying to do factor analysis with dichotomous variables, ignore for now.
+#mixedCor(data=stress_variables,d=1:9,p=10:17, c=18:29) #for some reason it doesn't like pss_q5_notreversed or pss_q8_notreversed, take those out-not working
+cormat <- polycor::hetcor(stress_variables)
+fit <- factanal(covmat = cormat$correlations, factors = 3, rotation = "varimax")
+fa.2 <- fa(r = cormat$correlations, nfactors = 3, n.obs = nrow(stress_variables))
+
+# Exploratory Factor Analysis of Cognitive Stimulation -----------------------------------
+#HOME, Literacy and Numeracy Questionnaire for cog stimulation, take only those from litnum that are applicable
+#recode HOME into subscales
+## RECODE HOME INTO SUBSCALES per that found online on "Early Childhood HOME Record Form"
+main_unique$home_learningmats <- main_unique$home_q1+ main_unique$home_q2 + main_unique$home_q3 +main_unique$home_q4 + main_unique$home_q6+main_unique$home_q7 + main_unique$home_q8 +main_unique$home_q9 + main_unique$home_q10 + main_unique$home_q11+ main_unique$home_q15
+main_unique$home_langstim <- main_unique$home_q12 + main_unique$home_q16 + main_unique$home_q17 + main_unique$home_q23+ main_unique$home_q24 
+main_unique$home_academicstim <- main_unique$home_q18+main_unique$home_q19+main_unique$home_q20+main_unique$home_q21+main_unique$home_q22
+main_unique$home_variety <- main_unique$home_q13+main_unique$home_q30+main_unique$home_q32+main_unique$home_q33+main_unique$home_q31+main_unique$home_q14+main_unique$home_q5
+main_unique$home_modeling  #this requires coding of written-in responses
+main_unique$home_total <- main_unique$home_learningmats +main_unique$home_langstim+main_unique$home_academicstim+main_unique$home_variety
+
+#the HOME has only dichotomous variables, need to use IRT on this?
+cogstim_variables <- main_unique %>% dplyr::select(.,ID,home_learningmats:home_variety, litnum_freq_num_avg:litnum_freq_finemotor_avg, litnum_child_books,litnum_hrs_childreadto) %>% data.frame()
+#cogstim_variables <- main %>% dplyr::select(.,childaces_q1:childaces_q10b_notreversed, pss_q1:pss_q10,wlbq_q1:wlbq_q12)
+#remove variables with no variance
+#cogstim_variables <- cogstim_variables%>% dplyr::select(.,-c(childaces_q8,childaces_q9,childaces_q6b,childaces_q6a,childaces_q6d,  pss_q4_notreversed,pss_q5_notreversed,pss_q8_notreversed))
+cogstim_variables <- cogstim_variables%>% dplyr::select(.,-c(pss_q4_notreversed,pss_q5_notreversed,pss_q8_notreversed, pss_q7_notreversed))
+cogstim_variables <- cogstim_variables[complete.cases(cogstim_variables),]
+cogstim_variables_id <- cogstim_variables$ID
+cogstim_variables <- dplyr::select(cogstim_variables, -ID)
+view(dfSummary(cogstim_variables))
+#since this is a mix of continuous and dichotomous variables, need to get a correlation matrix in some other way
+#convert variables with < 4 categories to factor? Easier if they're continuous!
+# col_names <- sapply(cogstim_variables, function(col) length(unique(col)) <= 4)
+# cogstim_variables[ , col_names] <- lapply(cogstim_variables[ , col_names] , factor)
+
+#one factor analysis with factanal()
+fit <- factanal(cogstim_variables, factors = 3, rotation = "varimax", scores = "regression")
+scree.plot(fit$correlation)
+#a different scree plot
+ev <- eigen(cor(cogstim_variables)) # get eigenvalues
+ap <- parallel(subject=nrow(cogstim_variables),var=ncol(cogstim_variables), rep=100, cent=.05)
+nS <- nScree(x=ev$values, aparallel=ap$eigen$qevpea)
+plotnScree(nS) #looks like should be extracting 3 or 4 factors
+firstcogstimfactor <- fit$scores[,1]
+temp <- data.frame(cogstim_variables_id,firstcogstimfactor)
+colnames(temp) <- c("ID","firstcogstimfactor")
+main_unique<- right_join(temp,main_unique,by="ID")
+main_replicate_unique<- right_join(temp,main_replicate_unique,by="ID")
+
+#another factor analysis with fa()
+#main_unique <- main_unique %>% group_by(ID) %>% filter(row_number() == 1)
+fa.2 <- fa(cogstim_variables, nfactors = 3, rotate = "varimax")
+print(fa.2,cut = .1)
+factorscores <- factor.scores(cogstim_variables, fa.2)$scores[,1]
+temp <- data.frame(cogstim_variables_id,factorscores)
+colnames(temp) <- c("ID","firstcogstimfactor1")
+main_unique<- right_join(temp,main_unique,by="ID")
+main_replicate_unique<- right_join(temp,main_replicate_unique,by="ID")
+
+# Save models for use in markdown file ------------------------------------
+save(main, main_filt, main_unique, networks_age_pvals_fdr,networks_ses_pvals_fdr, networks_age_pvals_fdr_replicate,networks_ses_pvals_fdr_replicate, main_replicate, main_replicate_filt, main_replicate_unique, file=paste0(outdir,"CBPD_n75_schaefer400.Rdata"))
 
 # Age and measures of segregation -----------------------------------------
 #Need to control for the amount of good data a participant has, size_t
@@ -140,7 +303,7 @@ lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean+avgweight+pctSpikesFD+siz
 summary(lm_part_coef_age)
 
 #Does number of communities detected with modul change with age?
-lm_num_comms_age <- lm(num_comms_modul~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_num_comms_age <- lm(num_comms_modul_avg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 summary(l) #Decreases slightly with age
 #look at average weight with age
 l <- lm(avgweight~age_scan+male+fd_mean+pctSpikesFD+size_t, data=main_unique)
@@ -190,80 +353,21 @@ summary(lm_sys7to4)
 visreg(lm_sys7to4) #strong decrease with age
 summary(lm_sys7to5)
 
-# Look at each column and correct for multiple comparisons
-covariates="~ age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t"
-
-#make a dataframe with no repeats of net comparisons
-main_unique <- dplyr::select(main_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
-#run and compare for multiple comparisons again
-m <- mclapply(names(main_unique[,50:77]), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
-networks_Age_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_unique))$coefficients[2,4]},mc.cores=1)
-networks_Age_pvals <- as.data.frame(networks_Age_pvals)
-networks_Age_pvals <- t(networks_Age_pvals)
-networks_Age_pvals <- as.data.frame(networks_Age_pvals)
-#bonferroni correct
-networks_Age_pvals_fdr <- p.adjust(networks_Age_pvals$V1, method="fdr")
-networks_age_pvals_fdr <- data.frame(networks_Age_pvals_fdr,names(main_unique[,50:77]))
-#FDR correction shows DMN to attentional networks and visual to dorsal attention is marginal.
-
-#make a dataframe with no repeats of net comparisons
-main_replicate_unique <- dplyr::select(main_replicate_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
-#run and compare for multiple comparisons again
-m <- mclapply(names(main_replicate_unique[,50:77]), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
-networks_Age_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_replicate_unique))$coefficients[2,4]},mc.cores=1)
-networks_Age_pvals <- as.data.frame(networks_Age_pvals)
-networks_Age_pvals <- t(networks_Age_pvals)
-networks_Age_pvals <- as.data.frame(networks_Age_pvals)
-#bonferroni correct
-networks_Age_pvals_fdr_replicate <- p.adjust(networks_Age_pvals$V1, method="fdr")
-networks_age_pvals_fdr_replicate <- data.frame(networks_Age_pvals_fdr_replicate,names(main_replicate_unique[,78:105]))
-#FDR correction shows DMN to attentional networks and visual to dorsal attention is marginal.
-
-# Separate Networks and Effects of SES ------------------------------------
-covariates="~ age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite"
-#make a dataframe with no repeats of net comparisons
-main_unique <- dplyr::select(main_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
-#run and compare for multiple comparisons again
-m <- mclapply(names(main_unique[,50:77]), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
-networks_ses_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_unique))$coefficients[8,4]},mc.cores=1)
-networks_ses_pvals <- as.data.frame(networks_ses_pvals)
-networks_ses_pvals <- t(networks_ses_pvals)
-networks_ses_pvals <- as.data.frame(networks_ses_pvals)
-#bonferroni correct
-networks_ses_pvals_fdr <- p.adjust(networks_ses_pvals$V1, method="fdr")
-networks_ses_pvals_fdr <- data.frame(networks_ses_pvals_fdr,names(main_unique[,50:77]))
-
-#make a dataframe with no repeats of net comparisons
-main_replicate_unique <- dplyr::select(main_replicate_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
-#run and compare for multiple comparisons again
-m <- mclapply(names(main_replicate_unique[,78:105]), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
-networks_ses_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_replicate_unique))$coefficients[8,4]},mc.cores=1)
-networks_ses_pvals <- as.data.frame(networks_ses_pvals)
-networks_ses_pvals <- t(networks_ses_pvals)
-networks_ses_pvals <- as.data.frame(networks_ses_pvals)
-#bonferroni correct
-networks_ses_pvals_fdr_replicate <- p.adjust(networks_ses_pvals$V1, method="fdr")
-networks_ses_pvals_fdr_replicate <- data.frame(networks_ses_pvals_fdr_replicate,names(main_unique[,50:77]))
-
-# Save models for use in markdown file ------------------------------------
-save(main, main_filt, main_unique, networks_age_pvals_fdr,networks_ses_pvals_fdr, networks_age_pvals_fdr_replicate, main_replicate, main_replicate_filt, main_replicate_unique, file=paste0(outdir,"CBPD_n76_schaefer400.Rdata"))
-
 # Environmental effects on networks -------------------------------------------------
 
 #look at segreg measures with SES
-lm_within_sys_age <- lm(mean_within_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+firststressfactor , data=main_unique)
+lm_within_sys_age <- lm(mean_within_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+neighborhood_perceived_quality, data=main_unique)
 summary(lm_within_sys_age)
 lm.beta(l)
-lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+firststressfactor, data=main_unique)
+lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+neighborhood_perceived_quality, data=main_unique)
 summary(lm_between_sys_age)
 lm.beta(l)
-lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+firststressfactor, data=main_unique)
+lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+neighborhood_perceived_quality, data=main_unique)
 summary(lm_segreg_age)
-lm_modul_age <- lm(modul_avg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+firststressfactor, data=main_unique)
+lm_modul_age <- lm(modul_avg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+neighborhood_perceived_quality, data=main_unique)
 summary(lm_modul_age)
-lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+firststressfactor, data=main_unique)
+lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+neighborhood_perceived_quality, data=main_unique)
 summary(lm_part_coef_age)
-
 
 visreg(lm_between_sys_age)
 visreg(lm_within_sys_age)
@@ -273,17 +377,17 @@ visreg(lm_part_coef_age)
 visreg(lm_num_comms_age)
 
 #look at whether there is an interaction
-lm_within_sys_age_income <- lm(mean_within_sys~age_scan*firststressfactor+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_within_sys_age_income <- lm(mean_within_sys~age_scan*neighborhood_perceived_quality+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 summary(lm_within_sys_age_income)
 lm.beta(l)
-lm_between_sys_age_income <- lm(mean_between_sys~age_scan*firststressfactor+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_between_sys_age_income <- lm(mean_between_sys~age_scan*neighborhood_perceived_quality+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 summary(lm_between_sys_age_income)
 lm.beta(l)
-lm_segreg_age<- lm(system_segreg~age_scan*firststressfactor+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_segreg_age<- lm(system_segreg~age_scan*neighborhood_perceived_quality+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 summary(lm_segreg_age)
-lm_modul_age <- lm(modul_avg~age_scan*firststressfactor+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_modul_age <- lm(modul_avg~age_scan*neighborhood_perceived_quality+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 summary(lm_modul_age)
-lm_part_coef_age <- lm(part_coef~age_scan*firststressfactor+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_part_coef_age <- lm(part_coef~age_scan*neighborhood_perceived_quality+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 summary(lm_part_coef_age)
 
 visreg(lm_within_sys_age, "age_scan", by="income_median")
@@ -305,7 +409,7 @@ visreg(lm_sys3to7)
 
 for (net in nets){
   name<-paste0("lm_",net)
-  formula<-formula(paste0(net, '~age_scan*firststressfactor+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite'))
+  formula<-formula(paste0(net, '~age_scan*aces3category+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite'))
   assign(name, lm(formula, data=main_unique))
   #p_val[net] <- summary(name)$coefficients[2,4]
 }
@@ -314,42 +418,3 @@ summary(lm_sys3to7)
 summary(lm_sys4to7)
 
 
-
-# Exploratory Factor Analysis of Stress -----------------------------------
-#Child ACES, PSS, WLBQ items
-stress_variables <- main %>% select(.,ID,pss_q1:pss_q10,wlbq_q1:wlbq_q12)
-#stress_variables <- main %>% select(.,childaces_q1:childaces_q10b_notreversed, pss_q1:pss_q10,wlbq_q1:wlbq_q12)
-#remove variables with no variance
-#stress_variables <- stress_variables%>% select(.,-c(childaces_q8,childaces_q9,childaces_q6b,childaces_q6a,childaces_q6d,  pss_q4_notreversed,pss_q5_notreversed,pss_q8_notreversed))
-stress_variables <- stress_variables%>% select(.,-c(pss_q4_notreversed,pss_q5_notreversed,pss_q8_notreversed))
-stress_variables <- stress_variables[complete.cases(stress_variables),]
-stress_variables_id <- stress_variables$ID
-stress_variables <- select(stress_variables, -ID)
-view(dfSummary(main_unique))
-#since this is a mix of continuous and dichotomous variables, need to get a correlation matrix in some other way
-#convert variables with < 4 categories to factor? Easier if they're continuous!
-# col_names <- sapply(stress_variables, function(col) length(unique(col)) <= 4)
-# stress_variables[ , col_names] <- lapply(stress_variables[ , col_names] , factor)
-
-fit <- factanal(stress_variables, factors = 4, rotation = "varimax", scores = "regression")
-firststressfactor <- fit$scores[,1]
-temp <- data.frame(stress_variables_id,firststressfactor)
-colnames(temp) <- c("ID","firststressfactor")
-main_unique<- right_join(temp,main_unique,by="ID")
-#filter out only unique values again
-main_unique <- main_unique %>% group_by(ID) %>% filter(row_number() == 1)
-
-fa.2 <- fa(r = cormat$correlations, nfactors = 5, n.obs = nrow(stress_variables))
-factorscores <- factor.scores(main_unique, fit)
-#get loadings for first factor
-loadings <- fit$loadings[,1]
-loadings <- loadings[loadings>0.1]
-#mixedCor(data=stress_variables,d=1:9,p=10:17, c=18:29) #for some reason it doesn't like pss_q5_notreversed or pss_q8_notreversed, take those out-not working
-cormat <- polycor::hetcor(stress_variables)
-
-fit <- factanal(covmat = cormat$correlations, factors = 3, rotation = "varimax")
-scree.plot(fit$correlation)
-fa.2 <- fa(r = cormat$correlations, nfactors = 3, n.obs = nrow(stress_variables))
-
-# Save models for use in markdown file ------------------------------------
-save(main, main_filt, main_unique, networks_age_pvals_fdr,networks_age_pvals_fdr_replicate, main_replicate, main_replicate_filt, main_replicate_unique, file=paste0(outdir,"CBPD_n75_schaefer400.Rdata"))

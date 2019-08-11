@@ -46,7 +46,7 @@ print(dfSummary(motion), method = 'render')
 
 ###SES
 ```{r SES of Sample Summary,echo=FALSE, results='hold'}
-ses <- select(main_unique, race2,ethnicity,has_diagnoses, parent1_edu:parent2_edu, income_median:monthslive_iflostincome, childaces_sum_ignorenan)
+ses <- select(main_unique, male, race2,ethnicity,has_diagnoses, parent1_edu:parent2_edu, income_median:monthslive_iflostincome, childaces_sum_ignorenan)
 print(dfSummary(ses), method = 'render')
 ```
 
@@ -77,11 +77,11 @@ lm_num_comms_age <- lm(num_comms_modul_avg~age_scan+male+fd_mean+avgweight+pctSp
 
 ```{r plots of segregation, echo=FALSE, include=TRUE, results='hide'}
 par(mfrow=c(2,3))
-visreg(lm_between_sys_age,"age_scan")
-visreg(lm_within_sys_age,"age_scan")
-visreg(lm_segreg_age,"age_scan")
-visreg(lm_modul_age,"age_scan")
-visreg(lm_part_coef_age,"age_scan")
+visreg(lm_between_sys_age,"age_scan", main="Mean between-system connectivity", ylab="", xlab="Age at scan (years)")
+visreg(lm_within_sys_age,"age_scan", main= "Mean within-system connectivity", ylab="", xlab="Age at scan (years)")
+visreg(lm_segreg_age,"age_scan", main="Average segregation", ylab="", xlab="Age at scan (years)")
+visreg(lm_modul_age,"age_scan", main="Modularity quality index Q", ylab="", xlab="Age at scan (years)")
+visreg(lm_part_coef_age,"age_scan", main="Average participation coefficient", ylab="", xlab="Age at scan (years)")
 visreg(lm_num_comms_age,"age_scan")
 ```
 
@@ -130,14 +130,14 @@ lm_sys1to3<- lm(sys1to3~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data
 lm_sys3to7<- lm(sys3to7~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 lm_sys4to7<- lm(sys4to7~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 
-visreg(lm_sys1to3,"age_scan",main="Vis to DAN")
-visreg(lm_sys3to7,"age_scan", main="DMN to DAN")
-visreg(lm_sys4to7,"age_scan",  main="DMN to VAN")
+visreg(lm_sys1to3,"age_scan",main="VIS to DAN", ylab="", xlab="Age at scan (years)")
+visreg(lm_sys3to7,"age_scan", main="DMN to DAN",ylab="", xlab="Age at scan (years)")
+visreg(lm_sys4to7,"age_scan",  main="DMN to VAN",ylab="", xlab="Age at scan (years)")
 ```
 
 None of these showed significantly non-linear effects, either. 
 
-Effects on default mode connectivity survive FDR correction across the tests conducted, with DMN-VAN *p_fdr*=`r networks_age_pvals_fdr$networks_Age_pvals_fdr[networks_age_pvals_fdr$names.main_unique...50.77..=="sys3to7"]` and DMN-DAN *p_fdr*= `r networks_age_pvals_fdr$networks_Age_pvals_fdr[networks_age_pvals_fdr$names.main_unique...50.77..=="sys4to7"]`. Vis-DAN *p_fdr*= `r networks_age_pvals_fdr$networks_Age_pvals_fdr[networks_age_pvals_fdr$names.main_unique...50.77..=="sys1to3"]`.
+Effects on default mode connectivity survive FDR correction across the tests conducted, with DMN-VAN *p_fdr*=`r networks_age_pvals_fdr$pvalue[networks_age_pvals_fdr$network=="sys3to7"]` and DMN-DAN *p_fdr*= `r networks_age_pvals_fdr$pvalue[networks_age_pvals_fdr$network=="sys4to7"]`. Vis-DAN *p_fdr*= `r networks_age_pvals_fdr$pvalue[networks_age_pvals_fdr$network=="sys1to3"]`.
 
 ## Environment and Measures of Network Segregation
 
@@ -145,7 +145,19 @@ In summary, there are no main effects of SES, race, or ACES sum on any of the me
 
 Using the same models as above, ``age_scan + male + fd_mean + avgweight + pctSpikesFD + size_t``, we see no significant associations between any of the measures of network segregation and either parent 1 education, family income (median of bin), or an SES composite of the two. Race is also not significantly associated with any of the measures of network segregation. I also looked at the sum of child ACES, which doesn't show any significant associations in the model above.
 
-Didn't look at neighborhood questionnaire, not in the data that I have from Julia.
+```{r main effect aces on segregation plots, echo=FALSE, include=TRUE, results='hide',fig.show='hold', out.width='33.33%', fig.align='default'}
+lm_within_sys_age <- lm(mean_within_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+aces3category, data=main_unique)
+summary(lm_within_sys_age)
+lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+aces3category, data=main_unique)
+summary(lm_between_sys_age)
+lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+aces3category, data=main_unique)
+lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+aces3category, data=main_unique)
+visreg(lm_within_sys_age,"age_scan",by="aces3category", overlay=TRUE)
+visreg(lm_between_sys_age,"age_scan",by="aces3category", overlay=TRUE)
+visreg(lm_part_coef_age,"age_scan",by="aces3category", overlay=TRUE)
+```
+
+However, there are effects of the binned ACES (into 0-1, 2, or 3+) on within- and between-network connectivity as well as the participation coefficient. We see that 2 ACES is associated with significantly less within- and more between-network connectivity (*p*=`r summary(lm_within_sys_age)$coefficients[8,4]`), and a higher average participation coefficient (*p*=`r summary(lm_part_coef_age)$coefficients[8,4]`), lower system segregation (*p*=`r summary(lm_segreg_age)$coefficients[8,4]`).
 
 ### Interactions between environment and age
 
@@ -214,11 +226,11 @@ __DMN to VAN__
 #### All systems connectivity and environment main effects
 
 As Allyson suggested on 8/6, I ran models looking for a main effect of environment across all networks and fdr-corrected. I chose the SES composite for this analysis, since that seemed the most principled. No networks showed significant main effects of the environment after FDR correction.
-Networks that showed marginal effects of the environment were MOT-FPN, *p_FDR*=`r networks_ses_pvals_fdr$networks_ses_pvals_fdr[networks_ses_pvals_fdr$names.main_unique...50.77.. =="sys2to6"]`, VAN-LIM *p_fdr*=`r networks_ses_pvals_fdr$networks_ses_pvals_fdr[networks_ses_pvals_fdr$names.main_unique...50.77.. =="sys4to5"]`, and LIM-LIM *p_fdr= `r networks_ses_pvals_fdr$networks_ses_pvals_fdr[networks_ses_pvals_fdr$names.main_unique...50.77.. =="sys5to5"]`.
+Networks that showed marginal effects of the environment were MOT-FPN, *p_FDR*=`r networks_ses_pvals_fdr$pvalue[networks_ses_pvals_fdr$network =="sys2to6"]`, VAN-LIM *p_fdr*=`r networks_ses_pvals_fdr$pvalue[networks_ses_pvals_fdr$network =="sys4to5"]`, and LIM-LIM *p_fdr= `r networks_ses_pvals_fdr$pvlue[networks_ses_pvals_fdr$network =="sys5to5"]`.
 
 ```{r All systems fdr-corrected ses main effect environment plots, echo=FALSE, include=TRUE, results='hide', warning=FALSE, message=FALSE, error = FALSE, fig.show='hold', out.width='33.33%', fig.align='default'}
 networks <- select(main_unique, sys1to1:sys7to7)
-networks <- select(networks, -c(ID))
+#networks <- select(networks, -c(ID))
 nets <- colnames(networks)
 #look at non-linear interaction between age and envSES 
 for (net in nets){
@@ -231,6 +243,8 @@ visreg(lm_ses_mainsys2to6, "age_scan", by="ses_composite", overlay=TRUE, breaks=
 visreg(lm_ses_mainsys4to5, "age_scan", by="ses_composite", overlay=TRUE, breaks=2) #increase with age #increase with age
 visreg(lm_ses_mainsys5to5,"age_scan", by="ses_composite", overlay=TRUE, breaks=2) #increase with age
 ```
+
+Three-category ACES also does not show a significant environmental main effect after FDR-correction.
 
 ###System-specific connectivity and environment interactions
 
@@ -275,7 +289,7 @@ __Visual to DAN__
  * Significant interaction between age and ses composite on avg connectivity (*p* = 0.019)
  * Significant interaction between age and income on avg connectivity (*p* = 0.011)
 ```{r system specific interactions plots, echo=FALSE, include=TRUE,fig.show='hold', out.width='50%'}
-visreg(lm_sescomp_intersys1to3, "age_scan", by="ses_composite", overlay=TRUE)
+visreg(lm_sescomp_intersys1to3, "age_scan", by="ses_composite", overlay=TRUE, breaks=2,main="VIS to DAN", ylab="", xlab="Age at scan (years)", legend=FALSE)
 visreg(lm_income_intersys1to3, "age_scan", by="income_median", overlay=TRUE)
 ```
 
@@ -304,12 +318,56 @@ __Vis to Vis__
 
  * Nothing
 
+## Stress and Enrichment Factor Analyses
+
+To examine whether the age x SES interactions in visual areas are accounted for by stress or cognitive enrichment, I first sought to characterize these two. 
+
+###Stress 
+Per Allyson on 8/9, used ACES sum score, PSS sum score, and WLBQ individual items for stress, along with the first two items on the Neighborhood questionnaire. A factor analysis of stress variables pulled from the PSS, ACES sum, WLBQ, and the first two items on the neighborhood questionnaire revealed that we should extract 2 (or 4) factors, depending on which scree plot you look at. 
+
+I extracted the **second** factor in the factor analysis, which loaded more heavily on child ACES and PSS sum than the first factor, which was dominated by the WLBQ questions. Regardless of which factor I take, though, or which package I use, the results do not change.
+
+I examined whether it accounted for the age x SES composite effect on visual networks. It does not. However, note that there is slightly less power to detect an interaction with 59 as opposed to 65 subjects who have all data for the stress factor, but when examining only that subset, the age x SES composite on visual networks still holds, even when controlling for the first factor of stress.
+
+I'm not **completely** sure about the correctness of the approach I took, but did try two different factor analysis packages, extracted the second or first factor (which was slightly different) using both, and examined it here, and get similar results.
+
+```{r stress in visual interactions plots, echo=FALSE, include=TRUE,results='hide', fig.show='hold', out.width='50%'}
+lm_sescomp_intersys1to3 <- lm(sys1to3~age_scan*ses_composite+male+fd_mean+avgweight+pctSpikesFD+size_t+aces3category, data=main_unique)
+lm_sescomp_intersys1to3_stress <- lm(sys1to3~age_scan*firststressfactor+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite, data=main_unique)
+summary(lm_sescomp_intersys1to3)
+summary(lm_sescomp_intersys1to3_stress)
+visreg(lm_sescomp_intersys1to3, "age_scan", by="ses_composite", overlay=TRUE, breaks=2)
+visreg(lm_sescomp_intersys1to3_stress, "age_scan", by="firststressfactor", overlay=TRUE, breaks=2)
+```
+
+Also, this factor does not significantly predict any main effects on any specific networks after FDR correction across networks, or any whole-brain segregation measures. It is negatively correlated with SES (!), but positively correlated with PSS and child ACES (obviously). Wait and see whether cognitive enrichment is predictive.
+
+### Cognitive Enrichment
+
+I used the HOME subscale scores, as well as the literacy and numeracy questionnaire question about the number of child books and the number of hours per week the child was read to. I also included literacy and numeracy subscales for frequency of other activities at home: Music, Visual Arts, Pretend Play, Spatial, Fine Motor.
+
+Examining a scree plot yields that either 3 or 2 factors should be extracted. N=`r sum(complete.cases(main_unique$firstcogstimfactor))` have information on cognitive stimulation.
+
+```{r cogstim in visual interactions plots, echo=FALSE, include=TRUE,results='hide', fig.show='hold', out.width='50%'}
+lm_sescomp_intersys1to3 <- lm(sys1to3~age_scan*ses_composite+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_sescomp_intersys1to3_stress <- lm(sys1to3~age_scan*firstcogstimfactor+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite, data=main_unique)
+summary(lm_sescomp_intersys1to3)
+summary(lm_sescomp_intersys1to3_stress)
+visreg(lm_sescomp_intersys1to3, "age_scan", by="ses_composite", overlay=TRUE, breaks=2)
+visreg(lm_sescomp_intersys1to3_stress, "age_scan", by="firstcogstimfactor", overlay=TRUE, breaks=2, main="VIS to DAN", ylab="", xlab="Age at scan (years)", )
+```
+We see that when including the first factor of cognitive stimulation, which loads mostly on the literacy and numeracy questionnaire, and less on the HOME or the number of child books, it partially accounts for the effect of SES on visual- DAN connectivity. The age x cognitive stimulation interaction is marginally significant, and including the first factor in the age* ses_composite model reduces the interaction to marginal.
+
+It is negatively correlated with SES, strongly so (!), and slightly positively correlated with child ACES! Odd. Looks like in our sample, HOME is weakly positively correlated with SES, but Litnum is even more stronly negatively correlated with SES.
+
+Also, this factor does not significantly predict any main effects on any specific networks after FDR correction across networks, or any whole-brain segregation measures or interactions with age.
+
+
 ## Questions, Notes, & Future Directions
 
-* Other ways to make this more interesting/unique? Specific directions to investigate?
-  * Sig SES interactions are in visual!
 * There are also sometimes outliers on some of the measures that flatten out age or environment trends, I have been looking into using robust regression to examine these trends instead, but did not go through all the trouble to bootstrap p-values for this time around. However, I think it's possible that robust regression might be a more defensible choice.
-* Permutation tests?
+
+
 * Spin tests for parcellations/cortical regions: https://github.com/frantisekvasa/rotate_parcellation
   * Can you do this for networks somehow--is this relevant? Graham has done it before, maybe?
 
@@ -348,6 +406,24 @@ All previous findings significant increases in network segregation with age hold
 As a reminder, we controlled for sex, mean framewise displacement, percent of FD spikes in the data, the number of volumes a participant had, and the average weight of the functional network.
 
 Also, no non-linear effects of age.
+
+## Environment and Measures of Network Segregation
+
+```{r main effect aces on segregation plots replicate, echo=FALSE, include=TRUE, results='hide',fig.show='hold', out.width='33.33%', fig.align='default'}
+lm_within_sys_age <- lm(mean_within_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+aces3category, data=main_replicate_unique)
+summary(lm_within_sys_age)
+lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+aces3category, data=main_replicate_unique)
+summary(lm_between_sys_age)
+lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+aces3category, data=main_replicate_unique)
+lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+aces3category, data=main_replicate_unique)
+summary(lm_part_coef_age)
+visreg(lm_within_sys_age,"age_scan",by="aces3category", overlay=TRUE)
+visreg(lm_between_sys_age,"age_scan",by="aces3category", overlay=TRUE)
+visreg(lm_part_coef_age,"age_scan",by="aces3category", overlay=TRUE)
+```
+
+However, as above, there are effects of the binned ACES (into 0-1, 2, or 3+) on within- and between-network connectivity as well as the participation coefficient. We see that 2 ACES is associated with significantly less within- and more between-network connectivity (*p*=`r summary(lm_within_sys_age)$coefficients[8,4]`), and a higher average participation coefficient (*p*=`r summary(lm_part_coef_age)$coefficients[8,4]`), lower system segregation (*p*=`r summary(lm_segreg_age)$coefficients[8,4]`).
+
 
 ### System-level effects
 Again, we find the strongest effects in Vis-DAN, DMN-DAN, and DMN-VAN, which are the only effects that pass *fdr* correction.
