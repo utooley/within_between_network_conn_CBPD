@@ -183,13 +183,13 @@ par(mfrow=c(1,2))
 nets=c("sys1to3", "sys3to7", "sys4to7")
 for (net in nets){
   name<-paste0("lm_sescomp",net)
-  formula<-formula(paste0(net, '~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite+childaces_sum_ignorenan'))
+  formula<-formula(paste0(net, '~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite'))
   assign(name, lm(formula, data=main_unique))
   name2<-paste0("lm_paredu_",net)
-  formula<-formula(paste0(net, '~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+parent1_edu+childaces_sum_ignorenan'))
+  formula<-formula(paste0(net, '~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+parent1_edu'))
   assign(name2, lm(formula, data=main_unique))
   name3<-paste0("lm_income_",net)
-  formula<-formula(paste0(net, '~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+income_median+childaces_sum_ignorenan'))
+  formula<-formula(paste0(net, '~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+income_median'))
   assign(name3, lm(formula, data=main_unique))
 }
 summary(lm_paredu_sys1to3)
@@ -288,16 +288,16 @@ __Visual to DAN__
 
  * Significant interaction between age and ses composite on avg connectivity (*p* = 0.019)
  * Significant interaction between age and income on avg connectivity (*p* = 0.011)
-```{r system specific interactions plots, echo=FALSE, include=TRUE,fig.show='hold', out.width='50%'}
+```{r system specific interactions plots, echo=FALSE, include=TRUE,fig.show='hold', out.width='33.33%'}
 visreg(lm_sescomp_intersys1to3, "age_scan", by="ses_composite", overlay=TRUE, breaks=2,main="VIS to DAN", ylab="", xlab="Age at scan (years)", legend=FALSE)
-visreg(lm_income_intersys1to3, "age_scan", by="income_median", overlay=TRUE)
+visreg(lm_sescomp_intersys3to7, "age_scan", by="ses_composite", overlay=TRUE, breaks=2,main="DMN to DAN", ylab="", xlab="Age at scan (years)", legend=FALSE)
+visreg(lm_sescomp_intersys4to7, "age_scan", by="ses_composite", overlay=TRUE, breaks=2,main="DMN to VAN", ylab="", xlab="Age at scan (years)", legend=FALSE)
 ```
 
 __DMN to DAN__
 
  * Marginal interaction between age and ses composite on avg connectivity (*p* = 0.09)
  * Marginal interaction between age and parent ed on avg connectivity (*p* = 0.05)
-
 
 __DMN to VAN__
 
