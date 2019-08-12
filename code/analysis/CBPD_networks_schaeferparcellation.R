@@ -13,6 +13,7 @@ library(nFactors)
 subjdata_dir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/subjectData/"
 outdir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_censor_5contig_fd0.5dvars1.75_drpvls/"
 netdata_dir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_censor_5contig_fd0.5dvars1.75_drpvls/"
+cluster_mounted_data="~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_censor_5contig_fd0.5dvars1.75_drpvls/"
 
 ages <- read.csv(paste0(subjdata_dir,"CBPD_data_190729_age_ses_ccti.csv")) #find most recent CBPD data wherever it is
 main <- read.csv(paste0(subjdata_dir,"CBPD_parent_questionnaires_upto_177_080819.csv")) #find most recent CBPD data wherever it is
@@ -417,4 +418,123 @@ summary(lm_sys1to3)
 summary(lm_sys3to7)
 summary(lm_sys4to7)
 
+
+# Parcel Specificity of Age and Age x SES Effects -------------------------
+
+#read in file with edges by subject
+edge_weights <- read.csv(paste0(cluster_mounted_data,"zedges_for_each_subj_081219.csv"))
+edge_weights <- as.data.frame(edge_weights)
+#join to master with covariates
+edge_weights<-dplyr::rename(edge_weights, ID=Var1, run=Var2)
+edge_weights<-right_join(edge_weights, main, by =c("ID", "run"))
+
+#run it on all edges
+covariates=" ~ age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t"
+#put the betas/pvals back into a matrix
+m <- mclapply(names(edge_weights[,3:79800]), function(x) {as.formula(paste( x, covariates, sep=""))},mc.cores=4)
+edge_pvals_age <- mclapply(m, function(x) { summary(lm(formula = x,data=edge_weights))$coefficients[2,4]},mc.cores=4)
+edge_pvals_age <- as.data.frame(edge_pvals_age)
+edge_pvals_age <- t(edge_pvals_age)  
+edge_pvals_age <- as.data.frame(edge_pvals_age)
+colnames(edge_pvals_age) <- "edge_pvals_age"
+edge_pvals_age$Node_index <- 1:79800
+
+#then, pull out only DMN to DAN edges to FDR correct 
+#FDR CORRECT the pvals
+m <- mclapply(names(edge_weights[,3:64263]), function(x) {as.formula(paste(x, covariates, sep=""))},mc.cores=2)
+edge_pvals_agexses <- mclapply(m, function(x) { summary(lm(formula = x,data=edge_weights))$coefficients[8,4]},mc.cores=2)
+edge_pvals_agexses <- as.data.frame(edge_pvals_agexses)
+edge_pvals_agexses <- t(edge_pvals_agexses)
+edge_pvals_agexses <- as.data.frame(edge_pvals_agexses)
+colnames(edge_pvals_agexses) <- "edge_pvals_agexses"
+edge_pvals_agexses$Node_index <- 1:64261
+fdr_corrected<-p.adjust(edge_pvals_agexses$edge_pvals_agexses, method = "fdr")
+sig_edges_AgexSES<-cbind(edge_pvals_agexses, fdr_corrected)
+fdr_sig_edges_AgexSES<-sig_edges_AgexSES[sig_edges_AgexSES$fdr_corrected < 0.05,]
+#write out pvals into a matrix
+my_matrix<-matrix(0,359,359)
+my_matrix[upper.tri(my_matrix, diag=FALSE)]<-edge_betas_agexses$edge_betas_agexses
+#write out a file to read in brainnetviewer
+write.csv(my_matrix,paste0(clustcodir,"edge_pvals_agexses_int.csv"))
+
+#write out the betas by edge back into a matrix
+my_matrix<-matrix(0,359,359)
+my_matrix[upper.tri(my_matrix, diag=FALSE)]<-edge_betas_agexses$edge_betas_agexses
+#write out a file to read in brainnetviewer
+write.csv(my_matrix,paste0(clustcodir,"edge_betas_agexses_int_scaled.csv"))
+
+#read in the matrix after it's made
+my_matrix <- read.csv(paste0(clustcodir,"edge_betas_agexses_int.csv"))
+my_matrix <- my_matrix[,-1]
+#look at whether they're higher within significant nodes or to the rest of the brain?
+#read in significant nodes for agexses
+library(tibble)
+fdr_sig_nodes_lm_AgexSES <- read.csv(paste0(clustcodir,"nodewise_pvals_for_GAMs_and_lms.csv"))
+fdr_sig_nodes_only<-fdr_sig_nodes_lm_AgexSES[fdr_sig_nodes_lm_AgexSES$fdr_pvals_lm_agexses < 0.05,]
+dim(fdr_sig_nodes_only)
+colnames(my_matrix)=c(1:359)
+my_matrix_edges <- as.data.frame(my_matrix)
+my_matrix_edges <- rownames_to_column(my_matrix_edges, var="Node_Index")
+sig_node_betas_only <- my_matrix_edges %>% select(one_of(as.character(fdr_sig_nodes_only$X))) %>% filter(my_matrix_edges$Node_Index %in% fdr_sig_nodes_only$X)
+#get the mean of betas within only the significant nodes
+mean(sig_node_betas_only[sig_node_betas_only!=0])
+#get the mean of betas outside the significant nodes
+fdr_non_sig_nodes<-fdr_sig_nodes_lm_AgexSES[fdr_sig_nodes_lm_AgexSES$fdr_pvals_lm_agexses > 0.05,]
+non_sig_node_betas_only <- my_matrix_edges %>% select(one_of(as.character(fdr_non_sig_nodes$X))) %>% filter(my_matrix_edges$Node_Index %in% fdr_non_sig_nodes$X)
+mean(non_sig_node_betas_only[non_sig_node_betas_only!=0])
+
+#put the yeo edges as column and index names, sort by them and calculate the average beta within each network
+yeomapping <- read.csv(paste0(clustcodir,"Glasser_to_Yeo_no52.csv"))
+names(my_matrix_edges)=c(yeomapping$Yeo_Parcellation.7YeoPNC.nii.gz_0...)
+my_matrix_edges$Yeo_mapping<-yeomapping$Yeo_Parcellation.7YeoPNC.nii.gz_0...
+
+test<-my_matrix_edges[,1:359] 
+test>0.10
+
+#Yeo1
+Yeo_1_edges <- my_matrix_edges[my_matrix_edges$Yeo_mapping== 1,]
+Yeo_1_edges<- Yeo_1_edges[names(Yeo_1_edges)==1]
+mean(Yeo_1_edges!=0)
+#Yeo2
+Yeo_2_edges <- my_matrix_edges[my_matrix_edges$Yeo_mapping== 2,]
+Yeo_2_edges<- Yeo_2_edges[names(Yeo_2_edges)==2]
+mean(Yeo_2_edges!=0)
+#Yeo1
+Yeo_3_edges <- my_matrix_edges[my_matrix_edges$Yeo_mapping== 3,]
+Yeo_3_edges<- Yeo_3_edges[names(Yeo_3_edges)==3]
+mean(Yeo_3_edges!=0)
+#Yeo4
+Yeo_4_edges <- my_matrix_edges[my_matrix_edges$Yeo_mapping== 4,]
+Yeo_4_edges<- Yeo_4_edges[names(Yeo_4_edges)==4]
+mean(Yeo_4_edges!=0)
+#Yeo5
+Yeo_5_edges <- my_matrix_edges[my_matrix_edges$Yeo_mapping== 5,]
+Yeo_5_edges<- Yeo_5_edges[names(Yeo_5_edges)==5]
+mean(Yeo_5_edges!=0)
+#Yeo6
+Yeo_6_edges <- my_matrix_edges[my_matrix_edges$Yeo_mapping== 6,]
+Yeo_6_edges<- Yeo_6_edges[names(Yeo_6_edges)==6]
+mean(Yeo_6_edges!=0)
+#Yeo7
+Yeo_7_edges <- my_matrix_edges[my_matrix_edges$Yeo_mapping== 7,]
+Yeo_7_edges<- Yeo_7_edges[names(Yeo_7_edges)==7]
+mean(Yeo_7_edges!=0)
+
+
+# Regress on Each Edge-Distance Dependence --------------------------------
+#read in the pvals
+my_matrix <- read.csv(paste0(clustcodir,"edge_betas_agexses_int.csv"))
+my_matrix <- my_matrix[,-1]
+#read in the euclidean distance matrix of distances
+distances <- read.table("~/Documents/bassett_lab/tooleyEnviNetworks/parcels/Glasser/GlasserEuclideanDistanceMatrix.txt")
+#remove parcel 52
+distances <- select(distances, -V103)
+distances <- distances[-103,]
+#select each pval by its corresponding distance, and then plot
+distances
+#vectorize my_matrix and vectorize distances, plot one by the other.
+edge_pvals_agexses_vector <- my_matrix[upper.tri(my_matrix, diag=FALSE)]
+distances_vector <- distances[upper.tri(distances, diag=FALSE)]
+#plot the edge weight pvals by distance
+plot(distances_vector, sig_edges_AgexSES$edge_pvals_agexses, col=alpha("blue",0.2), cex=0.2)
 
