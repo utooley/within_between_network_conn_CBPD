@@ -1,7 +1,7 @@
 ---
 title: "CBPD Functional Network Results"
 author: "Ursula Tooley"
-date: "8/7/2019"
+date: "8/12/2019"
 output:
   html_document:
     theme: united
@@ -57,7 +57,7 @@ WPPSI and WISC scores are not totally finalized, so decided not to look at cogni
 
 ## Age and measures of network segregation
 
-We find that overall, all measures of network segregation significantly increase with age in our dataset, with remarkable consistency. We examined within-network connectivity, between network connectivity, system segregation (as calculated in Chan et al. 2018), the modularity quality index, and the participation coefficient (summed across negative and positive weights). 
+We find that overall, all measures of network segregation significantly increase with age in our dataset, with remarkable consistency. We examined within-network connectivity, between network connectivity, system segregation (as calculated in Chan et al. 2018), the modul_avgarity quality index, and the participation coefficient (summed across negative and positive weights). 
 
 We controlled for sex, mean framewise displacement, percent of FD spikes in the data, the number of volumes a participant had, and the average weight of the functional network.
 
@@ -68,7 +68,7 @@ lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean+avgweight+pctSpi
 
 lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 
-lm_modul_age <- lm(modul_avg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_modul_avg_age <- lm(modul_avg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 
 lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 lm_num_comms_age <- lm(num_comms_modul_avg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
@@ -80,13 +80,13 @@ par(mfrow=c(2,3))
 visreg(lm_between_sys_age,"age_scan", main="Mean between-system connectivity", ylab="", xlab="Age at scan (years)")
 visreg(lm_within_sys_age,"age_scan", main= "Mean within-system connectivity", ylab="", xlab="Age at scan (years)")
 visreg(lm_segreg_age,"age_scan", main="Average segregation", ylab="", xlab="Age at scan (years)")
-visreg(lm_modul_age,"age_scan", main="Modularity quality index Q", ylab="", xlab="Age at scan (years)")
+visreg(lm_modul_avg_age,"age_scan", main="modul_avgarity quality index Q", ylab="", xlab="Age at scan (years)")
 visreg(lm_part_coef_age,"age_scan", main="Average participation coefficient", ylab="", xlab="Age at scan (years)")
 visreg(lm_num_comms_age,"age_scan")
 ```
 
 
-The number of communities detected using modularity maximization on this data does not significantly decrease with age (each subject ran 100x, averaged Q and *k*, range in k is `r range(main_unique$num_comms_modul_avg)`).
+The number of communities detected using modul_avgarity maximization on this data does not significantly decrease with age (each subject ran 100x, averaged Q and *k*, range in k is `r range(main_unique$num_comms_modul_avg)`).
 ###Non-linear effects of age?
 
 We also used restricted least ratio tests to test for the presence of non-linearity in our data. As you can see in the plots below, which use GAMs, most measures are linear and look no different from the linear models above.
@@ -101,7 +101,7 @@ exactRLRT(model)
 gam_segreg_age<- gam(system_segreg~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 model<- gamm(system_segreg~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)$lme
 exactRLRT(model)
-gam_modul_age <- gam(modul_avg~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+gam_modul_avg_age <- gam(modul_avg~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 model<- gamm(modul_avg~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)$lme
 exactRLRT(model)
 gam_part_coef_age <- gam(part_coef~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
@@ -114,7 +114,7 @@ par(mfrow=c(2,3))
 visreg(gam_between_sys_age,"age_scan",main=names(model.frame(gam_between_sys_age))[1])
 visreg(gam_within_sys_age,"age_scan", main=names(model.frame(gam_within_sys_age))[1])
 visreg(gam_segreg_age,"age_scan",  main=names(model.frame(gam_segreg_age))[1])
-visreg(gam_modul_age,"age_scan", main=names(model.frame(gam_modul_age))[1])
+visreg(gam_modul_avg_age,"age_scan", main=names(model.frame(gam_modul_avg_age))[1])
 visreg(gam_part_coef_age,"age_scan", main=names(model.frame(gam_part_coef_age))[1])
 ```
 
@@ -362,11 +362,50 @@ It is negatively correlated with SES, strongly so (!), and slightly positively c
 
 Also, this factor does not significantly predict any main effects on any specific networks after FDR correction across networks, or any whole-brain segregation measures or interactions with age.
 
+### Questions from Allyson about Stress & Cog Stim Analyses
+
+> I'm wondering if it's better to just use the HOME, and maybe just the items from the HOME that are related to SES (or the items that are not endorsed by 99% of families- I think that ends up being the same item set).
+
+Which variables are these? I decided to not pull specifically variables that relate to SES, that seems like double-dipping/fishing for an effect, so choose an SD cutoff based on looking at the variance across different questions.
+
+```{r cogstim HOME variables, echo=FALSE, include=TRUE,results='hide', warning=FALSE, error=FALSE, fig.show='hold', out.width='50%'}
+home_variables <- main_unique %>% ungroup() %>% dplyr::select(.,home_q1:home_q33) %>% dplyr::select(.,-c(home_q25_notreversed,home_q26:home_q29)) %>% data.frame(.) 
+home_variables <- home_variables[, ! apply(home_variables , 2 , function(x) sd(x, na.rm = TRUE) < 0.2 ) ] #take out any with SD < 0.2, which is reasonable variation, about 5-6 endorse not majority answer
+home_sum <- rowSums(home_variables, na.rm = TRUE)
+main_unique$home_total_variableonly <- home_sum
+visreg(lm(home_total_variableonly~ses_composite, data=main_unique))
+```
+
+The sum of variables on the HOME that have an SD > 0.2 *is* correlated positively with SES, at Kendall's tau= `r cor.test(main_unique$ses_composite, main_unique$home_total_variableonly, method="kendall")$estimate`
+
+We examine whether this HOME sum total accounts for the age x SES interaction in predicting VIS-DAN connectivity. It does not, and controlling for it does not affect the significance of the age x SES interaction in predicting connectivity. It also does not show a main effect on VIS-DAN connectivity.
+
+```{r home variables in visual interactions plots, echo=FALSE, include=TRUE,results='hide', fig.show='hold', out.width='50%'}
+lm_sescomp_intersys1to3 <- lm(sys1to3~age_scan*ses_composite+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_sescomp_intersys1to3_stress <- lm(sys1to3~age_scan*home_total_variableonly+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite, data=main_unique)
+summary(lm_sescomp_intersys1to3)
+summary(lm_sescomp_intersys1to3_stress)
+visreg(lm_sescomp_intersys1to3, "age_scan", by="ses_composite", overlay=TRUE, breaks=2)
+visreg(lm_sescomp_intersys1to3_stress, "age_scan", by="home_total_variableonly", overlay=TRUE, breaks=2, ylab="", xlab="Age at scan (years)")
+```
+
+Also, this HOME sum does not significantly any whole-brain segregation measures or interactions with age. It also does not predict any main effects on any specific networks after FDR correction across networks (except a *p*=0.02 main effect on DAN-LIM, but I've done so many tests now on the stress-cog stim variables, I'm not sure this is anything.).
+
+> It might be worth confirming that the individual stress measures don't show an ageXstress interaction. 
+
+```{r individual stress in visual interactions plots, echo=FALSE, include=TRUE,results='hide', fig.show='hold', out.width='50%'}
+lm_sescomp_intersys1to3 <- lm(sys1to3~age_scan*ses_composite+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_sescomp_intersys1to3_stress <- lm(sys1to3~age_scan*pss_sum+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite, data=main_unique)
+summary(lm_sescomp_intersys1to3)
+summary(lm_sescomp_intersys1to3_stress)
+```
+
+Neither the summed PSS, the 3 category ACES, the summmed WLBQ, or neighborhood perceived quality (which include those safety questions) show main effects or interactions with age predicting VIS-DAN connectivity.
+
 
 ## Questions, Notes, & Future Directions
 
 * There are also sometimes outliers on some of the measures that flatten out age or environment trends, I have been looking into using robust regression to examine these trends instead, but did not go through all the trouble to bootstrap p-values for this time around. However, I think it's possible that robust regression might be a more defensible choice.
-
 
 * Spin tests for parcellations/cortical regions: https://github.com/frantisekvasa/rotate_parcellation
   * Can you do this for networks somehow--is this relevant? Graham has done it before, maybe?
@@ -384,7 +423,7 @@ lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean+avgweight+pctSpi
 
 lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
 
-lm_modul_age <- lm(modul_avg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
+lm_modul_avg_age <- lm(modul_avg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
 
 lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
 lm_num_comms_age <- lm(num_comms_modul_avg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
@@ -396,12 +435,12 @@ par(mfrow=c(2,3))
 visreg(lm_between_sys_age,"age_scan")
 visreg(lm_within_sys_age,"age_scan")
 visreg(lm_segreg_age,"age_scan")
-visreg(lm_modul_age,"age_scan")
+visreg(lm_modul_avg_age,"age_scan")
 visreg(lm_part_coef_age,"age_scan")
 visreg(lm_num_comms_age,"age_scan")
 ```
 
-All previous findings significant increases in network segregation with age hold in our replication parcellation! The only finding that is inconsistent is the number of communities detected using modularity maximization decreasing with age, which was likely spurious anyways.
+All previous findings significant increases in network segregation with age hold in our replication parcellation! The only finding that is inconsistent is the number of communities detected using modul_avgarity maximization decreasing with age, which was likely spurious anyways.
 
 As a reminder, we controlled for sex, mean framewise displacement, percent of FD spikes in the data, the number of volumes a participant had, and the average weight of the functional network.
 

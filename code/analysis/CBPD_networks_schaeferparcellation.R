@@ -155,11 +155,11 @@ networks_age_pvals_fdr_replicate <- data.frame(networks_Age_pvals_fdr_replicate,
 colnames(networks_age_pvals_fdr_replicate) <- c("pvalue", "network")
 
 # Separate Networks and Effects of SES ------------------------------------
-covariates="~ age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+aces3category"
+covariates="~ age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite"
 #make a dataframe with no repeats of net comparisons
 main_unique <- dplyr::select(main_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
 #run and compare for multiple comparisons again
-m <- mclapply(names(main_unique[,54:81]), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
+m <- mclapply(names(main_unique[,50:77]), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
 networks_ses_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_unique))$coefficients[8,4]},mc.cores=1)
 networks_ses_pvals <- as.data.frame(networks_ses_pvals)
 networks_ses_pvals <- t(networks_ses_pvals)
@@ -173,7 +173,7 @@ networks_ses_pvals_fdr
 #make a dataframe with no repeats of net comparisons
 main_replicate_unique <- dplyr::select(main_replicate_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
 #run and compare for multiple comparisons again
-m <- mclapply(names(main_replicate_unique[,54:81]), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
+m <- mclapply(names(main_replicate_unique[,50:77]), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
 networks_ses_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_replicate_unique))$coefficients[8,4]},mc.cores=1)
 networks_ses_pvals <- as.data.frame(networks_ses_pvals)
 networks_ses_pvals <- t(networks_ses_pvals)
@@ -356,17 +356,17 @@ summary(lm_sys7to5)
 # Environmental effects on networks -------------------------------------------------
 
 #look at segreg measures with SES
-lm_within_sys_age <- lm(mean_within_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+neighborhood_perceived_quality, data=main_unique)
+lm_within_sys_age <- lm(mean_within_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+home_total_variableonly, data=main_unique)
 summary(lm_within_sys_age)
 lm.beta(l)
-lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+neighborhood_perceived_quality, data=main_unique)
+lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+home_total_variableonly, data=main_unique)
 summary(lm_between_sys_age)
 lm.beta(l)
-lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+neighborhood_perceived_quality, data=main_unique)
+lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+home_total_variableonly, data=main_unique)
 summary(lm_segreg_age)
-lm_modul_age <- lm(modul_avg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+neighborhood_perceived_quality, data=main_unique)
+lm_modul_age <- lm(modul_avg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+home_total_variableonly, data=main_unique)
 summary(lm_modul_age)
-lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+neighborhood_perceived_quality, data=main_unique)
+lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+home_total_variableonly, data=main_unique)
 summary(lm_part_coef_age)
 
 visreg(lm_between_sys_age)
@@ -377,17 +377,17 @@ visreg(lm_part_coef_age)
 visreg(lm_num_comms_age)
 
 #look at whether there is an interaction
-lm_within_sys_age_income <- lm(mean_within_sys~age_scan*neighborhood_perceived_quality+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_within_sys_age_income <- lm(mean_within_sys~age_scan*home_total_variableonly+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 summary(lm_within_sys_age_income)
 lm.beta(l)
-lm_between_sys_age_income <- lm(mean_between_sys~age_scan*neighborhood_perceived_quality+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_between_sys_age_income <- lm(mean_between_sys~age_scan*home_total_variableonly+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 summary(lm_between_sys_age_income)
 lm.beta(l)
-lm_segreg_age<- lm(system_segreg~age_scan*neighborhood_perceived_quality+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_segreg_age<- lm(system_segreg~age_scan*home_total_variableonly+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 summary(lm_segreg_age)
-lm_modul_age <- lm(modul_avg~age_scan*neighborhood_perceived_quality+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_modul_age <- lm(modul_avg~age_scan*home_total_variableonly+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 summary(lm_modul_age)
-lm_part_coef_age <- lm(part_coef~age_scan*neighborhood_perceived_quality+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_part_coef_age <- lm(part_coef~age_scan*home_total_variableonly+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 summary(lm_part_coef_age)
 
 visreg(lm_within_sys_age, "age_scan", by="income_median")
