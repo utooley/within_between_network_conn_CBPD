@@ -23,7 +23,13 @@ listdir='/Users/utooley/Desktop/cluster/jux/mackey_group/Ursula/projects/in_prog
 z_outdir=fullfile('~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/',pipeline,strcat(parcellation,'zNetworks'))
 
 datadir=strcat('~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/',pipeline,'/',parcellation,'zNetworks')
-yeo_nodes=dlmread(fullfile('~/Desktop/cluster/picsl/mackey_group/tools',parcellation,strcat(parcellation,'x7CommunityAffiliation.1D.txt')))
+yeo_nodes.comm=dlmread(fullfile('~/Desktop/cluster/picsl/mackey_group/tools',parcellation,strcat(parcellation,'x7CommunityAffiliation.1D.txt'))) 
+yeo_nodes.index=1:400'
+
+%check that these are right, getting weird discrepancies between node
+%assignments...
+yeo_nodes=readtable('/Users/utooley/Documents/toolboxes/parcellations/Parcellations/MNI/Schaefer2018_400Parcels_7Networks_order.txt')
+yeo_nodes.Properties.VariableNames={'index','description','col1','col2','col3','alpha'}
 
 size_vec=triu(ones(400,400),1)
 for n=1:height(subjlist)
@@ -44,9 +50,28 @@ export(outfile,'File',fullfile(outdir,'zedges_for_each_subj_081219.csv'),'Delimi
 
 
 %read in pvalues from R
+indexofcols=yeo_nodes.index(contains(yeo_nodes.description,'DorsAttn'));
+indexofrows=yeo_nodes.index(contains(yeo_nodes.description,'Default'));
+for n=1:height(subjlist)
+    %% rewrite edges for each subject into a vector
+    sub=char(subjlist.id0(n)) %look at this
+    run=char(subjlist.id1(n))
+    file=fullfile(datadir,strcat(num2str(sub),'_',run,'_',parcellation,'MNI_znetwork.txt'))
+    %file=fullfile(datadir,strcat(num2str(sub),'_Schaefer400MNI_znetwork.txt'))
+    subfcmat = load(file);
+    for x=1:dim
+        subfcmat(x,x)=0;
+    end
+for x=1:length(indexofcols)
+    for y=1:length(indexofrows)
+    vector_dan_dmn_edges(n,:)=subfcmat(x,y)
+    end
+end
+end
 
-indexofcols=ismemberf(yeo_nodes,3);
-indexofrows=ismemberf(yeo_nodes,4);
+outdir=strcat('~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/',pipeline)
+outfile=dataset(subjlist.id0,subjlist.id1, vector_edges)
+export(outfile,'File',fullfile(outdir,'zedges_for_each_subj_081219.csv'),'Delimiter',',')
 
 %get indices of edges that are DMN-DAN
 %what are the significant nodes?
