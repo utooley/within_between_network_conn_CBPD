@@ -1,9 +1,11 @@
 data/imageData/*
 data/subjectLists/*
 data/subjectData/*
+data/geneData/*
 docs/*
 setup/*
 output/*
 .RData
 .RHistory
+**/.DS_Store
 .DS_Store

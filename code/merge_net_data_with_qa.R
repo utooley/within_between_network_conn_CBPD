@@ -70,7 +70,7 @@ master <- right_join(file2,master, by=c("ID", "run"))
 master <- right_join(qa2,master, by=c("ID", "run"))
 
 #filter out extraneous QA variables 
-master <- master %>% select(., -c(aor:fber)) %>% select(.,-c(spacing_tr:summary_fg_stdv))
+master <- master %>% dplyr::select(., -c(aor:fber)) %>% dplyr::select(.,-c(spacing_tr:summary_fg_stdv))
 
 # Make a second rest run a second column? ----------------------------------------------------------
 ## Include number of volumes and the number of bad vols/outliers/censored vols in each run 
@@ -82,9 +82,9 @@ master <- master %>% select(., -c(aor:fber)) %>% select(.,-c(spacing_tr:summary_
 # Write out Data ----------------------------------------------------------
 
 #write the network data file back into the output folder
-write.csv(master,paste0("~/Downloads/n75_within_between_Yeo7_",parcellation, pipeline,"_withmodulpartcoef_with_QA.csv"))
-write.csv(master,paste0(netdatadir,"/n75_within_between_Yeo7_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
-write.csv(master,paste0(localnetdatadir,"/n75_within_between_Yeo7_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
+write.csv(master,paste0("~/Downloads/n75_fixed_within_between_Yeo7_",parcellation, pipeline,"_withmodulpartcoef_with_QA.csv"))
+write.csv(master,paste0(netdatadir,"/n75_fixed_within_between_Yeo7_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
+write.csv(master,paste0(localnetdatadir,"/n75_fixed_within_between_Yeo7_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
 }
 }
 # MoveMe Function ---------------------------------------------------------

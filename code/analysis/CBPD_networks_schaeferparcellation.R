@@ -17,7 +17,7 @@ cluster_mounted_data="~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_prog
 
 ages <- read.csv(paste0(subjdata_dir,"CBPD_data_190729_age_ses_ccti.csv")) #find most recent CBPD data wherever it is
 main <- read.csv(paste0(subjdata_dir,"CBPD_parent_questionnaires_upto_177_080819.csv")) #find most recent CBPD data wherever it is
-withavgweight <- read.csv(paste0(netdata_dir,"n75_within_between_Yeo7_Schaefer400_gsr_censor_5contig_fd0.5dvars1.75_drpvls_withmodulpartcoef_with_QA.csv"))
+withavgweight <- read.csv(paste0(netdata_dir,"n75_fixed_within_between_Yeo7_Schaefer400_gsr_censor_5contig_fd0.5dvars1.75_drpvls_withmodulpartcoef_with_QA.csv"))
 
 #filter out extra variables in average weight
 withavgweight$record_id <- withavgweight$ID
@@ -53,8 +53,8 @@ main <- main %>% dplyr::select(., -c(colorado_child_temperament_index_timestamp:
 main$ses_composite <- as.numeric(scale(main$parent1_edu)+scale(main$income_median))
 
 #make categorical child aces
-main$aces3category <- ifelse(main$childaces_sum_ignorenan <= 1, 0, ifelse(main$childaces_sum_ignorenan == 2, 1, ifelse(main$childaces_sum_ignorenan>=3, 2, NA)))
-main$aces3category <- factor(main$aces3category, labels=c("None or One", "Two", "Three+"))
+main$aces3category <- ifelse(main$childaces_sum_ignorenan == 0, 0, ifelse(main$childaces_sum_ignorenan == 1, 1, ifelse(main$childaces_sum_ignorenan==2, 2, ifelse(main$childaces_sum_ignorenan>=3, 3, NA))))
+main$aces3category <- factor(main$aces3category, labels=c("None"," or One", "Two", "Three+"))
 
 #Filter out runs from participants with < 50% of frames remaining after the 0.5mm and 1.75 DVARS thresholds
 main$pctVolsCensored <- main$nVolsCensored/main$size_t
@@ -151,12 +151,13 @@ networks_Age_pvals <- t(networks_Age_pvals)
 networks_Age_pvals <- as.data.frame(networks_Age_pvals)
 #bonferroni correct
 networks_Age_pvals_fdr_replicate <- p.adjust(networks_Age_pvals$V1, method="fdr")
-networks_age_pvals_fdr_replicate <- data.frame(networks_Age_pvals_fdr_replicate,names(main_replicate_unique[,78:105]))
+networks_age_pvals_fdr_replicate <- data.frame(networks_Age_pvals_fdr_replicate,names(main_replicate_unique[,50:77]))
 #FDR correction shows DMN to attentional networks and visual to dorsal attention is marginal.
 colnames(networks_age_pvals_fdr_replicate) <- c("pvalue", "network")
+networks_age_pvals_fdr_replicate
 
 # Separate Networks and Effects of SES ------------------------------------
-covariates="~ age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite"
+covariates="~ age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite+race2+ethnicity"
 #make a dataframe with no repeats of net comparisons
 main_unique <- dplyr::select(main_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
 #run and compare for multiple comparisons again
@@ -292,6 +293,8 @@ save(main, main_filt, main_unique, networks_age_pvals_fdr,networks_ses_pvals_fdr
 #look at mean within and between with age
 lm_within_sys_age <- lm(mean_within_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 summary(lm_within_sys_age)
+lm.beta(lm_within_sys_age)
+~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t
 lm.beta(l)
 lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 summary(lm_between_sys_age)
@@ -318,16 +321,17 @@ l <- gam(modul~s(ageAtScan1cent)+sex+avgweight+envSES, data=master, method = "RE
 #This is in the RMarkdown document.
 
 # Separate Networks and Effects of Age ------------------------------------
-networks <- select(main_unique, sys1to1:sys7to7)
+networks <- dplyr::select(main_unique, sys1to1:sys7to7)
 nets <- colnames(networks)
 #look at non-linear interaction between age and envSES 
 for (net in nets){
   name<-paste0("lm_",net)
-  formula<-formula(paste0(net, '~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t'))
+  formula<-formula(paste0(net, '~age_scan+male+fd_mean+pctSpikesFD+size_t+avgweight'))
   assign(name, lm(formula, data=main_unique))
   #p_val[net] <- summary(name)$coefficients[2,4]
 }
 summary(lm_sys1to1) #increase with age
+lm.beta(lm_sys1to1)
 summary(lm_sys1to2)
 summary(lm_sys1to3) #increase with age
 lm.beta(lm_sys1to3)
@@ -336,38 +340,70 @@ summary(lm_sys1to5)
 summary(lm_sys1to6)
 summary(lm_sys1to7)
 summary(lm_sys2to2)
+lm.beta(lm_sys2to2)
 summary(lm_sys2to3)
 summary(lm_sys2to4)
 summary(lm_sys2to5)
 summary(lm_sys2to6) #effect of SES composite
 summary(lm_sys2to7)
+summary(lm_sys3to3)
+lm.beta(lm_sys3to3)
+summary(lm_sys4to4)
+lm.beta(lm_sys4to4)
+summary(lm_sys5to5)
+lm.beta(lm_sys5to5)
 summary(lm_sys6to6)
+lm.beta(lm_sys6to6)
 summary(lm_sys6to3)
 summary(lm_sys6to4)
 summary(lm_sys6to5)
 summary(lm_sys6to6)
 summary(lm_sys6to7)
 summary(lm_sys7to7)#increase with age
+lm.beta(lm_sys7to7)
 summary(lm_sys7to3) #marginal decrease with age
 lm.beta(lm_sys7to3)
 summary(lm_sys7to4)
 visreg(lm_sys7to4) #strong decrease with age
 summary(lm_sys7to5)
+main_unique$within_system <- (main_unique$sys1to1+main_unique$sys2to2+main_unique$sys3to3
++main_unique$sys4to4+main_unique$sys5to5+main_unique$sys6to6+main_unique$sys7to7)/7
+main
+
+
+l <- lm(litnum_freq_art_avg~age_scan+ses_composite, data=main_unique)
+networks <- dplyr::select(main_unique, litnum_freq_lit_avg:litnum_freq_finemotor_avg)
+nets <- colnames(networks)
+#look at non-linear interaction between age and envSES 
+for (net in nets){
+  name<-paste0("lm_",net)
+  formula<-formula(paste0(net, '~age_behav*ses_composite'))
+  assign(name, lm(formula, data=main_unique))
+  #p_val[net] <- summary(name)$coefficients[2,4]
+}
+summary(lm_litnum_freq_art_avg)
+summary(lm_litnum_freq_finemotor_avg)
+visreg(lm_litnum_freq_finemotor_avg,"age_behav", by="ses_composite")
+summary(lm_litnum_freq_pretend_avg)
+summary(lm_litnum_freq_spatial_avg)
+summary(lm_litnum_freq_lit_avg)
+visreg(lm_litnum_freq_lit_avg,"age_behav", by="ses_composite")
+summary(lm_litnum_freq_music_avg)
 
 # Environmental effects on networks -------------------------------------------------
 
 #look at segreg measures with SES
-lm_within_sys_age <- lm(mean_within_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+home_total_variableonly, data=main_unique)
+lm_within_sys_age <- lm(mean_within_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite+race2+ethnicity, data=main_replicate_unique)
 summary(lm_within_sys_age)
 lm.beta(l)
-lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+home_total_variableonly, data=main_unique)
+lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite+race2+ethnicity, data=main_replicate_unique)
 summary(lm_between_sys_age)
 lm.beta(l)
-lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+home_total_variableonly, data=main_unique)
+lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite+race2+ethnicity, data=main_replicate_unique)
 summary(lm_segreg_age)
-lm_modul_age <- lm(modul_avg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+home_total_variableonly, data=main_unique)
+lm_modul_age <- lm(modul_avg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite+race2+ethnicity, data=main_replicate_unique)
 summary(lm_modul_age)
-lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+home_total_variableonly, data=main_unique)
+lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite+race2+ethnicity, data=main_replicate_unique)
 summary(lm_part_coef_age)
 
 visreg(lm_between_sys_age)
@@ -378,17 +414,17 @@ visreg(lm_part_coef_age)
 visreg(lm_num_comms_age)
 
 #look at whether there is an interaction
-lm_within_sys_age_income <- lm(mean_within_sys~age_scan*home_total_variableonly+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_within_sys_age_income <- lm(mean_within_sys~age_scan*ses_composite+race2+ethnicity+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
 summary(lm_within_sys_age_income)
 lm.beta(l)
-lm_between_sys_age_income <- lm(mean_between_sys~age_scan*home_total_variableonly+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_between_sys_age_income <- lm(mean_between_sys~age_scan*ses_composite+race2+ethnicity+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
 summary(lm_between_sys_age_income)
 lm.beta(l)
-lm_segreg_age<- lm(system_segreg~age_scan*home_total_variableonly+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_segreg_age<- lm(system_segreg~age_scan*ses_composite+race2+ethnicity+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
 summary(lm_segreg_age)
-lm_modul_age <- lm(modul_avg~age_scan*home_total_variableonly+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_modul_age <- lm(modul_avg~age_scan*ses_composite+race2+ethnicity+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
 summary(lm_modul_age)
-lm_part_coef_age <- lm(part_coef~age_scan*home_total_variableonly+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_part_coef_age <- lm(part_coef~age_scan*ses_composite+race2+ethnicity+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
 summary(lm_part_coef_age)
 
 visreg(lm_within_sys_age, "age_scan", by="income_median")
@@ -398,8 +434,8 @@ visreg(lm_between_sys_age, "age_scan", by="income_median")
 nets=c("sys1to3", "sys3to7", "sys4to7")
 for (net in nets){
   name<-paste0("lm_",net)
-  formula<-formula(paste0(net, '~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t'))
-  assign(name, lm(formula, data=main_unique))
+  formula<-formula(paste0(net, '~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite+race2+ethnicity'))
+  assign(name, lm(formula, data=main_replicate_unique))
   #p_val[net] <- summary(name)$coefficients[2,4]
 }
 summary(lm_sys1to3)
@@ -410,8 +446,8 @@ visreg(lm_sys3to7)
 
 for (net in nets){
   name<-paste0("lm_",net)
-  formula<-formula(paste0(net, '~age_scan*aces3category+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite'))
-  assign(name, lm(formula, data=main_unique))
+  formula<-formula(paste0(net, '~age_scan*ses_composite+male+fd_mean+avgweight+pctSpikesFD+size_t+race2+ethnicity'))
+  assign(name, lm(formula, data=main_replicate_unique))
   #p_val[net] <- summary(name)$coefficients[2,4]
 }
 summary(lm_sys1to3)
@@ -431,7 +467,7 @@ edge_weights<-right_join(edge_weights, main, by =c("ID", "run"))
 #run it on all edges
 covariates=" ~ age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t"
 #put the betas/pvals back into a matrix
-m <- mclapply(names(edge_weights[,3:79800]), function(x) {as.formula(paste( x, covariates, sep=""))},mc.cores=4)
+m <- mclapply(names(edge_weights[,3:79803]), function(x) {as.formula(paste( x, covariates, sep=""))},mc.cores=4)
 edge_pvals_age <- mclapply(m, function(x) { summary(lm(formula = x,data=edge_weights))$coefficients[2,4]},mc.cores=4)
 edge_pvals_age <- as.data.frame(edge_pvals_age)
 edge_pvals_age <- t(edge_pvals_age)  
@@ -440,6 +476,15 @@ colnames(edge_pvals_age) <- "edge_pvals_age"
 edge_pvals_age$Node_index <- 1:79800
 
 #then, pull out only DMN to DAN edges to FDR correct 
+
+#write out pvals into a matrix
+my_matrix<-matrix(0,400,400)
+my_matrix[upper.tri(my_matrix, diag=FALSE)]<-edge_pvals_age$edge_pvals_age
+#write out a file to read in brainnetviewer
+write.csv(my_matrix,paste0(cluster_mounted_data,"edge_pvals_mat_age_effect_081219.csv"))
+write.csv(edge_pvals_age,paste0(cluster_mounted_data,"edge_pvals_raw_age_effect_081219.csv"))
+
+
 #FDR CORRECT the pvals
 m <- mclapply(names(edge_weights[,3:64263]), function(x) {as.formula(paste(x, covariates, sep=""))},mc.cores=2)
 edge_pvals_agexses <- mclapply(m, function(x) { summary(lm(formula = x,data=edge_weights))$coefficients[8,4]},mc.cores=2)

@@ -2,9 +2,6 @@
 datadir=fullfile('/data/picsl/mackey_group/BPD/CBPD_bids/derivatives/xcpEngine_nogsr_nospkreg/')
 listdir='/data/picsl/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists/'
 outdir='/data/picsl/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/Schaefer400zNetworks'
-
-%get the subject list,excluding those who have NAs
-subjlist=readtable(fullfile(listdir,'n75_cohort_mult_runs_usable_t1_rest_1mm_outliers_10_2mm_80119.csv'),'Delimiter',',','ReadVariableNames', 1)
 %subjlist=readtable('/Users/utooley/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists/n64_cohort_mult_runs_usable_t1_rest_1mm_outliers_10_2mm_060419.csv', 'Delimiter',',')
 %subjlist=subjlist(:,1:2);
 
@@ -22,6 +19,8 @@ listdir='/Users/utooley/Desktop/cluster/jux/mackey_group/Ursula/projects/in_prog
 z_outdir=fullfile('~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/',pipeline,strcat(parcellation,'zNetworks'))
 noz_outdir=fullfile('~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/',pipeline,strcat(parcellation,'Networks'))
 
+%get the subject list,excluding those who have NAs
+subjlist=readtable(fullfile(listdir,'n75_cohort_mult_runs_usable_t1_rest_1mm_outliers_10_2mm_80119.csv'),'Delimiter',',','ReadVariableNames', 1)
 
 %% Z-score FC matrices
 for n=1:height(subjlist)
@@ -80,6 +79,9 @@ clear part_coef_pos
 clear part_coef_neg
 datadir=strcat('~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/',pipeline,'/',parcellation,'zNetworks')
 yeo_nodes=dlmread(fullfile('~/Desktop/cluster/picsl/mackey_group/tools',parcellation,strcat(parcellation,'x7CommunityAffiliation.1D.txt')))
+% yeo_nodes=readtable(strcat('~/Desktop/cluster/picsl/mackey_group/tools/',parcellation,'/Schaefer2018_',num2str(dim),'Parcels_7Networks_order_comm.txt'))
+% yeo_nodes.Properties.VariableNames={'index','community'}
+% yeo_nodes.community=categorical(yeo_nodes.community)
 %yeo_nodes=dlmread('~/Desktop/cluster/picsl/mackey_group/tools/schaefer200/schaefer200x7CommunityAffiliation.1D')
 system_segreg=zeros(height(subjlist),1);
 mean_within_sys=zeros(height(subjlist),1);
