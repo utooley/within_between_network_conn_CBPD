@@ -4,29 +4,37 @@ library(mgcv)
 library(stringi)
 library(stringr)
 library(R.matlab)
+# Loop through each parcellation----------------------------------------------
+parcellations=c("schaefer400_","schaefer200_")
+for (parcellation in parcellations){
+  
+# Loop through each pipeline ----------------------------------------------
+pipelines=c("gsr_censor_5contig_fd0.5dvars1.75_drpvls", "gsr_censor_5contig_fd1.25dvars2_drpvls", "nogsr_spkreg_fd1.25dvars2_drpvls")
+for (pipeline in pipelines){
 
 # SETUP -------------------------------------------------------------------
 #Cluster mounted locally on personal computer
-netdatadir="~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_censor_5contig_fd0.5dvars1.75_drpvls//"
+netdatadir=paste0("~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/", pipeline)
+localnetdatadir=paste0("/Users/utooley/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/", pipeline)
 sublistdir="~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists/"
 qadir="~/Desktop/cluster/picsl/mackey_group/BPD/CBPD_bids/derivatives/mriqc_fd_2_mm/"
-xcpdir="~/Desktop/cluster/picsl/mackey_group/BPD/CBPD_bids/derivatives/xcpEngine_gsr_censor_5contig_fd0.5dvars1.75_drpvls//"
+xcpdir=paste0("~/Desktop/cluster/picsl/mackey_group/BPD/CBPD_bids/derivatives/xcpEngine_", pipeline)
 analysis_dir="~/Documents/bassett_lab/tooleyEnviNetworks/analyses/"
 
 
 # Read in files -----------------------------------------------------------
 #net data
 #file1<-read.csv(paste0(netdatadir, "n47_within_between_Yeo7_Schaefer400.csv"))
-file1 <- read.csv(paste0(netdatadir, "n76_within_between_Yeo7_Schaefer400_withmodulpartcoef.csv"))
+file1 <- read.csv(paste0(netdatadir, "/n75_within_between_Yeo7_", parcellation,"withmodulpartcoef.csv"))
 #MRIQC Data
 file2<-read.table(paste0(qadir, "group_bold.tsv"), sep = '\t', header = TRUE)
 #subject list
-subjlist <- read.csv(paste0(sublistdir, "n76_cohort_mult_runs_usable_t1_rest_1mm_outliers_10_2mm_80119.csv"), header = TRUE)
+subjlist <- read.csv(paste0(sublistdir, "n75_cohort_mult_runs_usable_t1_rest_1mm_outliers_10_2mm_80119.csv"), header = TRUE)
 #xcp quality data
-qa2 <- read.csv(paste0(xcpdir, "XCP_QAVARS_FIXED_n76.csv"))
+qa2 <- read.csv(paste0(xcpdir, "/XCP_QAVARS_FIXED_n76.csv"))
 
 # Data Cleaning -----------------------------------------------------------
-file1<-dplyr::rename(file1, ID=subjlist)
+#file1<-dplyr::rename(file1, ID=subjlist)
 subjlist<-dplyr::rename(subjlist, run=id1)
 subjlist<-dplyr::rename(subjlist, ID=id0)
 qa2<-dplyr::rename(qa2, run=id1)
@@ -62,7 +70,7 @@ master <- right_join(file2,master, by=c("ID", "run"))
 master <- right_join(qa2,master, by=c("ID", "run"))
 
 #filter out extraneous QA variables 
-master <- master %>% select(., -c(aor:fber)) %>% select(.,-c(spacing_tr:summary_fg_stdv))
+master <- master %>% dplyr::select(., -c(aor:fber)) %>% dplyr::select(.,-c(spacing_tr:summary_fg_stdv))
 
 # Make a second rest run a second column? ----------------------------------------------------------
 ## Include number of volumes and the number of bad vols/outliers/censored vols in each run 
@@ -74,9 +82,11 @@ master <- master %>% select(., -c(aor:fber)) %>% select(.,-c(spacing_tr:summary_
 # Write out Data ----------------------------------------------------------
 
 #write the network data file back into the output folder
-write.csv(master,"~/Downloads/n76_within_between_Yeo7_Schaefer400_gsr_censor_5contig_fd0.5dvars1.75_withmodulpartcoef_with_QA.csv")
-write.csv(master,paste0(netdatadir,"n76_within_between_Yeo7_Schaefer400_gsr_censor_5contig_fd0.5dvars1.75_drpvls_withmodulpartcoef_with_QA.csv"))
-
+write.csv(master,paste0("~/Downloads/n75_fixed_within_between_Yeo7_",parcellation, pipeline,"_withmodulpartcoef_with_QA.csv"))
+write.csv(master,paste0(netdatadir,"/n75_fixed_within_between_Yeo7_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
+write.csv(master,paste0(localnetdatadir,"/n75_fixed_within_between_Yeo7_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
+}
+}
 # MoveMe Function ---------------------------------------------------------
 
 
