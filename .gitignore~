@@ -1,5 +1,14 @@
-data/*
-docs/* 
+data/imageData/*
+data/subjectLists/*
+data/subjectData/*
+data/geneData/*
+docs/*
 setup/*
+output/*
 .RData
 .RHistory
+**/.DS_Store
+<<<<<<< HEAD
+=======
+.DS_Store
+>>>>>>> abc55e174476a8bed63391da411d51022a05d716

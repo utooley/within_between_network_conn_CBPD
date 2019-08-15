@@ -2,12 +2,12 @@
 MACKEY_HOME=/data/picsl/mackey_group
 project_dir=/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD
 sublist_dir=/data/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists
-tools_dir=${MACKEY_HOME}/tools/singularity
-#tools_dir=/data/joy/BBL/applications/bids_apps
+#tools_dir=${MACKEY_HOME}/tools/singularity
+tools_dir=/data/joy/BBL/applications/bids_apps
 
-FULL_COHORT=${sublist_dir}/n76_cohort_mult_runs_usable_t1_rest_1mm_outliers_10_2mm_80119.csv
+FULL_COHORT=${sublist_dir}/n75_cohort_mult_runs_usable_t1_rest_1mm_outliers_10_2mm_80119.csv
 
-#FULL_COHORT=${sublist_dir}/data/subjectLists/test_cohort_2subs.csv
+#FULL_COHORT=${sublist_dir}/n2_test.csv
 NJOBS=`wc -l < $FULL_COHORT`
 
 if [[ ${NJOBS} == 0 ]]; then
@@ -25,7 +25,7 @@ cat << EOF > xcpParallel.sh
 
 # Adjust these so they work on your system
 SNGL=/share/apps/singularity/2.5.1/bin/singularity
-SIMG=${tools_dir}/xcpEngine-060319.simg
+SIMG=${tools_dir}/xcpEngine.simg
 FULL_COHORT=${FULL_COHORT}
 
 # Create a temp cohort file with 1 line
@@ -38,8 +38,8 @@ echo \$LINE >> \$TEMP_COHORT
 
 \$SNGL run --cleanenv -B /data:/mnt \$SIMG \\
   -c /mnt\${TEMP_COHORT#/data} \\
-  -d /mnt${project_dir}/code/ppc/fc-36p-gsr-meancsfwm-censor-contig5-fd1.25-dv2-dropvols.dsn \\
-  -o /mnt/picsl/mackey_group//BPD/CBPD_bids/derivatives/xcpEngine_gsr_censor_5contig_fd1.25dvars2_drpvls \\
+  -d /mnt${project_dir}/code/ppc/fc-36p-gsr-meancsfwm-censor-contig5-fd0.5-dv1.75-dropvols.dsn \\
+  -o /mnt/picsl/mackey_group//BPD/CBPD_bids/derivatives/xcpEngine_gsr_censor_5contig_fd0.5dvars1.75_drpvls_2 \\
   -i \$TMPDIR
 
 EOF
