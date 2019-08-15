@@ -130,6 +130,9 @@ end
 
 %transpose these (or something so they can be saved out on a subject basis.
 system_connectivity;
+%put this all into a matrix for everyone so that we can see the average
+%system connectivity
+system_connectivity_all(:,:,n)=system_connectivity;
 system_conn_vector = reshape(system_connectivity',[],1)';
 
 system_conn(n,:)=system_conn_vector;
@@ -159,6 +162,17 @@ outfile2.Properties.VariableNames=header
 
 save(fullfile(outdir, strcat('n75_within_between_Yeo7_',parcellation,'_withmodulpartcoef.mat')), 'outfile2')
 writetable(outfile2,fullfile(outdir,strcat('n75_within_between_Yeo7_',parcellation,'_withmodulpartcoef.csv')))
+
+%also save the mean system connectivity matrix
+mean_system_conn_mat=mean(system_connectivity_all,3)
+% %plot it
+% imagesc(meanMatrix);
+% colormap(jet);
+% colorbar;
+%export illustrator compatible image
+% header={'sys1', 'sys2', 'sys3','sys4','sys5','sys6','sys7'}
+% mean_system_conn_mat.Properties.VariableNames=header;
+save(fullfile(outdir, strcat('n75_mean_system_conn_',parcellation,'.mat')), 'mean_system_conn_mat')
 
     end
 end
