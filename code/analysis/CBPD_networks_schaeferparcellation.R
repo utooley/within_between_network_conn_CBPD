@@ -17,7 +17,7 @@ cluster_mounted_data="~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_prog
 
 ages <- read.csv(paste0(subjdata_dir,"CBPD_data_190729_age_ses_ccti.csv")) #find most recent CBPD data wherever it is
 main <- read.csv(paste0(subjdata_dir,"CBPD_parent_questionnaires_upto_177_080819.csv")) #find most recent CBPD data wherever it is
-withavgweight <- read.csv(paste0(netdata_dir,"n75_fixed_within_between_Yeo7_Schaefer400_gsr_censor_5contig_fd0.5dvars1.75_drpvls_withmodulpartcoef_with_QA.csv"))
+withavgweight <- read.csv(paste0(netdata_dir,"n75_within_between_Yeo7_Schaefer400_gsr_censor_5contig_fd0.5dvars1.75_drpvls_withmodulpartcoef_with_QA.csv"))
 
 #filter out extra variables in average weight
 withavgweight$record_id <- withavgweight$ID
