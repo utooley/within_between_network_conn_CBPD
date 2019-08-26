@@ -67,11 +67,12 @@ summary(lm_within_sys_age)
 lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 summary(lm_between_sys_age)
 lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
-
+summary(lm_segreg_age)
 lm_modul_age <- lm(modul~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
-
+summary(lm_modul_age)
 lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 lm_num_comms_age <- lm(num_comms_modul~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+summary(lm_num_comms_age)
 
 ```
 
@@ -93,7 +94,7 @@ We also used restricted least ratio tests to test for the presence of non-linear
 ```{r gam models of segregation, echo=FALSE, include=FALSE, results='hide'}
 #look at mean within and between with age
 gam_within_sys_age <- gam(mean_within_sys~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
-model<- gamm(mean_within_sys~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)$lme
+model<- gamm(mean_within_sys~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique, method = "REML")$lme
 exactRLRT(model)
 gam_between_sys_age <- gam(mean_between_sys~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 model<- gamm(mean_between_sys~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)$lme
@@ -452,6 +453,10 @@ Neither the summed PSS, the 3 category ACES, the summmed WLBQ, or neighborhood p
 ## Questions, Notes, & Future Directions
 
 * There are also sometimes outliers on some of the measures that flatten out age or environment trends, I have been looking into using robust regression to examine these trends instead, but did not go through all the trouble to bootstrap p-values for this time around. However, I think it's possible that robust regression might be a more defensible choice.
+
+* I examined whether the results above hold with different preprocessing pipelines.
+
+* I also examined whether this is being driven by the younger or the older kids. We know already that the DMN-VAN age decrease does not hold if excluding the oldest kids. When looking only at kids over age 6 (n=49), DMN-DAN and DMN-VAN age effects still survive FDR correction, as does decreasing LIM-FPN connectivity with age. No SES main effects in these networks, and the only SES main effect that survives FDR correction is SMN-FPN (as in the larger sample). Age x SES interactions are not significant (though VIS-DAN and DMN-DMN are p=0.15), with the exception of FPN-DMN connectivity.
 
 * Spin tests for parcellations/cortical regions: https://github.com/frantisekvasa/rotate_parcellation
   * Can you do this for networks somehow--is this relevant? Graham has done it before, maybe?

@@ -42,7 +42,7 @@ main$nVolsCensored[is.na(main$nVolsCensored)]<- 0
 main$nVolCensored[is.na(main$nVolCensored)]<- 0
 
 #make race simpler
-main$race2 <- ifelse(main$race_americanindian==1, 3, ifelse(main$race_asian == 1, 3, ifelse(main$race_hawaiian==1, 3, ifelse(main$race_black==1, 2, ifelse(main$race_white==1, 1, ifelse(main$race_americanindian+main$race_asian+main$race_black+main$race_hawaiian+main$race_white > 1, 4, NA))))))
+main$race2 <- ifelse(main$race_americanindian==1, 3, ifelse(main$race_other==1,3, ifelse(main$race_asian == 1, 3, ifelse(main$race_hawaiian==1, 3, ifelse(main$race_black==1, 2, ifelse(main$race_white==1, 1, ifelse(main$race_americanindian+main$race_asian+main$race_black+main$race_hawaiian+main$race_white > 1, 4, NA)))))))
 main$race2 <- factor(main$race2, labels=c("White", "Black", "Other"))
 main$ethnicity <- factor(main$ethnicity, labels=c("Not Hispanic or Latino","Hispanic or Latino"))
 #filter out some unneeded variables
