@@ -7,14 +7,14 @@ outdir='/data/picsl/mackey_group/Ursula/projects/in_progress/within_between_netw
 
 %% For each parcellation and each pipeline
 parcellations={'schaefer200', 'schaefer400'}
-pipelines={'gsr_censor_5contig_fd0.5dvars1.75_drpvls', 'gsr_censor_5contig_fd1.25dvars2_drpvls','nogsr_spkreg_fd1.25dvars2_drpvls'}
+pipelines={'gsr_censor_5contig_fd1.25dvars2_drpvls','nogsr_spkreg_fd1.25dvars2_drpvls','gsr_censor_5contig_fd0.5dvars1.75_drpvls'}
 for p=1:length(parcellations)
     for pl=1:length(pipelines)
         parcellation=parcellations{p}
         pipeline=pipelines{pl}
    
 %running with the cluster mounted locally
-datadir=strcat('~/Desktop/cluster/picsl/mackey_group/BPD/CBPD_bids/derivatives/xcpEngine_',pipeline)
+datadir=strcat('~/Desktop/cluster/picsl/mackey_group/BPD/CBPD_bids/derivatives/xcpEngine_',pipeline, '_2')
 listdir='/Users/utooley/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists/'
 z_outdir=fullfile('~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/',pipeline,strcat(parcellation,'zNetworks'))
 noz_outdir=fullfile('~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/',pipeline,strcat(parcellation,'Networks'))
