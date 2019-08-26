@@ -18,20 +18,20 @@ netdatadir=paste0("~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progres
 localnetdatadir=paste0("/Users/utooley/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/", pipeline)
 sublistdir="~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists/"
 qadir="~/Desktop/cluster/picsl/mackey_group/BPD/CBPD_bids/derivatives/mriqc_fd_2_mm/"
-xcpdir=paste0("~/Desktop/cluster/picsl/mackey_group/BPD/CBPD_bids/derivatives/xcpEngine_", pipeline)
+xcpdir=paste0("~/Desktop/cluster/picsl/mackey_group/BPD/CBPD_bids/derivatives/xcpEngine_", pipeline, "_2")
 analysis_dir="~/Documents/bassett_lab/tooleyEnviNetworks/analyses/"
 
 
 # Read in files -----------------------------------------------------------
 #net data
 #file1<-read.csv(paste0(netdatadir, "n47_within_between_Yeo7_Schaefer400.csv"))
-file1 <- read.csv(paste0(netdatadir, "/n75_within_between_Yeo7_", parcellation,"withmodulpartcoef.csv"))
+file1 <- read.csv(paste0(netdatadir, "/n74_fixed_within_between_Yeo7_", parcellation,"withmodulpartcoef.csv"))
 #MRIQC Data
 file2<-read.table(paste0(qadir, "group_bold.tsv"), sep = '\t', header = TRUE)
 #subject list
-subjlist <- read.csv(paste0(sublistdir, "n75_cohort_mult_runs_usable_t1_rest_1mm_outliers_10_2mm_80119.csv"), header = TRUE)
+subjlist <- read.csv(paste0(sublistdir, "n74_cohort_mult_runs_usable_t1_rest_1mm_outliers_10_2mm_80119.csv"), header = TRUE)
 #xcp quality data
-qa2 <- read.csv(paste0(xcpdir, "/XCP_QAVARS_FIXED_n76.csv"))
+qa2 <- read.csv(paste0(xcpdir, "/XCP_QAVARS_FIXED_n74.csv"))
 
 # Data Cleaning -----------------------------------------------------------
 #file1<-dplyr::rename(file1, ID=subjlist)
@@ -80,11 +80,13 @@ master <- master %>% dplyr::select(., -c(aor:fber)) %>% dplyr::select(.,-c(spaci
 ## Include Jaccard and other indices, make sure no outliers?
 
 # Write out Data ----------------------------------------------------------
-
+#create directory if it doesn't already exist
+dir.create(localnetdatadir)
+dir.create(netdatadir)
 #write the network data file back into the output folder
-write.csv(master,paste0("~/Downloads/n75_fixed_within_between_Yeo7_",parcellation, pipeline,"_withmodulpartcoef_with_QA.csv"))
-write.csv(master,paste0(netdatadir,"/n75_fixed_within_between_Yeo7_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
-write.csv(master,paste0(localnetdatadir,"/n75_fixed_within_between_Yeo7_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
+write.csv(master,paste0("~/Downloads/n74_fixed_within_between_Yeo7_",parcellation, pipeline,"_withmodulpartcoef_with_QA.csv"))
+write.csv(master,paste0(netdatadir,"/n74_fixed_within_between_Yeo7_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
+write.csv(master,paste0(localnetdatadir,"/n74_fixed_within_between_Yeo7_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
 }
 }
 # MoveMe Function ---------------------------------------------------------
