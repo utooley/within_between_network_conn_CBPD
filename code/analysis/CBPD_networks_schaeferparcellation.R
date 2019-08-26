@@ -12,12 +12,12 @@ library(nFactors)
 # Load Data ---------------------------------------------------------------
 subjdata_dir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/subjectData/"
 outdir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_censor_5contig_fd0.5dvars1.75_drpvls/"
-netdata_dir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_censor_5contig_fd0.5dvars1.75_drpvls/"
-cluster_mounted_data="~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_censor_5contig_fd0.5dvars1.75_drpvls/"
+netdata_dir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_censor_5contig_fd1.25dvars2_drpvls/"
+cluster_mounted_data="~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/"
 
 ages <- read.csv(paste0(subjdata_dir,"CBPD_data_190729_age_ses_ccti.csv")) #find most recent CBPD data wherever it is
 main <- read.csv(paste0(subjdata_dir,"CBPD_parent_questionnaires_upto_177_080819.csv")) #find most recent CBPD data wherever it is
-withavgweight <- read.csv(paste0(netdata_dir,"n75_fixed_within_between_Yeo7_Schaefer400_gsr_censor_5contig_fd0.5dvars1.75_drpvls_withmodulpartcoef_with_QA.csv"))
+withavgweight <- read.csv(paste0(netdata_dir,"n75_within_between_Yeo7_schaefer400_gsr_censor_5contig_fd0.5dvars1.75_drpvls_withmodulpartcoef_with_QA.csv"))
 
 #filter out extra variables in average weight
 withavgweight$record_id <- withavgweight$ID
@@ -42,7 +42,7 @@ main$nVolsCensored[is.na(main$nVolsCensored)]<- 0
 main$nVolCensored[is.na(main$nVolCensored)]<- 0
 
 #make race simpler
-main$race2 <- ifelse(main$race_americanindian==1, 3, ifelse(main$race_asian == 1, 3, ifelse(main$race_hawaiian==1, 3, ifelse(main$race_black==1, 2, ifelse(main$race_white==1, 1, ifelse(main$race_americanindian+main$race_asian+main$race_black+main$race_hawaiian+main$race_white > 1, 4, NA))))))
+main$race2 <- ifelse(main$race_americanindian==1, 3, ifelse(main$race_asian == 1, 3, ifelse(main$race_hawaiian==1, 3, ifelse(main$race_other==1, 3,(ifelse(main$race_black==1, 2, ifelse(main$race_white==1, 1, ifelse(main$race_americanindian+main$race_asian+main$race_black+main$race_hawaiian+main$race_white > 1, 3, NA))))))))
 main$race2 <- factor(main$race2, labels=c("White", "Black", "Other"))
 main$ethnicity <- factor(main$ethnicity, labels=c("Not Hispanic or Latino","Hispanic or Latino"))
 #filter out some unneeded variables
@@ -63,7 +63,7 @@ main$pctVolsCensored <- main$nVolCensored/main$size_t
 main_filt <- main %>% filter(., pctSpikesFD < 0.5 & relMaxRMSMotion < 10 & relMeanRMSMotion < 1)
 #filter out only kids under 8
 main_under9 <- filter(main_filt, age_scan <=9)
-main_unique <- main_filt %>% group_by(ID) %>% filter(row_number() == 1)
+main_unique <- main_filt %>% arrange(., run) %>% group_by(ID) %>% filter(row_number() == 1)
 
 #then melt it into wide format and average across participants with more than one run?
 view(dfSummary(main))
@@ -291,7 +291,7 @@ save(main, main_filt, main_unique, networks_age_pvals_fdr,networks_ses_pvals_fdr
 #Need to control for the amount of good data a participant has, size_t
 
 #look at mean within and between with age
-lm_within_sys_age <- lm(mean_within_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_within_sys_age <- lm(sys4to7~age_scan*ses_composite+male+fd_mean+avgweight+pctSpikesFD+size_t+race2+ethnicity, data=main_unique)
 summary(lm_within_sys_age)
 lm.beta(lm_within_sys_age)
 ~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t

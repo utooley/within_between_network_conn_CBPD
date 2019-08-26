@@ -40,7 +40,7 @@ We start with n= `r length(unique(main$ID))`. In these analyses, I used a string
 The dataframe below shows all runs for subjects who meet this criteria. At the moment, I'm just examining the first run, not averaging in those who have a second run.
 
 ```{r Filtered Motion Summary,echo=FALSE}
-motion <- select(main_filt, age_scan, run, pctSpikesFD:relMaxRMSMotion)
+motion <- select(main_filt, age_scan, run, fd_mean,pctSpikesFD:relMaxRMSMotion)
 print(dfSummary(motion), method = 'render')
 ```
 
@@ -134,6 +134,9 @@ lm_sys4to7<- lm(sys4to7~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data
 visreg(lm_sys1to3,"age_scan",main="VIS to DAN", ylab="", xlab="Age at scan (years)")
 visreg(lm_sys3to7,"age_scan", main="DMN to DAN",ylab="", xlab="Age at scan (years)")
 visreg(lm_sys4to7,"age_scan",  main="DMN to VAN",ylab="", xlab="Age at scan (years)")
+# 
+# crPlots(lm_sys4to7)
+# visreg(lm_sys4to7,"age_scan",band=FALSE, gg=TRUE)+geom_smooth()+theme_classic()
 ```
 
 None of these showed significantly non-linear effects, either. 
@@ -282,6 +285,7 @@ summary(lm_sescomp_intersys4to7)
 summary(lm_sescomp_intersys1to1)
 summary(lm_sescomp_intersys7to7)
 summary(lm_sescomp_intersys6to7)
+
 
 summary(lm_income_intersys1to3)
 summary(lm_income_intersys3to7)
