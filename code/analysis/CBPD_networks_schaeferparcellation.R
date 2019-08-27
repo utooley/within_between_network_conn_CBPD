@@ -10,14 +10,16 @@ library(psy)
 library(nFactors)
 #library(MASS)
 # Load Data ---------------------------------------------------------------
+parcellation="schaefer400_"
+pipeline="nogsr_spkreg_fd1.25dvars2_drpvls"
 subjdata_dir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/subjectData/"
-outdir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_censor_5contig_fd0.5dvars1.75_drpvls/"
-netdata_dir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_censor_5contig_fd1.25dvars2_drpvls/"
+outdir=paste0("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/",pipeline)
+netdata_dir=paste0("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/",pipeline)
 cluster_mounted_data="~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/"
 
 ages <- read.csv(paste0(subjdata_dir,"CBPD_data_190729_age_ses_ccti.csv")) #find most recent CBPD data wherever it is
 main <- read.csv(paste0(subjdata_dir,"CBPD_parent_questionnaires_upto_177_080819.csv")) #find most recent CBPD data wherever it is
-withavgweight <- read.csv(paste0(netdata_dir,"n75_within_between_Yeo7_schaefer400_gsr_censor_5contig_fd0.5dvars1.75_drpvls_withmodulpartcoef_with_QA.csv"))
+withavgweight <- read.csv(paste0(netdata_dir,"/n74_fixed_within_between_Yeo7_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
 
 #filter out extra variables in average weight
 withavgweight$record_id <- withavgweight$ID
@@ -43,7 +45,7 @@ main$nVolCensored[is.na(main$nVolCensored)]<- 0
 
 #make race simpler
 main$race2 <- ifelse(main$race_americanindian==1, 3, ifelse(main$race_asian == 1, 3, ifelse(main$race_hawaiian==1, 3, ifelse(main$race_other==1, 3,(ifelse(main$race_black==1, 2, ifelse(main$race_white==1, 1, ifelse(main$race_americanindian+main$race_asian+main$race_black+main$race_hawaiian+main$race_white > 1, 3, NA))))))))
-#there 
+#Multiracial is other
 main$race2 <- factor(main$race2, labels=c("White", "Black", "Other"))
 main$ethnicity <- factor(main$ethnicity, labels=c("Not Hispanic or Latino","Hispanic or Latino"))
 #filter out some unneeded variables
@@ -64,19 +66,23 @@ main$pctVolsCensored <- main$nVolCensored/main$size_t
 main_filt <- main %>% filter(., pctSpikesFD < 0.5 & relMaxRMSMotion < 10 & relMeanRMSMotion < 1)
 #filter out only kids under 8
 main_under9 <- filter(main_filt, age_scan <=9)
-main_unique <- main_filt %>% arrange(., run) %>% group_by(ID) %>% filter(row_number() == 1)
+#either take run 1 or run 2
+#main_unique <- main_filt %>% arrange(.,run) %>% group_by(ID) %>% filter(row_number() == 1)
+main_unique <- main_filt  %>% group_by(ID) %>% filter(row_number() == 1)
 
 #then melt it into wide format and average across participants with more than one run?
 view(dfSummary(main))
 
 # Load Replicate in Schaefer200 Data ---------------------------------------------------------------
+parcellation="schaefer200_"
 subjdata_dir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/subjectData/"
-outdir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_censor_5contig_fd0.5dvars1.75_drpvls/"
-netdata_dir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_censor_5contig_fd0.5dvars1.75_drpvls/"
+outdir=paste0("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/",pipeline)
+netdata_dir=paste0("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/",pipeline)
+cluster_mounted_data="~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/"
 
 ages <- read.csv(paste0(subjdata_dir,"CBPD_data_190729_age_ses_ccti.csv")) #find most recent CBPD data wherever it is
 main_replicate <- read.csv(paste0(subjdata_dir,"CBPD_parent_questionnaires_upto_177_080819.csv")) #find most recent CBPD data wherever it is
-withavgweight <- read.csv(paste0(netdata_dir,"n75_within_between_Yeo7_Schaefer400_gsr_censor_5contig_fd0.5dvars1.75_drpvls_withmodulpartcoef_with_QA.csv"))
+withavgweight <- read.csv(paste0(netdata_dir,"/n74_fixed_within_between_Yeo7_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
 
 #filter out extra variables in average weight
 withavgweight$record_id <- withavgweight$ID
@@ -102,7 +108,7 @@ main_replicate$nVolsCensored[is.na(main_replicate$nVolsCensored)]<- 0
 main_replicate$nVolCensored[is.na(main_replicate$nVolCensored)]<- 0
 
 #make race simpler
-main_replicate$race2 <- ifelse(main_replicate$race_americanindian==1, 3, ifelse(main_replicate$race_asian == 1, 3, ifelse(main_replicate$race_hawaiian==1, 3, ifelse(main_replicate$race_black==1, 2, ifelse(main_replicate$race_white==1, 1, ifelse(main_replicate$race_americanindian+main_replicate$race_asian+main_replicate$race_black+main_replicate$race_hawaiian+main_replicate$race_white > 1, 4, NA))))))
+main_replicate$race2 <- ifelse(main_replicate$race_americanindian==1, 3, ifelse(main_replicate$race_asian == 1, 3, ifelse(main_replicate$race_hawaiian==1, 3, ifelse(main_replicate$race_other==1, 3,(ifelse(main_replicate$race_black==1, 2, ifelse(main_replicate$race_white==1, 1, ifelse(main_replicate$race_americanindian+main_replicate$race_asian+main_replicate$race_black+main_replicate$race_hawaiian+main_replicate$race_white > 1, 3, NA))))))))
 main_replicate$race2 <- factor(main_replicate$race2, labels=c("White", "Black", "Other"))
 main_replicate$ethnicity <- factor(main_replicate$ethnicity, labels=c("Not Hispanic or Latino","Hispanic or Latino"))
 #filter out some unneeded variables
@@ -123,6 +129,8 @@ main_replicate$pctVolsCensored <- main_replicate$nVolCensored/main_replicate$siz
 main_replicate_filt <- main_replicate %>% filter(., pctSpikesFD < 0.5 & relMaxRMSMotion < 10 & relMeanRMSMotion < 1)
 #filter out only kids under 8
 main_replicate_under9 <- filter(main_replicate_filt, age_scan <=9)
+#either take run 1 or run 2
+#main_replicate_unique <- main_replicate_filt %>% arrange(.,run) %>% group_by(ID) %>% filter(row_number() == 1)
 main_replicate_unique <- main_replicate_filt %>% group_by(ID) %>% filter(row_number() == 1)
 
 # Look at each column and correct for multiple comparisons
@@ -131,28 +139,28 @@ covariates="~ age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t"
 #make a dataframe with no repeats of net comparisons
 main_unique <- dplyr::select(main_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
 #run and compare for multiple comparisons again
-m <- mclapply(names(main_unique[,50:77]), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
+m <- mclapply(names((dplyr::select(ungroup(main_unique),sys1to1:sys7to7))), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
 networks_Age_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_unique))$coefficients[2,4]},mc.cores=1)
 networks_Age_pvals <- as.data.frame(networks_Age_pvals)
 networks_Age_pvals <- t(networks_Age_pvals)
 networks_Age_pvals <- as.data.frame(networks_Age_pvals)
 #bonferroni correct
 networks_Age_pvals_fdr <- p.adjust(networks_Age_pvals$V1, method="fdr")
-networks_age_pvals_fdr <- data.frame(networks_Age_pvals_fdr,names(main_unique[,50:77]))
+networks_age_pvals_fdr <- data.frame(networks_Age_pvals_fdr,names((dplyr::select(ungroup(main_unique),sys1to1:sys7to7))))
 colnames(networks_age_pvals_fdr) <- c("pvalue", "network")
 #FDR correction shows DMN to attentional networks and visual to dorsal attention is marginal.
-
+networks_age_pvals_fdr
 #make a dataframe with no repeats of net comparisons
 main_replicate_unique <- dplyr::select(main_replicate_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
 #run and compare for multiple comparisons again
-m <- mclapply(names(main_replicate_unique[,50:77]), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
+m <- mclapply(names((dplyr::select(ungroup(main_unique),sys1to1:sys7to7))), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
 networks_Age_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_replicate_unique))$coefficients[2,4]},mc.cores=1)
 networks_Age_pvals <- as.data.frame(networks_Age_pvals)
 networks_Age_pvals <- t(networks_Age_pvals)
 networks_Age_pvals <- as.data.frame(networks_Age_pvals)
 #bonferroni correct
 networks_Age_pvals_fdr_replicate <- p.adjust(networks_Age_pvals$V1, method="fdr")
-networks_age_pvals_fdr_replicate <- data.frame(networks_Age_pvals_fdr_replicate,names(main_replicate_unique[,50:77]))
+networks_age_pvals_fdr_replicate <- data.frame(networks_Age_pvals_fdr_replicate,names((dplyr::select(ungroup(main_unique),sys1to1:sys7to7))))
 #FDR correction shows DMN to attentional networks and visual to dorsal attention is marginal.
 colnames(networks_age_pvals_fdr_replicate) <- c("pvalue", "network")
 networks_age_pvals_fdr_replicate
@@ -162,28 +170,28 @@ covariates="~ age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite+r
 #make a dataframe with no repeats of net comparisons
 main_unique <- dplyr::select(main_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
 #run and compare for multiple comparisons again
-m <- mclapply(names(main_unique[,50:77]), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
+m <- mclapply(names((dplyr::select(ungroup(main_unique),sys1to1:sys7to7))), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
 networks_ses_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_unique))$coefficients[8,4]},mc.cores=1)
 networks_ses_pvals <- as.data.frame(networks_ses_pvals)
 networks_ses_pvals <- t(networks_ses_pvals)
 networks_ses_pvals <- as.data.frame(networks_ses_pvals)
 #bonferroni correct
 networks_ses_pvals_fdr <- p.adjust(networks_ses_pvals$V1, method="fdr")
-networks_ses_pvals_fdr <- data.frame(networks_ses_pvals_fdr,names(main_unique[,50:77]))
+networks_ses_pvals_fdr <- data.frame(networks_ses_pvals_fdr,names((dplyr::select(ungroup(main_unique),sys1to1:sys7to7))))
 colnames(networks_ses_pvals_fdr) <- c("pvalue", "network")
 networks_ses_pvals_fdr
 
 #make a dataframe with no repeats of net comparisons
 main_replicate_unique <- dplyr::select(main_replicate_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
 #run and compare for multiple comparisons again
-m <- mclapply(names(main_replicate_unique[,50:77]), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
+m <- mclapply(names((dplyr::select(ungroup(main_unique),sys1to1:sys7to7))), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
 networks_ses_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_replicate_unique))$coefficients[8,4]},mc.cores=1)
 networks_ses_pvals <- as.data.frame(networks_ses_pvals)
 networks_ses_pvals <- t(networks_ses_pvals)
 networks_ses_pvals <- as.data.frame(networks_ses_pvals)
 #bonferroni correct
 networks_ses_pvals_fdr_replicate <- p.adjust(networks_ses_pvals$V1, method="fdr")
-networks_ses_pvals_fdr_replicate <- data.frame(networks_ses_pvals_fdr_replicate,names(main_unique[,50:77]))
+networks_ses_pvals_fdr_replicate <- data.frame(networks_ses_pvals_fdr_replicate,names((dplyr::select(ungroup(main_unique),sys1to1:sys7to7))))
 colnames(networks_ses_pvals_fdr_replicate) <- c("pvalue", "network")
 networks_ses_pvals_fdr_replicate
 # Exploratory Factor Analysis of Stress -----------------------------------
@@ -286,7 +294,7 @@ main_unique<- right_join(temp,main_unique,by="ID")
 main_replicate_unique<- right_join(temp,main_replicate_unique,by="ID")
 
 # Save models for use in markdown file ------------------------------------
-save(main, main_filt, main_unique, networks_age_pvals_fdr,networks_ses_pvals_fdr, networks_age_pvals_fdr_replicate,networks_ses_pvals_fdr_replicate, main_replicate, main_replicate_filt, main_replicate_unique, file=paste0(outdir,"CBPD_n75_schaefer400.Rdata"))
+save(main, main_filt, main_unique, networks_age_pvals_fdr,networks_ses_pvals_fdr, networks_age_pvals_fdr_replicate,networks_ses_pvals_fdr_replicate, main_replicate, main_replicate_filt, main_replicate_unique, file=paste0(outdir,"/CBPD_n74_schaefer400.Rdata"))
 
 # Age and measures of segregation -----------------------------------------
 #Need to control for the amount of good data a participant has, size_t
@@ -309,7 +317,7 @@ summary(lm_part_coef_age)
 
 #Does number of communities detected with modul change with age?
 lm_num_comms_age <- lm(num_comms_modul_avg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
-summary(l) #Decreases slightly with age
+summary(lm_num_comms_age) #Decreases slightly with age
 #look at average weight with age
 l <- lm(avgweight~age_scan+male+fd_mean+pctSpikesFD+size_t, data=main_unique)
 summary(l)

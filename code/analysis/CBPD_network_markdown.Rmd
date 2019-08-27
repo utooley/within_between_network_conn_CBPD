@@ -26,7 +26,8 @@ library(visreg)
 library(mgcv)
 library(RLRsim)
 #load the .RDS file
-network_dir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_censor_5contig_fd0.5dvars1.75_drpvls/"
+pipeline="gsr_censor_5contig_fd0.5dvars1.75_drpvls"
+network_dir=paste0("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/",pipeline)
 
 load(paste0(network_dir,"CBPD_n75_schaefer400.Rdata"))
 ```
@@ -468,6 +469,10 @@ Neither the summed PSS, the 3 category ACES, the summmed WLBQ, or neighborhood p
 ### What do age and age x SES effects look like in only the oldest kids?
 
 * I also examined whether this is being driven by the younger or the older kids. We know already that the DMN-VAN age decrease does not hold if excluding the oldest kids. When looking only at kids over age 6 (n=49), DMN-DAN and DMN-VAN age effects still survive FDR correction, as does decreasing LIM-FPN connectivity with age. No SES main effects in these networks, and the only SES main effect that survives FDR correction is SMN-FPN (as in the larger sample). Age x SES interactions are not significant (though VIS-DAN and DMN-DMN are p=0.15), with the exception of FPN-DMN connectivity, which shows a significant age x SES effect such that higher-SES children show a strong association between decreasing FPN-DMN connectivity and age than lower-SES children.
+
+### Run 1 vs Run 2
+
+When using run 1 instead of run 2 for the n=26 participants with two runs in the main pipeline used here, the age effects still hold, but do not pass FDR correction (they're marginal, *p*=0.11). Age x SES interaction on visual-DAN networks still holds, but age x SES interaction on DMN-DAN networks is *p*=0.2.
 
 ## Replication parcellation: Schaefer200
 
