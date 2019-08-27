@@ -7,14 +7,14 @@ outdir='/data/picsl/mackey_group/Ursula/projects/in_progress/within_between_netw
 
 %% For each parcellation and each pipeline
 parcellations={'schaefer200', 'schaefer400'}
-pipelines={'gsr_spkreg_fd0.5dvars1.75_drpvls','gsr_censor_5contig_fd1.25dvars2_drpvls','nogsr_spkreg_fd1.25dvars2_drpvls','gsr_censor_5contig_fd0.5dvars1.75_drpvls'}
+pipelines={'gsr_censor_5contig_fd1.25dvars2_drpvls','nogsr_spkreg_fd1.25dvars2_drpvls','gsr_censor_5contig_fd0.5dvars1.75_drpvls'} %add 'gsr_spkreg_fd0.5dvars1.75_drpvls'
 for p=1:length(parcellations)
     for pl=1:length(pipelines)
         parcellation=parcellations{p}
         pipeline=pipelines{pl}
    
 %running with the cluster mounted locally
-datadir=strcat('~/Desktop/cluster/picsl/mackey_group/BPD/CBPD_bids/derivatives/xcpEngine_',pipeline, '_2')
+datadir=strcat('~/Desktop/cluster/picsl/mackey_group/BPD/CBPD_bids/derivatives/xcpEngine_',pipeline)
 listdir='/Users/utooley/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists/'
 z_outdir=fullfile('~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/',pipeline,strcat(parcellation,'zNetworks'))
 noz_outdir=fullfile('~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/',pipeline,strcat(parcellation,'Networks'))
@@ -92,7 +92,8 @@ mean_between_sys=zeros(height(subjlist),1);
 part_coef_pos=zeros(height(subjlist),1);
 part_coef_neg=zeros(height(subjlist),1);
 avgclustco_both=zeros(height(subjlist),1);
-avgclustco_all=zeros(height(subjlist),dim);=zeros(height(subjlist),dim);
+avgclustco_all=zeros(height(subjlist),dim);
+part_coef_avg_all=zeros(height(subjlist),dim);
 
 for n=1:height(subjlist)
     sub=char(subjlist.id0(n)) %look at this
@@ -156,13 +157,12 @@ num_comms_modul(n,1)=mean(num_comms_temp(:));
 [Ppos, Pneg]=participation_coef_sign(subfcmat, yeo_nodes);
 part_coef_pos(n,1)=mean(Ppos);
 part_coef_neg(n,1)=mean(Pneg);
-
-%save out all nodes participation coefficient
+%write out all nodes participation coefficient
 part_coef_avg_all(n,:)=((Ppos+Pneg)/2);
+
 %average clustering coefficient
 avgclustco_both(n,1)=mean(clustering_coef_wu_sign(subfcmat,3));
-
-%save out all nodes clustering coefficient
+%write out all nodes clustering coefficient
 avgclustco_all(n,:)=clustering_coef_wu_sign(subfcmat,3);
 
 end
@@ -183,7 +183,11 @@ mean_system_conn_mat=mean(system_connectivity_all,3)
 save(fullfile(outdir, strcat('n74_mean_system_conn_',parcellation,'.mat')), 'mean_system_conn_mat')
 
 %save the nodal participation coefficient and clustering coefficient
+outfile=dataset(char(subjlist.id0), char(subjlist.id1), part_coef_avg_all)
+export(outfile,'File',strcat(outdir,'/n74_part_coef_avg_nodewise', parcellation,'.csv'),'Delimiter',',')
 
+outfile=dataset(char(subjlist.id0), char(subjlist.id1), avgclustco_all)
+export(outfile,'File',strcat(outdir,'/n74_clust_co_avg_nodewise', parcellation,'.csv'),'Delimiter',',')
 
     end
 end
