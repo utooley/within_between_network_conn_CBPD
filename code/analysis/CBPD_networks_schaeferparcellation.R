@@ -11,7 +11,10 @@ library(nFactors)
 #library(MASS)
 # Load Data ---------------------------------------------------------------
 parcellation="schaefer400_"
-pipeline="nogsr_spkreg_fd1.25dvars2_drpvls"
+pipelines=c('nogsr_spkreg_fd0.5dvars1.75_drpvls','gsr_spkreg_fd0.5dvars1.75_drpvls', "gsr_censor_5contig_fd0.5dvars1.75_drpvls", "gsr_censor_5contig_fd1.25dvars2_drpvls", "nogsr_spkreg_fd1.25dvars2_drpvls")
+runs=c("run1", "run2")
+for (run in runs){
+for (pipeline in pipelines){
 subjdata_dir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/subjectData/"
 outdir=paste0("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/",pipeline)
 netdata_dir=paste0("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/",pipeline)
@@ -40,8 +43,8 @@ main$male <- factor(main$male, levels=c(0,1), labels=c("Female", "Male"))
 main$part_coef <- (main$part_coef_neg+main$part_coef_pos)/2
 
 #make sure NA in nVolsCensored doesn't turn into missing data
-main$nVolsCensored[is.na(main$nVolsCensored)]<- 0
-main$nVolCensored[is.na(main$nVolCensored)]<- 0
+try(main$nVolsCensored[is.na(main$nVolsCensored)]<- 0)
+try(main$nVolCensored[is.na(main$nVolCensored)]<- 0)
 
 #make race simpler
 main$race2 <- ifelse(main$race_americanindian==1, 3, ifelse(main$race_asian == 1, 3, ifelse(main$race_hawaiian==1, 3, ifelse(main$race_other==1, 3,(ifelse(main$race_black==1, 2, ifelse(main$race_white==1, 1, ifelse(main$race_americanindian+main$race_asian+main$race_black+main$race_hawaiian+main$race_white > 1, 3, NA))))))))
@@ -60,15 +63,18 @@ main$aces3category <- ifelse(main$childaces_sum_ignorenan == 0, 0, ifelse(main$c
 main$aces3category <- factor(main$aces3category, labels=c("None"," or One", "Two", "Three+"))
 
 #Filter out runs from participants with < 50% of frames remaining after the 0.5mm and 1.75 DVARS thresholds
-main$pctVolsCensored <- main$nVolsCensored/main$size_t
-main$pctVolsCensored <- main$nVolCensored/main$size_t
+try(main$pctVolsCensored <- main$nVolsCensored/main$size_t)
+try(main$pctVolsCensored <- main$nVolCensored/main$size_t)
 #Take out people with mean motion over 1, or more than 50% of frames censored (pctSpikesFD), or masys motion > 10 mm
 main_filt <- main %>% filter(., pctSpikesFD < 0.5 & relMaxRMSMotion < 10 & relMeanRMSMotion < 1)
 #filter out only kids under 8
 main_under9 <- filter(main_filt, age_scan <=9)
-#either take run 1 or run 2
-#main_unique <- main_filt %>% arrange(.,run) %>% group_by(ID) %>% filter(row_number() == 1)
-main_unique <- main_filt  %>% group_by(ID) %>% filter(row_number() == 1)
+#either take run 1 or run 2 depending on the value of the variable
+if (run=='run1'){
+  main_unique <- main_filt %>% arrange(.,run) %>% group_by(ID) %>% filter(row_number() == 1)
+} else{
+  main_unique <- main_filt  %>% group_by(ID) %>% filter(row_number() == 1)
+}
 
 #then melt it into wide format and average across participants with more than one run?
 view(dfSummary(main))
@@ -94,7 +100,6 @@ ages$ID <- paste0("sub-",ages$record_id)
 ages <- ages %>% dplyr::select(., ID,dob_entered:age_ques)
 main_replicate <- merge(main_replicate,ages, by="ID")
 
-
 #take out the participant with the glitter in her hair and artifact in rest?
 main_replicate <- main_replicate %>% filter(.,ID!="sub-CBPD0020")
 
@@ -104,8 +109,8 @@ main_replicate$male <- factor(main_replicate$male, levels=c(0,1), labels=c("Fema
 main_replicate$part_coef <- (main_replicate$part_coef_neg+main_replicate$part_coef_pos)/2
 
 #make sure NA in nVolsCensored doesn't turn into missing data
-main_replicate$nVolsCensored[is.na(main_replicate$nVolsCensored)]<- 0
-main_replicate$nVolCensored[is.na(main_replicate$nVolCensored)]<- 0
+try(main_replicate$nVolsCensored[is.na(main_replicate$nVolsCensored)]<- 0)
+try(main_replicate$nVolCensored[is.na(main_replicate$nVolCensored)]<- 0)
 
 #make race simpler
 main_replicate$race2 <- ifelse(main_replicate$race_americanindian==1, 3, ifelse(main_replicate$race_asian == 1, 3, ifelse(main_replicate$race_hawaiian==1, 3, ifelse(main_replicate$race_other==1, 3,(ifelse(main_replicate$race_black==1, 2, ifelse(main_replicate$race_white==1, 1, ifelse(main_replicate$race_americanindian+main_replicate$race_asian+main_replicate$race_black+main_replicate$race_hawaiian+main_replicate$race_white > 1, 3, NA))))))))
@@ -123,15 +128,18 @@ main_replicate$aces3category <- ifelse(main_replicate$childaces_sum_ignorenan <=
 main_replicate$aces3category <- factor(main_replicate$aces3category, labels=c("None or One", "Two", "Three+"))
 
 #Filter out runs from participants with < 50% of frames remain_replicateing after the 0.5mm and 1.75 DVARS thresholds
-main_replicate$pctVolsCensored <- main_replicate$nVolsCensored/main_replicate$size_t
-main_replicate$pctVolsCensored <- main_replicate$nVolCensored/main_replicate$size_t
+try(main_replicate$pctVolsCensored <- main_replicate$nVolsCensored/main_replicate$size_t)
+try(main_replicate$pctVolsCensored <- main_replicate$nVolCensored/main_replicate$size_t)
 #Take out people with mean motion over 1, or more than 50% of frames censored (pctSpikesFD), or masys motion > 10 mm
 main_replicate_filt <- main_replicate %>% filter(., pctSpikesFD < 0.5 & relMaxRMSMotion < 10 & relMeanRMSMotion < 1)
 #filter out only kids under 8
 main_replicate_under9 <- filter(main_replicate_filt, age_scan <=9)
 #either take run 1 or run 2
-#main_replicate_unique <- main_replicate_filt %>% arrange(.,run) %>% group_by(ID) %>% filter(row_number() == 1)
-main_replicate_unique <- main_replicate_filt %>% group_by(ID) %>% filter(row_number() == 1)
+if (run=='run1'){
+  main_replicate_unique <- main_replicate_filt %>% arrange(.,run) %>% group_by(ID) %>% filter(row_number() == 1)
+} else{
+  main_replicate_unique <- main_replicate_filt  %>% group_by(ID) %>% filter(row_number() == 1)
+}
 
 # Look at each column and correct for multiple comparisons
 covariates="~ age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t"
@@ -168,7 +176,7 @@ networks_age_pvals_fdr_replicate
 # Separate Networks and Effects of SES ------------------------------------
 covariates="~ age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite+race2+ethnicity"
 #make a dataframe with no repeats of net comparisons
-main_unique <- dplyr::select(main_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
+#main_unique <- dplyr::select(main_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
 #run and compare for multiple comparisons again
 m <- mclapply(names((dplyr::select(ungroup(main_unique),sys1to1:sys7to7))), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
 networks_ses_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_unique))$coefficients[8,4]},mc.cores=1)
@@ -182,7 +190,7 @@ colnames(networks_ses_pvals_fdr) <- c("pvalue", "network")
 networks_ses_pvals_fdr
 
 #make a dataframe with no repeats of net comparisons
-main_replicate_unique <- dplyr::select(main_replicate_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
+#main_replicate_unique <- dplyr::select(main_replicate_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
 #run and compare for multiple comparisons again
 m <- mclapply(names((dplyr::select(ungroup(main_unique),sys1to1:sys7to7))), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
 networks_ses_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_replicate_unique))$coefficients[8,4]},mc.cores=1)
@@ -259,7 +267,7 @@ cogstim_variables <- main_unique %>% dplyr::select(.,ID,home_learningmats:home_v
 #cogstim_variables <- main %>% dplyr::select(.,childaces_q1:childaces_q10b_notreversed, pss_q1:pss_q10,wlbq_q1:wlbq_q12)
 #remove variables with no variance
 #cogstim_variables <- cogstim_variables%>% dplyr::select(.,-c(childaces_q8,childaces_q9,childaces_q6b,childaces_q6a,childaces_q6d,  pss_q4_notreversed,pss_q5_notreversed,pss_q8_notreversed))
-cogstim_variables <- cogstim_variables%>% dplyr::select(.,-c(pss_q4_notreversed,pss_q5_notreversed,pss_q8_notreversed, pss_q7_notreversed))
+#cogstim_variables <- cogstim_variables%>% dplyr::select(.,-c(pss_q4_notreversed,pss_q5_notreversed,pss_q8_notreversed, pss_q7_notreversed))
 cogstim_variables <- cogstim_variables[complete.cases(cogstim_variables),]
 cogstim_variables_id <- cogstim_variables$ID
 cogstim_variables <- dplyr::select(cogstim_variables, -ID)
@@ -294,8 +302,14 @@ main_unique<- right_join(temp,main_unique,by="ID")
 main_replicate_unique<- right_join(temp,main_replicate_unique,by="ID")
 
 # Save models for use in markdown file ------------------------------------
-save(main, main_filt, main_unique, networks_age_pvals_fdr,networks_ses_pvals_fdr, networks_age_pvals_fdr_replicate,networks_ses_pvals_fdr_replicate, main_replicate, main_replicate_filt, main_replicate_unique, file=paste0(outdir,"/CBPD_n74_schaefer400.Rdata"))
-
+if(run=='run1'){
+  outfile=paste0(outdir,"/CBPD_n74_schaefer400_run1.Rdata")
+} else{
+  outfile=paste0(outdir,"/CBPD_n74_schaefer400_run2.Rdata")
+}
+save(main, main_filt, main_unique, networks_age_pvals_fdr,networks_ses_pvals_fdr, networks_age_pvals_fdr_replicate,networks_ses_pvals_fdr_replicate, main_replicate, main_replicate_filt, main_replicate_unique, file=outfile)
+}
+}
 # Age and measures of segregation -----------------------------------------
 #Need to control for the amount of good data a participant has, size_t
 

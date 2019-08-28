@@ -29,7 +29,7 @@ library(RLRsim)
 pipeline="gsr_censor_5contig_fd0.5dvars1.75_drpvls"
 network_dir=paste0("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/",pipeline)
 
-load(paste0(network_dir,"CBPD_n75_schaefer400.Rdata"))
+load(paste0(network_dir,"/CBPD_n74_schaefer400.Rdata"))
 ```
 ## Data Descriptives
 
@@ -57,7 +57,7 @@ WPPSI and WISC scores are not totally finalized, so decided not to look at cogni
 
 ## Age and measures of network segregation
 
-We find that overall, all measures of network segregation significantly increase with age in our dataset, with remarkable consistency. We examined within-network connectivity, between network connectivity, system segregation (as calculated in Chan et al. 2018), the modularity quality index, and the participation coefficient (summed across negative and positive weights). 
+We find that overall, all measures of network segregation significantly increase with age in our dataset, with remarkable consistency. We examined within-network connectivity, between network connectivity, system segregation (as calculated in Chan et al. 2018), the modul_avgarity quality index, and the participation coefficient (summed across negative and positive weights). 
 
 We controlled for sex, mean framewise displacement, percent of FD spikes in the data, the number of volumes a participant had, and the average weight of the functional network.
 
@@ -69,10 +69,10 @@ lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean+avgweight+pctSpi
 summary(lm_between_sys_age)
 lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 summary(lm_segreg_age)
-lm_modul_age <- lm(modul~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
-summary(lm_modul_age)
+lm_modul_avg_age <- lm(modul_avg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+summary(lm_modul_avg_age)
 lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
-lm_num_comms_age <- lm(num_comms_modul~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_num_comms_age <- lm(num_comms_modul_avg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 summary(lm_num_comms_age)
 
 ```
@@ -82,13 +82,13 @@ par(mfrow=c(2,3))
 visreg(lm_between_sys_age,"age_scan", main="Mean between-system connectivity", ylab="", xlab="Age at scan (years)")
 visreg(lm_within_sys_age,"age_scan", main= "Mean within-system connectivity", ylab="", xlab="Age at scan (years)")
 visreg(lm_segreg_age,"age_scan", main="Average segregation", ylab="", xlab="Age at scan (years)")
-visreg(lm_modul_age,"age_scan", main="modularity quality index Q", ylab="", xlab="Age at scan (years)")
+visreg(lm_modul_avg_age,"age_scan", main="modul_avgarity quality index Q", ylab="", xlab="Age at scan (years)")
 visreg(lm_part_coef_age,"age_scan", main="Average participation coefficient", ylab="", xlab="Age at scan (years)")
 visreg(lm_num_comms_age,"age_scan")
 ```
 
 
-The number of communities detected using modularity maximization on this data does not significantly decrease with age (each subject ran 100x, averaged Q and *k*, range in k is `r range(main_unique$num_comms_modul)`).
+The number of communities detected using modul_avgarity maximization on this data does not significantly decrease with age (each subject ran 100x, averaged Q and *k*, range in k is `r range(main_unique$num_comms_modul_avg)`).
 ###Non-linear effects of age?
 
 We also used restricted least ratio tests to test for the presence of non-linearity in our data. As you can see in the plots below, which use GAMs, most measures are linear and look no different from the linear models above.
@@ -103,8 +103,8 @@ exactRLRT(model)
 gam_segreg_age<- gam(system_segreg~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 model<- gamm(system_segreg~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)$lme
 exactRLRT(model)
-gam_modul_age <- gam(modul~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
-model<- gamm(modul~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)$lme
+gam_modul_avg_age <- gam(modul_avg~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+model<- gamm(modul_avg~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)$lme
 exactRLRT(model)
 gam_part_coef_age <- gam(part_coef~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 model<- gamm(part_coef~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)$lme
@@ -116,7 +116,7 @@ par(mfrow=c(2,3))
 visreg(gam_between_sys_age,"age_scan",main=names(model.frame(gam_between_sys_age))[1])
 visreg(gam_within_sys_age,"age_scan", main=names(model.frame(gam_within_sys_age))[1])
 visreg(gam_segreg_age,"age_scan",  main=names(model.frame(gam_segreg_age))[1])
-visreg(gam_modul_age,"age_scan", main=names(model.frame(gam_modul_age))[1])
+visreg(gam_modul_avg_age,"age_scan", main=names(model.frame(gam_modul_avg_age))[1])
 visreg(gam_part_coef_age,"age_scan", main=names(model.frame(gam_part_coef_age))[1])
 ```
 
@@ -406,7 +406,7 @@ Also, this factor does not significantly predict any main effects on any specifi
 
 ```{r cogenrich in dmn-van interactions plots, echo=FALSE, include=TRUE,results='hide', fig.show='hold', out.width='50%'}
 lm_sescomp_intersys4to7 <- lm(sys4to7~age_scan*ses_composite+male+fd_mean+avgweight+pctSpikesFD+size_t+race2+ethnicity, data=main_unique)
-lm_sescomp_intersys4to7_stress <- lm(sys4to7~age_scan*firstcogstimfactor+male+fd_mean+avgweight+pctSpikesFD+size_t+race2+ethnicity+ses_composite, data=main_unique)
+lm_sescomp_intersys4to7_stress <- lm(sys4to7~age_scan*childaces_sum_ignorenan+male+fd_mean+avgweight+pctSpikesFD+size_t+race2+ethnicity+ses_composite, data=main_unique)
 summary(lm_sescomp_intersys4to7)
 summary(lm_sescomp_intersys4to7_stress)
 visreg(lm_sescomp_intersys4to7, "age_scan", by="ses_composite", overlay=TRUE, breaks=2)
@@ -444,12 +444,10 @@ Also, this HOME sum does not significantly any whole-brain segregation measures 
 > It might be worth confirming that the individual stress measures don't show an ageXstress interaction. 
 
 ```{r individual stress in visual interactions plots, echo=FALSE, include=TRUE,results='hide', fig.show='hold', out.width='50%'}
-main_unique <- main_
 lm_sescomp_intersys1to3 <- lm(sys1to3~age_scan*aces3category+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite+race2+ethnicity, data=main_unique)
 summary(lm_sescomp_intersys1to3)
 lm_sescomp_intersys1to3_stress <- lm(sys4to7~age_scan+wlbq_sum+male+fd_mean+avgweight+pctSpikesFD+size_t+ses_composite+race2+ethnicity, data=main_unique)
 summary(lm_sescomp_intersys1to3_stress)
-visreg(lm_sescomp_intersys1to3, "age_scan", by="child_aces_sum_ignorenan")
 ```
 
 Neither the summed PSS, the 3 category ACES, the summmed WLBQ, or neighborhood perceived quality (which include those safety questions) show main effects or interactions with age predicting VIS-DAN connectivity. However, including race in the model does make some of these stress measures marginally predictive of VIS-DAN or DMN-VAN connectivity.
@@ -461,10 +459,6 @@ Neither the summed PSS, the 3 category ACES, the summmed WLBQ, or neighborhood p
 
 * Spin tests for parcellations/cortical regions: https://github.com/frantisekvasa/rotate_parcellation
   * Can you do this for networks somehow--is this relevant? Graham has done it before, maybe?
-
-### Preprocessing Pipeline Robustness
-
-* I examined whether the results above hold with different preprocessing pipelines.
 
 ### What do age and age x SES effects look like in only the oldest kids?
 
@@ -487,10 +481,10 @@ lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean+avgweight+pctSpi
 
 lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
 
-lm_modul_age <- lm(modul~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
+lm_modul_avg_age <- lm(modul_avg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
 
 lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
-lm_num_comms_age <- lm(num_comms_modul~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
+lm_num_comms_age <- lm(num_comms_modul_avg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
 
 ```
 
@@ -499,12 +493,12 @@ par(mfrow=c(2,3))
 visreg(lm_between_sys_age,"age_scan")
 visreg(lm_within_sys_age,"age_scan")
 visreg(lm_segreg_age,"age_scan")
-visreg(lm_modul_age,"age_scan")
+visreg(lm_modul_avg_age,"age_scan")
 visreg(lm_part_coef_age,"age_scan")
 visreg(lm_num_comms_age,"age_scan")
 ```
 
-All previous findings significant increases in network segregation with age hold in our replication parcellation! The only finding that is inconsistent is the number of communities detected using modularity maximization decreasing with age, which was likely spurious anyways.
+All previous findings significant increases in network segregation with age hold in our replication parcellation! The only finding that is inconsistent is the number of communities detected using modul_avgarity maximization decreasing with age, which was likely spurious anyways.
 
 As a reminder, we controlled for sex, mean framewise displacement, percent of FD spikes in the data, the number of volumes a participant had, and the average weight of the functional network.
 
@@ -674,4 +668,50 @@ __Vis to Vis__
  __DMN to FPN__  
 
  * Nothing
+
+# Preprocessing Pipelines & Robustness
+I examined whether the results above hold with different preprocessing pipelines, and to what extent the choice of pipeline affects how much data we have to work with. 
+
+## How much data do we have/lose?
+
+At the moment, my feeling is that we need something like 120-150 volumes of good data per participant to say that we could extract good resting-state networks from them. I think 120 is low but defensible.
+
+See below for histograms of the number of un-spike-regressed volumes we have in Run 1 (or the first run) only with different pipelines.
+```{r censoring data loss,  echo=FALSE, include=TRUE,fig.show='hold', out.width='100%'}
+par(mfrow=c(2,2))
+pipelines=c('gsr_spkreg_fd0.5dvars1.75_drpvls', "gsr_censor_5contig_fd0.5dvars1.75_drpvls", "gsr_censor_5contig_fd1.25dvars2_drpvls", "nogsr_spkreg_fd1.25dvars2_drpvls")
+for (pipeline in pipelines){
+network_dir=paste0("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/",pipeline)
+load(paste0(network_dir,"/CBPD_n74_schaefer400_run1.Rdata"))
+main<- main %>% arrange(.,run) %>% group_by(ID) %>% filter(row_number() == 1)
+hist(main$size_t-main$nVolCensored, main=pipeline, xlab =paste0("# of subjects with > 120 volumes=", sum(main$size_t-main$nVolCensored>120), ", # of subjects pass QA criteria with > 120 volumes=",sum(main_unique$size_t-main_unique$nVolCensored>120)))
+}
+```
+QA criteria are, as delineated above, anyone with > 50% frames censored (following Yeo papers) or mean motion > 1 mm, or max motion over 10 mm. These histograms include people who didn't pass QA criteria, so as not to obscur the distribution.
+
+## Using both runs
+What if we add the two runs for subjects who have more than one, what does that buy us? 
+```{r censoring data loss both runs,  echo=FALSE, include=TRUE,fig.show='hold', out.width='100%'}
+par(mfrow=c(2,2))
+pipelines=c('gsr_spkreg_fd0.5dvars1.75_drpvls', "gsr_censor_5contig_fd0.5dvars1.75_drpvls", "gsr_censor_5contig_fd1.25dvars2_drpvls", "nogsr_spkreg_fd1.25dvars2_drpvls")
+for (pipeline in pipelines){
+network_dir=paste0("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/",pipeline)
+load(paste0(network_dir,"/CBPD_n74_schaefer400_run1.Rdata"))
+main <- main %>% group_by(ID) %>% mutate(totalnVolCensored=sum(nVolCensored), totalSizet=sum(size_t)) %>% filter(., (totalnVolCensored/totalSizet) < 0.5 & relMaxRMSMotion < 10 & relMeanRMSMotion < 1) %>% filter(row_number() == 1) %>% ungroup() 
+hist(main$totalSizet-main$totalnVolCensored, main=pipeline, xlab =paste0("# of subjects pass QA with > 120 volumes=", sum(main$totalSizet-main$totalnVolCensored>120)))
+}
+```
+
+Not much at all, it turns out. Looks like most of the kids we're losing to high motion are those that were scanned before we started doing two runs of rest, or it just really doesn't make a difference. Also, just as an aside, I do think we've gotten better at scanning than we used to be, but that doesn't hold up quantitatively.
+
+But here's a thought--we could potentially pull back in kids who had previously been excluded for having > 10% outliers over 2 mm, if both runs together don't have > 10 % outliers over 2 mm. I checked, though, and it turns out that's just one, _possibly_ two participants I could pull in.
+
+## Robustness of results
+
+I want to see what is robust to choice of pipeline and run, and what is not! I also think that combining matrices from people who have two runs makes more sense, because with this it is hard to tell what is due to run. So, I went back and calculated metrics on matrices that were averaged across runs, weighted by the amount of good data in each run.
+
+Results reported above were using a GSR, spike regress at 0.5mm and 1.75 DVARS, and take out single non-contiguous volumes pipeline. I didn't require that subjects had at least 120 volumes, though, controlling for size_t was supposed to maybe take care of that.
+
+
+
 

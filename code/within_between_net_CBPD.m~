@@ -7,22 +7,26 @@ outdir='/data/picsl/mackey_group/Ursula/projects/in_progress/within_between_netw
 
 %% For each parcellation and each pipeline
 parcellations={'schaefer200', 'schaefer400'}
-pipelines={'gsr_censor_5contig_fd1.25dvars2_drpvls','nogsr_spkreg_fd1.25dvars2_drpvls','gsr_censor_5contig_fd0.5dvars1.75_drpvls'} %add 'gsr_spkreg_fd0.5dvars1.75_drpvls'
+pipelines={'nogsr_spkreg_fd0.5dvars1.75_drpvls','gsr_spkreg_fd0.5dvars1.75_drpvls','gsr_censor_5contig_fd1.25dvars2_drpvls','nogsr_spkreg_fd1.25dvars2_drpvls','gsr_censor_5contig_fd0.5dvars1.75_drpvls'}
 for p=1:length(parcellations)
     for pl=1:length(pipelines)
         parcellation=parcellations{p}
         pipeline=pipelines{pl}
-   
+        dim=str2double(parcellation(end-2:end))%what is the dimensionality of the parcellation
+        
 %running with the cluster mounted locally
 datadir=strcat('~/Desktop/cluster/picsl/mackey_group/BPD/CBPD_bids/derivatives/xcpEngine_',pipeline)
 listdir='/Users/utooley/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists/'
 z_outdir=fullfile('~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/',pipeline,strcat(parcellation,'zNetworks'))
 noz_outdir=fullfile('~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/',pipeline,strcat(parcellation,'Networks'))
 
+%make directories if they don't exist
+if ~exist(z_outdir, 'dir')
+       mkdir(z_outdir)
+end
+
 %get the subject list,excluding those who have NAs
 subjlist=readtable(fullfile(listdir,'n74_cohort_mult_runs_usable_t1_rest_1mm_outliers_10_2mm_80119.csv'),'Delimiter',',','ReadVariableNames', 1)
-dim=str2double(parcellation(end-2:end))%what is the dimensionality of the parcellation
-
 %% Z-score FC matrices
 for n=1:height(subjlist)
     sub=char(subjlist.id0(n)) %look at this
@@ -65,9 +69,59 @@ for n=1:height(subjlist)
      end
 end
 
+%% Average those who have more than one run
+datadir=strcat('~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/',pipeline,'/',parcellation,'zNetworks')
+z_avg_outdir=fullfile('~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/',pipeline,strcat(parcellation,'zNetworks_avg'))
+
+if ~exist(z_avg_outdir, 'dir')
+       mkdir(z_avg_outdir)
+end
+% JUST USE THE ALREADY MUTATED IN R DATA TO WEIGHT MATRICES, BUT NEED TO
+% FIGURE OUT HOW TO DO THIS IN MATLAB
+%qavars2=readtable('~/Desktop/cluster/picsl/mackey_group/BPD/CBPD_bids/derivatives/mriqc_fd_2_mm/group_bold_with_names.csv','Delimiter',',','ReadVariableNames', 1)
+%qavars=readtable(fullfile(datadir,'/XCP_QAVARS_FIXED_n74.csv'),'Delimiter',',','ReadVariableNames', 1)
+myqavars=readtable(strcat('~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/',pipeline,'/n74_fixed_within_between_Yeo7_', parcellation, '_', pipeline, '_QA.csv'),'Delimiter',',','ReadVariableNames', 1)
+dim=str2double(parcellation(end-2:end))%what is the dimensionality of the parcellation
+[unique_subs, index]=unique(subjlist.id0)
+unique_subjlist= subjlist(index,:)
+
+for n=1:height(unique_subjlist)
+    clear aggregmat
+        sub=char(unique_subjlist.id0(n)) %look at this
+        for r=1:4
+            try
+                run=strcat('run-0',num2str(r))
+                file=fullfile(datadir,strcat(num2str(sub),'_',run,'_',parcellation,'MNI_znetwork.txt'))
+                %file=fullfile(datadir,strcat(num2str(sub),'_Schaefer400MNI_znetwork.txt'))
+                subfcmat = load(file);
+                for x=1:dim
+                    subfcmat(x,x)=0;
+                end
+                rows = (string(myqavars.ID)==sub & string(myqavars.run)==run);
+                vars = {'nVolCensored', 'size_t', 'totalnVolCensored','totalSizet'};
+                weights=myqavars(rows, vars);
+                %weight by
+                %(sizet-nvolscensored)/(totalsizet-totalnvolscensored)
+                weighted=subfcmat.*((weights.size_t-weights.nVolCensored)/(weights.totalSizet-weights.totalnVolCensored));
+                aggregmat(:,:, r)=weighted;
+            catch
+                fprintf('There is no run %s for sub %s \n', num2str(r), sub);
+            end
+        end
+        aggregmat(aggregmat == 0) = NaN;    %skip any matrices that are empty.     
+meanMatrix = sum(aggregmat,3, 'omitnan'); %doc mean for more info.
+%make the diagonal 0's
+    for x=1:dim
+        meanMatrix(x,x)=0;
+    end
+outfile=fullfile(z_avg_outdir, strcat(num2str(sub),'_',parcellation,'MNI_zavgnetwork.txt'));
+csvwrite(outfile, meanMatrix);
+end
+    
 %% Within and between network connectivity
 %cluster mounted locally
-%modify pipeline here
+%mdo this on the averaged weighted networks for people who have more than
+%one.
 clear modul
 clear avgweight
 clear num_comms_modul
@@ -80,25 +134,25 @@ clear part_coef_neg
 clear avgclustco_both
 clear avgclustco_all
 clear part_coef_avg_all
-datadir=strcat('~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/',pipeline,'/',parcellation,'zNetworks')
+datadir=strcat('~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/',pipeline,'/',parcellation,'zNetworks_avg')
 yeo_nodes=dlmread(fullfile('~/Desktop/cluster/picsl/mackey_group/tools',parcellation,strcat(parcellation,'x7CommunityAffiliation.1D.txt')))
 % yeo_nodes=readtable(strcat('~/Desktop/cluster/picsl/mackey_group/tools/',parcellation,'/Schaefer2018_',num2str(dim),'Parcels_7Networks_order_comm.txt'))
 % yeo_nodes.Properties.VariableNames={'index','community'}
 % yeo_nodes.community=categorical(yeo_nodes.community)
 %yeo_nodes=dlmread('~/Desktop/cluster/picsl/mackey_group/tools/schaefer200/schaefer200x7CommunityAffiliation.1D')
-system_segreg=zeros(height(subjlist),1);
-mean_within_sys=zeros(height(subjlist),1);
-mean_between_sys=zeros(height(subjlist),1);
-part_coef_pos=zeros(height(subjlist),1);
-part_coef_neg=zeros(height(subjlist),1);
-avgclustco_both=zeros(height(subjlist),1);
-avgclustco_all=zeros(height(subjlist),dim);
-part_coef_avg_all=zeros(height(subjlist),dim);
+system_segreg=zeros(height(unique_subjlist),1);
+mean_within_sys=zeros(height(unique_subjlist),1);
+mean_between_sys=zeros(height(unique_subjlist),1);
+part_coef_pos=zeros(height(unique_subjlist),1);
+part_coef_neg=zeros(height(unique_subjlist),1);
+avgclustco_both=zeros(height(unique_subjlist),1);
+avgclustco_all=zeros(height(unique_subjlist),dim);
+part_coef_avg_all=zeros(height(unique_subjlist),dim);
 
-for n=1:height(subjlist)
-    sub=char(subjlist.id0(n)) %look at this
-    run=char(subjlist.id1(n))
-    file=fullfile(datadir,strcat(num2str(sub),'_',run,'_',parcellation,'MNI_znetwork.txt'))
+for n=1:height(unique_subjlist)
+    sub=char(unique_subjlist.id0(n)) %look at this
+    run=char(unique_subjlist.id1(n))
+    file=fullfile(datadir,strcat(num2str(sub),'_',parcellation,'MNI_zavgnetwork.txt'))
     %file=fullfile(datadir,strcat(num2str(sub),'_Schaefer400MNI_znetwork.txt'))
     subfcmat = load(file);
     for x=1:dim
@@ -167,48 +221,48 @@ avgclustco_all(n,:)=clustering_coef_wu_sign(subfcmat,3);
 
 end
 outdir=strcat('~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/',pipeline)
-header={'ID', 'run', 'avgweight', 'modul_avg', 'num_comms_modul_avg','part_coef_pos','part_coef_neg', 'system_segreg', 'mean_within_sys', 'mean_between_sys', 'sys1to1','sys1to2','sys1to3','sys1to4','sys1to5','sys1to6','sys1to7','sys2to1','sys2to2','sys2to3','sys2to4','sys2to5','sys2to6','sys2to7','sys3to1','sys3to2','sys3to3','sys3to4','sys3to5','sys3to6','sys3to7','sys4to1','sys4to2','sys4to3','sys4to4','sys4to5','sys4to6','sys4to7','sys5to1','sys5to2','sys5to3','sys5to4','sys5to5','sys5to6','sys5to7','sys6to1','sys6to2','sys6to3','sys6to4','sys6to5','sys6to6','sys6to7','sys7to1','sys7to2','sys7to3','sys7to4','sys7to5','sys7to6','sys7to7'}
+header={'ID', 'avgweight', 'modul_avg', 'avgclustco_both','num_comms_modul_avg','part_coef_pos','part_coef_neg', 'system_segreg', 'mean_within_sys', 'mean_between_sys', 'sys1to1','sys1to2','sys1to3','sys1to4','sys1to5','sys1to6','sys1to7','sys2to1','sys2to2','sys2to3','sys2to4','sys2to5','sys2to6','sys2to7','sys3to1','sys3to2','sys3to3','sys3to4','sys3to5','sys3to6','sys3to7','sys4to1','sys4to2','sys4to3','sys4to4','sys4to5','sys4to6','sys4to7','sys5to1','sys5to2','sys5to3','sys5to4','sys5to5','sys5to6','sys5to7','sys6to1','sys6to2','sys6to3','sys6to4','sys6to5','sys6to6','sys6to7','sys7to1','sys7to2','sys7to3','sys7to4','sys7to5','sys7to6','sys7to7'}
 
-outfile=table(char(subjlist.id0), char(subjlist.id1), avgweight, modul, num_comms_modul, part_coef_pos, part_coef_neg, system_segreg, mean_within_sys, mean_between_sys, system_conn)
+outfile=table(char(unique_subjlist.id0), avgweight, modul, avgclustco_both, num_comms_modul, part_coef_pos, part_coef_neg, system_segreg, mean_within_sys, mean_between_sys, system_conn)
 outfile2=splitvars(outfile, 'system_conn')
 outfile2.Properties.VariableNames=header
 
-save(fullfile(outdir, strcat('n74_fixed_within_between_Yeo7_',parcellation,'_withmodulpartcoef.mat')), 'outfile2')
-writetable(outfile2,fullfile(outdir,strcat('n74_fixed_within_between_Yeo7_',parcellation,'_withmodulpartcoef.csv')))
+save(fullfile(outdir, strcat('n74_within_between_Yeo7_avgruns_',parcellation,'_withmodulpartcoef.mat')), 'outfile2')
+writetable(outfile2,fullfile(outdir,strcat('n74_fixed_within_between_Yeo7_avgruns_',parcellation,'_withmodulpartcoef.csv')))
 
 %also save the mean system connectivity matrix
 mean_system_conn_mat=mean(system_connectivity_all,3)
 % header={'sys1', 'sys2', 'sys3','sys4','sys5','sys6','sys7'}
 % mean_system_conn_mat.Properties.VariableNames=header;
-save(fullfile(outdir, strcat('n74_mean_system_conn_',parcellation,'.mat')), 'mean_system_conn_mat')
+save(fullfile(outdir, strcat('n74_mean_system_conn_avgruns_',parcellation,'.mat')), 'mean_system_conn_mat')
 
 %save the nodal participation coefficient and clustering coefficient
-outfile=dataset(char(subjlist.id0), char(subjlist.id1), part_coef_avg_all)
-export(outfile,'File',strcat(outdir,'/n74_part_coef_avg_nodewise', parcellation,'.csv'),'Delimiter',',')
+outfile=dataset(char(unique_subjlist.id0), char(unique_subjlist.id1), part_coef_avg_all)
+export(outfile,'File',strcat(outdir,'/n74_part_coef_avg_nodewise_avgruns', parcellation,'.csv'),'Delimiter',',')
 
-outfile=dataset(char(subjlist.id0), char(subjlist.id1), avgclustco_all)
-export(outfile,'File',strcat(outdir,'/n74_clust_co_avg_nodewise', parcellation,'.csv'),'Delimiter',',')
+outfile=dataset(char(unique_subjlist.id0), char(unique_subjlist.id1), avgclustco_all)
+export(outfile,'File',strcat(outdir,'/n74_clust_co_avg_nodewise_avgruns', parcellation,'.csv'),'Delimiter',',')
 
     end
 end
 
 %% Make an average connectivity matrix for each pipeline and parcellation
-% But only include each subject once (or I could average them together)
+% Only include the weighted connectivity matrix for each subject
 [unique_subs, index]=unique(subjlist.id0)
 unique_subjlist= subjlist(index,:)
 parcellations={'schaefer200', 'schaefer400'}
-pipelines={'gsr_censor_5contig_fd1.25dvars2_drpvls','nogsr_spkreg_fd1.25dvars2_drpvls','gsr_censor_5contig_fd0.5dvars1.75_drpvls'}
+pipelines={'nogsr_spkreg_fd0.5dvars1.75_drpvls', 'gsr_spkreg_fd0.5dvars1.75_drpvls','gsr_censor_5contig_fd1.25dvars2_drpvls','nogsr_spkreg_fd1.25dvars2_drpvls','gsr_censor_5contig_fd0.5dvars1.75_drpvls'}
 for p=1:length(parcellations)
-    for pl=1:length(pipelines)
+    %for pl=1:length(pipelines)
         parcellation=parcellations{p}
-        pipeline=pipelines{pl}
+        %pipeline=pipelines{pl}
         dim=str2double(parcellation(end-2:end))%what is the dimensionality of the parcellation
         stackedMatrix = zeros(dim, dim, height(unique_subjlist));
-        datadir=strcat('~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/',pipeline,'/',parcellation,'zNetworks')
+        datadir=strcat('~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/',pipeline,'/',parcellation,'zNetworks_avg')
         for n=1:height(unique_subjlist)
         sub=char(unique_subjlist.id0(n)) %look at this
         run=char(unique_subjlist.id1(n))
-        file=fullfile(datadir,strcat(num2str(sub),'_',run,'_',parcellation,'MNI_znetwork.txt'))
+        file=fullfile(datadir,strcat(num2str(sub),'_',parcellation,'MNI_zavgnetwork.txt'))
         %file=fullfile(datadir,strcat(num2str(sub),'_Schaefer400MNI_znetwork.txt'))
         subfcmat = load(file);
         for x=1:dim
@@ -222,7 +276,7 @@ meanMatrix = mean(stackedMatrix,3); %doc mean for more info.
         meanMatrix(x,x)=0;
     end
 %export mean matrix
-csvwrite(fullfile(outdir,strcat('average_FC_mat_n74_', parcellation,'.csv')), meanMatrix)
-save(fullfile(outdir, strcat('average_FC_mat_n74_',parcellation,'.mat')), 'meanMatrix')
-    end
+csvwrite(fullfile(outdir,strcat('averaged_FC_mat_n74_', parcellation,'.csv')), meanMatrix)
+save(fullfile(outdir, strcat('averaged_FC_mat_n74_',parcellation,'.mat')), 'meanMatrix')
+    %end
 end
