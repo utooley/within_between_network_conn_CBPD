@@ -24,7 +24,7 @@ analysis_dir="~/Documents/bassett_lab/tooleyEnviNetworks/analyses/"
 # Read in files -----------------------------------------------------------
 #net data
 #file1<-read.csv(paste0(netdatadir, "n47_within_between_Yeo7_Schaefer400.csv"))
-file1 <- read.csv(paste0(netdatadir, "/n74_fixed_within_between_Yeo7_", parcellation,"withmodulpartcoef.csv"))
+file1 <- read.csv(paste0(netdatadir, "/n74_fixed_within_between_Yeo7_avgruns_", parcellation,"withmodulpartcoef.csv"))
 #MRIQC Data
 file2<-read.table(paste0(qadir, "group_bold.tsv"), sep = '\t', header = TRUE)
 #subject list
@@ -66,17 +66,23 @@ file2 <- file2 %>% filter(.,scan_type=="task-rest")
 #add 'sub' prefix to the subject list so it matches
 #subjlist$ID <- paste0("sub-",subjlist$ID)
 #merge the network data with the subject list with the run that was used to calculate it
-master<-right_join(subjlist,file1, by=c("ID", "run"))
+#master<-right_join(subjlist,file1, by=c("ID", "run"))
+master<-right_join(subjlist,file1, by=c("ID")) #now that we've averaged both runs together, just merge on ID
 #merge in the QA data, ignoring runs that were not used for network calculations
 master <- right_join(file2,master, by=c("ID", "run"))
 #merge in the xcp quality data
 master <- right_join(qa2,master, by=c("ID", "run"))
 
+
+# Summarise any run-wise statistics ---------------------------------------
 master$nVolCensored[is.na(master$nVolCensored)]<- 0
 #filter out extraneous QA variables and make summary variables of volumes and censored volumes
 master <- master %>% dplyr::select(., -c(aor:fber)) %>% dplyr::select(.,-c(spacing_tr:summary_fg_stdv)) %>% group_by(ID) %>% 
   mutate(totalnVolCensored=sum(nVolCensored), totalSizet=sum(size_t)) %>% ungroup()
 
+master <- master %>% mutate(perc_vols=size_t/totalSizet, fd_mean_weight=fd_mean*perc_vols, pctSpikesFD_weight=pctSpikesFD*perc_vols) %>% group_by(ID) %>% 
+  mutate(fd_mean_avg=sum(fd_mean_weight), pctVolsCensored=(totalnVolCensored/totalSizet), pctSpikesFD_avg=sum(pctSpikesFD_weight))
+#average motion across the two runs, weighted by the length of each run as a percentage of the total, same for percent spikes FD.
 # Make a second rest run a second column? ----------------------------------------------------------
 ## Include number of volumes and the number of bad vols/outliers/censored vols in each run 
 
@@ -88,9 +94,9 @@ master <- master %>% dplyr::select(., -c(aor:fber)) %>% dplyr::select(.,-c(spaci
 #create directory if it doesn't already exist
 dir.create(localnetdatadir)
 #write the network data file back into the output folder
-write.csv(master,paste0("~/Downloads/n74_fixed_within_between_Yeo7_",parcellation, pipeline,"_withmodulpartcoef_with_QA.csv"))
-write.csv(master,paste0(netdatadir,"/n74_fixed_within_between_Yeo7_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
-write.csv(master,paste0(localnetdatadir,"/n74_fixed_within_between_Yeo7_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
+write.csv(master,paste0("~/Downloads/n74_fixed_within_between_Yeo7_avgruns_",parcellation, pipeline,"_withmodulpartcoef_with_QA.csv"))
+write.csv(master,paste0(netdatadir,"/n74_fixed_within_between_Yeo7_avgruns_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
+write.csv(master,paste0(localnetdatadir,"/n74_fixed_within_between_Yeo7_avgruns_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
 }
 }
 

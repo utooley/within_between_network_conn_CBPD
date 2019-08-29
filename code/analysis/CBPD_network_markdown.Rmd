@@ -712,6 +712,39 @@ I want to see what is robust to choice of pipeline and run, and what is not! I a
 
 Results reported above were using a GSR, spike regress at 0.5mm and 1.75 DVARS, and take out single non-contiguous volumes pipeline. I didn't require that subjects had at least 120 volumes, though, controlling for size_t was supposed to maybe take care of that.
 
+It looks like depending on the degree to which the pipeline takes care of motion, average weight is more or less correlated with motion *test this*. Essentially, how much of the influence of motion are you removing from the data prior to calculating the correlations between regional timeseries.
+
+First of all, let's look at whether the results above hold when using both runs for subjects who have both. I averaged functional matrices across good runs per subject, weighting by the amount of good data that is preserved in each run as a proportion of total data (this is essentially the same as concatenating timeseries and then estimating the correlations between regions, I think).
+
+### Averaged Matrices
+
+Segregation increases with age
+
+Age effects
+
+Non-linearities?
+
+Age x SES effects
+
+Also, I think
+
+*Pipeline 1*
+Segregation increases with age
+
+Age effects
+
+Non-linearities?
+
+Age x SES effects
+
+*Pipeline 2*
 
 
+## Average functional connectivity matrices across pipelines
+
+We can also compare these to the PNC adolescent matrix and see how it differs.
+
+ggcorrplot
+
+ggcorr is better
 
