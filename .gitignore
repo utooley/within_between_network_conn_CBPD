@@ -2,6 +2,7 @@ data/imageData/*
 data/subjectLists/*
 data/subjectData/*
 data/geneData/*
+code/analysis/specification_curves/*
 docs/*
 setup/*
 output/*
