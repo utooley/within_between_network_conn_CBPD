@@ -83,7 +83,7 @@ end
 % FIGURE OUT HOW TO DO THIS IN MATLAB
 %qavars2=readtable('~/Desktop/cluster/picsl/mackey_group/BPD/CBPD_bids/derivatives/mriqc_fd_2_mm/group_bold_with_names.csv','Delimiter',',','ReadVariableNames', 1)
 %qavars=readtable(fullfile(datadir,'/XCP_QAVARS_FIXED_n74.csv'),'Delimiter',',','ReadVariableNames', 1)
-myqavars=readtable(strcat('~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/',pipeline,'/n74_fixed_within_between_Yeo7_avgruns_', parcellation, '_', pipeline, '_withmodulpartcoef_QA.csv'),'Delimiter',',','ReadVariableNames', 1)
+myqavars=readtable(strcat('~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/',pipeline,'/n74_fixed_within_between_Yeo7_avgur', parcellation, '_', pipeline, '_QA.csv'),'Delimiter',',','ReadVariableNames', 1)
 dim=str2double(parcellation(end-2:end))%what is the dimensionality of the parcellation
 [unique_subs, index]=unique(subjlist.id0)
 unique_subjlist= subjlist(index,:)
