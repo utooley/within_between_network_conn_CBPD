@@ -7,10 +7,10 @@ tools_dir=${MACKEY_HOME}/tools/singularity
 #tools_dir=/data/joy/BBL/applications/bids_apps
 
 #run this command to start the xco container interaactively
-singularity shell --cleanenv -B /data:/mnt ${tools_dir}/xcpEngine-060319.simg
+singularity shell --cleanenv -B /data:/mnt ${tools_dir}/xcpEngine-100219.simg
 
 #then run this command
-outputdir=/mnt/picsl/mackey_group/BPD/CBPD_bids/derivatives/xcpEngine_gsr_censor_5contig_fd1.25dvars2_drpvls/
+outputdir=/mnt/picsl/mackey_group/BPD/CBPD_bids/derivatives/xcpEngine_nogsr_spkreg_fd1.25dvars2_drpvls
 
 ${XCPEDIR}/utils/combineOutput \
    -p $outputdir  \
@@ -21,6 +21,10 @@ ${XCPEDIR}/utils/combineOutput \
     -p $outputdir  \
     -f "*audit.csv" \
     -o XCP_AUDIT.csv \
+
+${XCPEDIR}/utils/qcfc.R \
+    –c ${outputdir}/qcfc/n74_qcfc_input.csv \
+    -o ${outputdir}/qcfc/ \
 
    # unset PYTHONPATH;
    # singularity run --cleanenv -B /data:/mnt  \

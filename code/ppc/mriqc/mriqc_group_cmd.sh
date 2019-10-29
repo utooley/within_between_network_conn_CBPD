@@ -2,11 +2,11 @@ MACKEY_HOME=/data/picsl/mackey_group/
 #BIDS_folder=/data/picsl/mackey_group/BPD/niftis
 BIDS_folder=/data/picsl/mackey_group/BPD/CBPD_bids
 tools_dir=${MACKEY_HOME}/tools/singularity
-output_dir=${BIDS_folder}/derivatives/mriqc_fd_.5_mm
+output_dir=${BIDS_folder}/derivatives/mriqc_fd_2_mm
 
 unset PYTHONPATH;
 singularity run --cleanenv -B ${BIDS_folder}:/mnt ${tools_dir}/mriqc-0.14.2.simg \
-/mnt/ /mnt/derivatives/mriqc_fd_.5_mm \
+/mnt/ /mnt/derivatives/mriqc_fd_2_mm \
 group \
 -w ${TMP} \
 

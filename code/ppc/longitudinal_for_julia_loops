@@ -1,0 +1,100 @@
+declare -a array=(sub-CBPD00182
+sub-CBPD00232
+sub-CBPD00402
+sub-CBPD00442
+sub-CBPD00482
+sub-CBPD00542
+sub-CBPD00562
+sub-CBPD00642
+sub-CBPD00742
+sub-CBPD00752
+sub-CBPD00772
+sub-CBPD00782
+sub-CBPD00852
+sub-CBPD00912
+sub-CBPD01242
+sub-CBPD01372)
+
+declare -a array=(CBPD0018_2
+CBPD0020_2
+CBPD0023_2
+CBPD0037_2
+CBPD0038_2
+CBPD0039_2
+CBPD0040_2
+CBPD0044_2
+CBPD0048_2
+CBPD0054_2
+CBPD0056_2
+CBPD0064_2
+CBPD0074_2
+CBPD0075_2
+CBPD0077_2
+CBPD0078_2
+CBPD0085_2
+CBPD0089_2
+CBPD0091_2
+CBPD0097_2
+CBPD0124_2
+CBPD0137_2)
+
+#converting those not converted to nifti
+nifti_dir=/data/picsl/mackey_group/BPD/niftis
+scripts_dir=/data/picsl/mackey_group/BPD/scripts/processing/dicomconvert/
+for sub in "${array[@]}"
+do
+  newsub=`echo ${sub} | tr -d _`
+  echo $newsub
+  if [[ -f ${nifti_dir}/sub-${newsub}/anat/sub-${newsub}_run-01_T1w.json ]]; then
+  echo it exists
+else
+  qsub -j y ${scripts_dir}/run_heudiconv.sh ${sub}
+  echo no
+#cp $i ../CBPD_bids -R
+fi
+done
+
+#copying them over
+for sub in "${array[@]}"
+do
+  newsub=`echo ${sub} | tr -d _`
+  echo $newsub
+  if [[ -d /data/picsl/mackey_group/BPD/CBPD_bids/sub-${newsub} ]]; then
+  echo it exists
+else
+  echo no
+  cp sub-${newsub} ../CBPD_bids -R
+fi
+done
+
+#running them through fmriprep and mriqc
+SCRIPTS_DIR=/data/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/code/ppc
+for sub in "${array[@]}"
+do
+  newsub=`echo ${sub} | tr -d _`
+  newsub=${newsub}
+  echo $newsub
+  if [[ -d /data/picsl/mackey_group/BPD/CBPD_bids/derivatives/fmriprep/sub-${newsub} ]]; then
+  echo it exists
+  else
+    echo no fmriprep
+    qsub -j y ${SCRIPTS_DIR}/fmriprep/fmriprep_cmd.sh sub-${newsub}
+    sleep 1
+    echo mriqc
+    qsub -j y ${SCRIPTS_DIR}/mriqc/mriqc_cmd.sh ${newsub}
+fi
+done
+
+#running them through xcpEngine
+# for sub in `ls`
+# do
+# if [[ $sub == *_2 ]]; then
+#  #echo 'its longitudinal'
+#  echo $sub
+#  # sub_new="${sub//_}"
+#  # cp -R ${sub} ../CBPD_bids/derivatives/freesurfer/sub-${sub_new}
+#  else
+#    sleep 0.001
+#    #echo 'its not longitudinal'
+# fi
+# done

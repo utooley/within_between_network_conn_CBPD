@@ -1,0 +1,8 @@
+#renaming files in xcp directory when they've been named without the sub- prefix
+
+find . -depth -name 'CBPD*' -execdir bash -c 'mv -i "$1" "${1//CBPD/sub-CBPD}"' bash {} \;
+
+for sub in `find . -name "CBPD*"`
+do
+echo mv $sub ${sub:4}
+done

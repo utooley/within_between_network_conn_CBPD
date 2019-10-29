@@ -1,3 +1,10 @@
+#!/bin/sh
+
+#$ -j y
+#$ -l h_vmem=20.1G,s_vmem=20G
+#$ -q all.q,basic.q,himem.q,gpu.q
+#$ -o /data/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/output/qsub_output
+
 MACKEY_HOME=/data/picsl/mackey_group/
 #BIDS_folder=/data/picsl/mackey_group/BPD/niftis
 BIDS_folder=/data/picsl/mackey_group/BPD/CBPD_bids

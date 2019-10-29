@@ -4,16 +4,18 @@ SUBLIST_DIR=/data/jux/mackey_group/Ursula/projects/in_progress/within_between_ne
 # THIS WORKS to pull all those that have completed fmriprep, or
 #all those in a given list
 #for sub in `ls *.html`:
-for sub in `cat ${SUBLIST_DIR}/n12_add_subjs_usable_t1_rest_1mm_outliers_10_2mm_072719.txt` #check that this list works!
+for sub in `cat ${SUBLIST_DIR}/n21_all_longitudinal_101119.txt` #check that this list works!
 do
     #sub=${sub%*.html}
+    echo $sub
+    sub=`echo ${sub} | tr -d _`
     echo $sub
     #find . -type f | grep "${sub}_*"
     #find . -iregex '.*preproc_bold.nii.gz$\|.*cgi$' -exec grep -il '${sub}_task' '{}' ';'
     find . -type f | grep "${sub}_task-rest_run-[0-9][0-9]_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz\$"| while read fname; do
     #find . -type f | grep "${sub}_task-rest_run-.._space-T1w_desc-preproc_bold.nii.gz\$"| while read fname; do
     tmp=$(echo "$fname" | awk -F '_' '{print $3}' ) #this parses on underscores and pulls 'run-01'
-    echo $sub,$tmp,${fname} >> ${SUBLIST_DIR}/n12_add_subjs_usable_t1_rest_1mm_outliers_10_2mm_072719.csv
+    echo $sub,$tmp,${fname} >> ${SUBLIST_DIR}/n21_all_longitudinal_usable_t1_101119.csv
 done;
 done;
 
