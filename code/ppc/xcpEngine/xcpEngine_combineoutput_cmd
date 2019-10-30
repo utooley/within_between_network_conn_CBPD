@@ -10,7 +10,7 @@ tools_dir=${MACKEY_HOME}/tools/singularity
 singularity shell --cleanenv -B /data:/mnt ${tools_dir}/xcpEngine-100219.simg
 
 #then run this command
-outputdir=/mnt/picsl/mackey_group/BPD/CBPD_bids/derivatives/xcpEngine_nogsr_spkreg_fd1.25dvars2_drpvls
+outputdir=/mnt/picsl/mackey_group/BPD/CBPD_bids/derivatives/xcpEngine_gsr_censor_5contig_fd1.25dvars2_drpvls
 
 ${XCPEDIR}/utils/combineOutput \
    -p $outputdir  \

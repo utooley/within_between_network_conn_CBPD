@@ -11,7 +11,8 @@ library(nFactors)
 #library(MASS)
 # Load Data ---------------------------------------------------------------
 parcellation="schaefer400_"
-pipelines=c('nogsr_spkreg_fd0.5dvars1.75_drpvls','gsr_spkreg_fd0.5dvars1.75_drpvls', "gsr_censor_5contig_fd0.5dvars1.75_drpvls", "gsr_censor_5contig_fd1.25dvars2_drpvls", "nogsr_spkreg_fd1.25dvars2_drpvls")
+#pipelines=c('nogsr_spkreg_fd0.5dvars1.75_drpvls','gsr_spkreg_fd0.5dvars1.75_drpvls', "gsr_censor_5contig_fd0.5dvars1.75_drpvls", "gsr_censor_5contig_fd1.25dvars2_drpvls", "nogsr_spkreg_fd1.25dvars2_drpvls")
+pipelines=c("gsr_censor_5contig_fd0.5dvars1.75_drpvls", "gsr_censor_5contig_fd1.25dvars2_drpvls", "nogsr_spkreg_fd1.25dvars2_drpvls")
 #runs=c("run1", "run2")
 run="both"
 #for (run in runs){
@@ -24,7 +25,7 @@ cluster_mounted_data="~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_prog
 
 ages <- read.csv(paste0(subjdata_dir,"CBPD_data_190729_age_ses_ccti.csv")) #find most recent CBPD data wherever it is
 main <- read.csv(paste0(subjdata_dir,"CBPD_parent_questionnaires_upto_177_080819.csv")) #find most recent CBPD data wherever it is
-withavgweight <- read.csv(paste0(netdata_dir,"/n74_fixed_within_between_Yeo7_avgruns_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
+withavgweight <- read.csv(paste0(netdata_dir,"/n74_within_between_Yeo7_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
 
 #filter out extra variables in average weight
 withavgweight$record_id <- withavgweight$ID
@@ -62,6 +63,7 @@ main$aces3category <- factor(main$aces3category, labels=c("None"," or One", "Two
 
 #Take out people with mean motion over 1, or more than 50% of frames censored (pctSpikesFD), or masys motion > 10 mm
 main_filt <- main %>% filter(., pctVolsCensored< 0.5 & relMaxRMSMotion < 10 & fd_mean_avg < 1)
+#main_filt <- main %>% filter(., pctSpikesFD< 0.5 & relMaxRMSMotion < 10 & relMeanRMSMotion< 1)
 #filter out only kids under 8
 main_under9 <- filter(main_filt, age_scan <=9)
 #either take run 1 or run 2 depending on the value of the variable
@@ -72,7 +74,7 @@ if (run=='run1'){
 }
 
 #then melt it into wide format and average across participants with more than one run?
-view(dfSummary(main))
+#view(dfSummary(main_unique))
 
 # Load Replicate in Schaefer200 Data ---------------------------------------------------------------
 parcellation="schaefer200_"
@@ -83,7 +85,7 @@ cluster_mounted_data="~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_prog
 
 ages <- read.csv(paste0(subjdata_dir,"CBPD_data_190729_age_ses_ccti.csv")) #find most recent CBPD data wherever it is
 main_replicate <- read.csv(paste0(subjdata_dir,"CBPD_parent_questionnaires_upto_177_080819.csv")) #find most recent CBPD data wherever it is
-withavgweight <- read.csv(paste0(netdata_dir,"/n74_fixed_within_between_Yeo7_avgruns_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
+withavgweight <- read.csv(paste0(netdata_dir,"/n74_within_between_Yeo7_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
 
 #filter out extra variables in average weight
 withavgweight$record_id <- withavgweight$ID
@@ -120,6 +122,7 @@ main_replicate$aces3category <- factor(main_replicate$aces3category, labels=c("N
 
 #Take out people with mean motion over 1, or more than 50% of frames censored (pctSpikesFD), or masys motion > 10 mm
 main_replicate_filt <- main_replicate %>% filter(., pctVolsCensored < 0.5 & relMaxRMSMotion < 10 & fd_mean_avg < 1)
+#main_replicate_filt <- main_replicate %>% filter(., pctSpikesFD< 0.5 & relMaxRMSMotion < 10 & relMeanRMSMotion< 1)
 #filter out only kids under 8
 main_replicate_under9 <- filter(main_replicate_filt, age_scan <=9)
 #either take run 1 or run 2
@@ -197,10 +200,15 @@ if(run=='run1'){
   outfile=paste0(outdir,"/CBPD_n74_schaefer400_run1.Rdata")
 } else if (run=='run2'){
   outfile=paste0(outdir,"/CBPD_n74_schaefer400_run2.Rdata")
-}
-else {outfile=paste0(outdir,"/CBPD_n74_schaefer400.Rdata")
+} else if (run=='average'){
+  outfile=paste0(outdir,"/CBPD_n74_schaefer400_avgruns.Rdata")
+  outfile2=paste0(cluster_outdir,"/CBPD_n74_schaefer400_avgruns.Rdata")
+}else {outfile=paste0(outdir,"/CBPD_n74_schaefer400.Rdata")
 outfile2=paste0(cluster_outdir,"/CBPD_n74_schaefer400.Rdata")
 }
+save(main, main_filt, main_unique,file=outfile)
+save(main, main_filt, main_unique,file=outfile2)
+
 save(main, main_filt, main_unique, networks_age_pvals_fdr,networks_ses_pvals_fdr, networks_age_pvals_fdr_replicate,networks_ses_pvals_fdr_replicate, main_replicate, main_replicate_filt, main_replicate_unique, file=outfile)
 save(main, main_filt, main_unique, networks_age_pvals_fdr,networks_ses_pvals_fdr, networks_age_pvals_fdr_replicate,networks_ses_pvals_fdr_replicate, main_replicate, main_replicate_filt, main_replicate_unique, file=outfile2)
 }
@@ -308,26 +316,26 @@ main_replicate_unique<- right_join(temp,main_replicate_unique,by="ID")
 #Need to control for the amount of good data a participant has, size_t
 
 #look at mean within and between with age
-lm_within_sys_age <- lm(sys4to7~age_scan*ses_composite+male+fd_mean+avgweight+pctSpikesFD+size_t+race2+ethnicity, data=main_unique)
+lm_within_sys_age <- lm(sys4to7~age_scan*ses_composite+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet+race2+ethnicity, data=main_unique)
 summary(lm_within_sys_age)
 lm.beta(lm_within_sys_age)
-~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t
+~age_scan+male+fd_mean+avgweight+pctVolsCensored+totalSizet
 lm.beta(l)
-lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean+avgweight+pctVolsCensored+totalSizet, data=main_unique)
 summary(lm_between_sys_age)
 lm.beta(l)
-lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean+avgweight+pctVolsCensored+totalSizet, data=main_unique)
 summary(lm_segreg_age)
-lm_modul_age <- lm(modul~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_modul_age <- lm(modul~age_scan+male+fd_mean+avgweight+pctVolsCensored+totalSizet, data=main_unique)
 summary(lm_modul_age)
-lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean+avgweight+pctVolsCensored+totalSizet, data=main_unique)
 summary(lm_part_coef_age)
 
 #Does number of communities detected with modul change with age?
-lm_num_comms_age <- lm(num_comms_modul_avg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+lm_num_comms_age <- lm(num_comms_modul_avg~age_scan+male+fd_mean+avgweight+pctVolsCensored+totalSizet, data=main_unique)
 summary(lm_num_comms_age) #Decreases slightly with age
 #look at average weight with age
-l <- lm(avgweight~age_scan+male+fd_mean+pctSpikesFD+size_t, data=main_unique)
+l <- lm(avgweight~age_scan+male+fd_mean+pctVolsCensored+totalSizet, data=main_unique)
 summary(l)
 lm.beta(l)
 

@@ -5,11 +5,13 @@ library(stringi)
 library(stringr)
 library(R.matlab)
 # Loop through each parcellation----------------------------------------------
+run="both"
 parcellations=c("schaefer400_","schaefer200_")
 for (parcellation in parcellations){
   
 # Loop through each pipeline ----------------------------------------------
-pipelines=c('nogsr_spkreg_fd0.5dvars1.75_drpvls','gsr_spkreg_fd0.5dvars1.75_drpvls', "gsr_censor_5contig_fd0.5dvars1.75_drpvls", "gsr_censor_5contig_fd1.25dvars2_drpvls", "nogsr_spkreg_fd1.25dvars2_drpvls")
+#pipelines=c('nogsr_spkreg_fd0.5dvars1.75_drpvls','gsr_spkreg_fd0.5dvars1.75_drpvls', "gsr_censor_5contig_fd0.5dvars1.75_drpvls", "gsr_censor_5contig_fd1.25dvars2_drpvls", "nogsr_spkreg_fd1.25dvars2_drpvls")
+pipelines=c("gsr_censor_5contig_fd0.5dvars1.75_drpvls", "gsr_censor_5contig_fd1.25dvars2_drpvls", "nogsr_spkreg_fd1.25dvars2_drpvls")
 for (pipeline in pipelines){
 
 # SETUP -------------------------------------------------------------------
@@ -24,14 +26,18 @@ analysis_dir="~/Documents/bassett_lab/tooleyEnviNetworks/analyses/"
 # Read in files -----------------------------------------------------------
 #net data
 #file1<-read.csv(paste0(netdatadir, "n47_within_between_Yeo7_Schaefer400.csv"))
-file1 <- read.csv(paste0(netdatadir, "/n74_fixed_within_between_Yeo7_avgruns_", parcellation,"withmodulpartcoef.csv"))
+if (run=="averaged"){
+file1 <- read.csv(paste0(netdatadir,"/n74_within_between_Yeo7_avgruns_",parcellation,"withmodulpartcoef.csv"))
+} else {
+file1 <- read.csv(paste0(netdatadir,"/n74_within_between_Yeo7_",parcellation,"withmodulpartcoef.csv"))
+}
 #MRIQC Data
 file2<-read.table(paste0(qadir, "group_bold.tsv"), sep = '\t', header = TRUE)
 #subject list
 subjlist <- read.csv(paste0(sublistdir, "n74_cohort_mult_runs_usable_t1_rest_1mm_outliers_10_2mm_80119.csv"), header = TRUE)
 #xcp quality data, if it's the older fixed one or in a newer folder.
-if (file.exists(paste0(xcpdir, "/XCP_QAVARS_FIXED_n74.csv"))) {
-  qa2 <- read.csv(paste0(xcpdir, "/XCP_QAVARS_FIXED_n74.csv")) 
+if (file.exists(paste0(xcpdir, "/XCP_QAVARS.csv"))) {
+  qa2 <- read.csv(paste0(xcpdir, "/XCP_QAVARS.csv")) 
 } else {
   qa2 <- read.csv(paste0(xcpdir, "/XCP_QAVARS.csv")) 
 }
@@ -48,6 +54,7 @@ file2<-dplyr::rename(file2, fd_num_2mm=fd_num)
 #make ID a character vector
 subjlist$ID <- as.character(subjlist$ID)
 file1$ID <- as.character(file1$ID)
+file1$ID <- trimws(file1$ID) #take off any extra whitespace that might impede
 
 #split QA file ID name on underscores and extract run number
 file2$ID <-  stri_split_fixed(file2$bids_name,"_", simplify = TRUE)[,1]
@@ -67,7 +74,11 @@ file2 <- file2 %>% filter(.,scan_type=="task-rest")
 #subjlist$ID <- paste0("sub-",subjlist$ID)
 #merge the network data with the subject list with the run that was used to calculate it
 #master<-right_join(subjlist,file1, by=c("ID", "run"))
-master<-right_join(subjlist,file1, by=c("ID")) #now that we've averaged both runs together, just merge on ID
+if (run=="averaged"){
+  master<-right_join(subjlist,file1, by=c("ID")) #now that we've averaged both runs together, just merge on ID
+} else if (run == "both"){
+master<-right_join(subjlist,file1, by=c("ID", "run")) 
+}
 #merge in the QA data, ignoring runs that were not used for network calculations
 master <- right_join(file2,master, by=c("ID", "run"))
 #merge in the xcp quality data
@@ -94,18 +105,28 @@ master <- master %>% mutate(perc_vols=size_t/totalSizet, fd_mean_weight=fd_mean*
 #create directory if it doesn't already exist
 dir.create(localnetdatadir)
 #write the network data file back into the output folder
-write.csv(master,paste0("~/Downloads/n74_fixed_within_between_Yeo7_avgruns_",parcellation, pipeline,"_withmodulpartcoef_with_QA.csv"))
-write.csv(master,paste0(netdatadir,"/n74_fixed_within_between_Yeo7_avgruns_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
-write.csv(master,paste0(localnetdatadir,"/n74_fixed_within_between_Yeo7_avgruns_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
+if (run=="averaged"){
+  write.csv(master,paste0("~/Downloads/n74_within_between_Yeo7_avgruns_",parcellation, pipeline,"_withmodulpartcoef_with_QA.csv"))
+  write.csv(master,paste0(netdatadir,"/n74_within_between_Yeo7_avgruns_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
+  write.csv(master,paste0(localnetdatadir,"/n74_within_between_Yeo7_avgruns_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
+} else {
+  write.csv(master,paste0("~/Downloads/n74_within_between_Yeo7_",parcellation, pipeline,"_withmodulpartcoef_with_QA.csv"))
+  write.csv(master,paste0(netdatadir,"/n74_within_between_Yeo7_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
+  write.csv(master,paste0(localnetdatadir,"/n74_within_between_Yeo7_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
 }
 }
+}
+
 
 # Just QA data for MATLAB -------------------------------------------------
 parcellations=c("schaefer400_","schaefer200_")
 for (parcellation in parcellations){
-  pipelines=c('nogsr_spkreg_fd0.5dvars1.75_drpvls','gsr_spkreg_fd0.5dvars1.75_drpvls', "gsr_censor_5contig_fd0.5dvars1.75_drpvls", "gsr_censor_5contig_fd1.25dvars2_drpvls", "nogsr_spkreg_fd1.25dvars2_drpvls")
+  #pipeline="nogsr_spkreg_fd1.25dvars2_drpvls"
+  #pipelines=c('nogsr_spkreg_fd0.5dvars1.75_drpvls','gsr_spkreg_fd0.5dvars1.75_drpvls', "gsr_censor_5contig_fd0.5dvars1.75_drpvls", "gsr_censor_5contig_fd1.25dvars2_drpvls", "nogsr_spkreg_fd1.25dvars2_drpvls")
+  pipelines=c("gsr_censor_5contig_fd0.5dvars1.75_drpvls", "gsr_censor_5contig_fd1.25dvars2_drpvls", "nogsr_spkreg_fd1.25dvars2_drpvls")
   for (pipeline in pipelines){
     netdatadir=paste0("~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/", pipeline)
+    localnetdatadir=paste0("/Users/utooley/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/", pipeline)
     sublistdir="~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists/"
     qadir="~/Desktop/cluster/picsl/mackey_group/BPD/CBPD_bids/derivatives/mriqc_fd_2_mm/"
     xcpdir=paste0("~/Desktop/cluster/picsl/mackey_group/BPD/CBPD_bids/derivatives/xcpEngine_", pipeline)
@@ -114,8 +135,8 @@ for (parcellation in parcellations){
     #subject list
     subjlist <- read.csv(paste0(sublistdir, "n74_cohort_mult_runs_usable_t1_rest_1mm_outliers_10_2mm_80119.csv"), header = TRUE)
     #xcp quality data, if it's the older fixed one or in a newer folder.
-    if (file.exists(paste0(xcpdir, "/XCP_QAVARS_FIXED_n74.csv"))) {
-      qa2 <- read.csv(paste0(xcpdir, "/XCP_QAVARS_FIXED_n74.csv")) 
+    if (file.exists(paste0(xcpdir, "/XCP_QAVARS_FIXED_n103_longitudinal_for_julia.csv"))) {
+      qa2 <- read.csv(paste0(xcpdir, "/XCP_QAVARS_FIXED_n103_longitudinal_for_julia.csv")) 
     } else {
       qa2 <- read.csv(paste0(xcpdir, "/XCP_QAVARS.csv")) 
     }
@@ -138,7 +159,7 @@ for (parcellation in parcellations){
     #add 'sub' prefix to the subject list so it matches
     #subjlist$ID <- paste0("sub-",subjlist$ID)
     #merge the network data with the subject list with the run that was used to calculate it
-    master<-right_join(subjlist,file2, by=c("ID", "run"))
+    master<-right_join(file2,subjlist, by=c("ID", "run"))
     #merge in the xcp quality data
     master <- right_join(qa2,master, by=c("ID", "run"))
     master$nVolCensored[is.na(master$nVolCensored)]<- 0
@@ -149,8 +170,8 @@ for (parcellation in parcellations){
     #create directory if it doesn't already exist
     dir.create(localnetdatadir)
     dir.create(netdatadir)
-    write.csv(master,paste0(netdatadir,"/n74_fixed_within_between_Yeo7_",parcellation,pipeline,"_QA.csv"))
-    write.csv(master,paste0(localnetdatadir,"/n74_fixed_within_between_Yeo7_",parcellation,pipeline,"_QA.csv"))
+    write.csv(master,paste0(netdatadir,"/n74_within_between_Yeo7_",parcellation,pipeline,"_QA.csv"))
+    write.csv(master,paste0(localnetdatadir,"/n74_within_between_Yeo7_",parcellation,pipeline,"_QA.csv"))
   }
 }
 

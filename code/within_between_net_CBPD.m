@@ -10,11 +10,13 @@ subjlist=readtable(fullfile(listdir,'n74_cohort_mult_runs_usable_t1_rest_1mm_out
 
 %% For each parcellation and each pipeline
 parcellations={'schaefer200', 'schaefer400'}
-pipelines={'nogsr_spkreg_fd0.5dvars1.75_drpvls','gsr_spkreg_fd0.5dvars1.75_drpvls','gsr_censor_5contig_fd1.25dvars2_drpvls','nogsr_spkreg_fd1.25dvars2_drpvls','gsr_censor_5contig_fd0.5dvars1.75_drpvls'}
+%pipelines={'nogsr_spkreg_fd0.5dvars1.75_drpvls','gsr_spkreg_fd0.5dvars1.75_drpvls','gsr_censor_5contig_fd1.25dvars2_drpvls','nogsr_spkreg_fd1.25dvars2_drpvls','gsr_censor_5contig_fd0.5dvars1.75_drpvls'}
+%pipelines={'gsr_censor_5contig_fd1.25dvars2_drpvls','nogsr_spkreg_fd1.25dvars2_drpvls','gsr_censor_5contig_fd0.5dvars1.75_drpvls'}
 for p=1:length(parcellations)
-    for pl=1:length(pipelines)
+    %for pl=1:length(pipelines)
         parcellation=parcellations{p}
-        pipeline=pipelines{pl}
+        %pipeline=pipelines{pl}
+        pipeline='nogsr_spkreg_fd1.25dvars2_drpvls'
         dim=str2double(parcellation(end-2:end))%what is the dimensionality of the parcellation
         
 %running with the cluster mounted locally
@@ -83,7 +85,7 @@ end
 % FIGURE OUT HOW TO DO THIS IN MATLAB
 %qavars2=readtable('~/Desktop/cluster/picsl/mackey_group/BPD/CBPD_bids/derivatives/mriqc_fd_2_mm/group_bold_with_names.csv','Delimiter',',','ReadVariableNames', 1)
 %qavars=readtable(fullfile(datadir,'/XCP_QAVARS_FIXED_n74.csv'),'Delimiter',',','ReadVariableNames', 1)
-myqavars=readtable(strcat('~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/',pipeline,'/n74_fixed_within_between_Yeo7_avgruns_', parcellation, '_', pipeline, '_withmodulpartcoef_QA.csv'),'Delimiter',',','ReadVariableNames', 1)
+myqavars=readtable(strcat('~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/',pipeline,'/n103_within_between_Yeo7_', parcellation, '_', pipeline, '_QA.csv'),'Delimiter',',','ReadVariableNames', 1)
 dim=str2double(parcellation(end-2:end))%what is the dimensionality of the parcellation
 [unique_subs, index]=unique(subjlist.id0)
 unique_subjlist= subjlist(index,:)
@@ -123,7 +125,7 @@ end
     
 %% Within and between network connectivity
 %cluster mounted locally
-%mdo this on the averaged weighted networks for people who have more than
+%do this on the averaged weighted networks for people who have more than
 %one.
 clear modul
 clear avgweight
@@ -164,7 +166,7 @@ for n=1:height(unique_subjlist)
 
 %average whole system segregation, from Micaela Chan 2018
 avgweight(n,1)=mean(subfcmat(subfcmat~=0));
-end
+
 [S, W, B] = segregation(subfcmat,yeo_nodes);
 system_segreg(n,1)=S;
 mean_within_sys(n,1)=W;
@@ -231,21 +233,21 @@ outfile=table(char(unique_subjlist.id0), avgweight, modul, avgclustco_both, num_
 outfile2=splitvars(outfile, 'system_conn')
 outfile2.Properties.VariableNames=header
 
-save(fullfile(outdir, strcat('n74_within_between_Yeo7_avgruns_',parcellation,'_withmodulpartcoef.mat')), 'outfile2')
-writetable(outfile2,fullfile(outdir,strcat('n74_fixed_within_between_Yeo7_avgruns_',parcellation,'_withmodulpartcoef.csv')))
+save(fullfile(outdir, strcat('n103_long_julia_within_between_Yeo7_avgruns_',parcellation,'_withmodulpartcoef.mat')), 'outfile2')
+writetable(outfile2,fullfile(outdir,strcat('n103_long_julia_within_between_Yeo7_avgruns_',parcellation,'_withmodulpartcoef.csv')))
 
 %also save the mean system connectivity matrix
 mean_system_conn_mat=mean(system_connectivity_all,3)
 % header={'sys1', 'sys2', 'sys3','sys4','sys5','sys6','sys7'}
 % mean_system_conn_mat.Properties.VariableNames=header;
-save(fullfile(outdir, strcat('n74_mean_system_conn_avgruns_',parcellation,'.mat')), 'mean_system_conn_mat')
+save(fullfile(outdir, strcat('n103_long_julia_mean_system_conn_avgruns_',parcellation,'.mat')), 'mean_system_conn_mat')
 
 %save the nodal participation coefficient and clustering coefficient
 outfile=dataset(char(unique_subjlist.id0), char(unique_subjlist.id1), part_coef_avg_all)
-export(outfile,'File',strcat(outdir,'/n74_part_coef_avg_nodewise_avgruns', parcellation,'.csv'),'Delimiter',',')
+export(outfile,'File',strcat(outdir,'/n103_long_julia_part_coef_avg_nodewise_avgruns', parcellation,'.csv'),'Delimiter',',')
 
 outfile=dataset(char(unique_subjlist.id0), char(unique_subjlist.id1), avgclustco_all)
-export(outfile,'File',strcat(outdir,'/n74_clust_co_avg_nodewise_avgruns', parcellation,'.csv'),'Delimiter',',')
+export(outfile,'File',strcat(outdir,'/n103_long_julia_clust_co_avg_nodewise_avgruns', parcellation,'.csv'),'Delimiter',',')
 
     end
 end
@@ -255,6 +257,7 @@ end
 [unique_subs, index]=unique(subjlist.id0)
 unique_subjlist= subjlist(index,:)
 parcellations={'schaefer200', 'schaefer400'}
+%pipeline='nogsr_spkreg_fd1.25dvars2_drpvls'
 pipelines={'nogsr_spkreg_fd0.5dvars1.75_drpvls', 'gsr_spkreg_fd0.5dvars1.75_drpvls','gsr_censor_5contig_fd1.25dvars2_drpvls','nogsr_spkreg_fd1.25dvars2_drpvls','gsr_censor_5contig_fd0.5dvars1.75_drpvls'}
 for p=1:length(parcellations)
     for pl=1:length(pipelines)
@@ -281,6 +284,6 @@ meanMatrix = mean(stackedMatrix,3); %doc mean for more info.
     end
 %export mean matrix
 csvwrite(fullfile(outdir,strcat('averaged_FC_mat_n74_', parcellation,'.csv')), meanMatrix)
-save(fullfile(outdir, strcat('averaged_FC_mat_n74_',parcellation,'.mat')), 'meanMatrix')
+save(fullfile(outdir, strcat('averaged_FC_mat_n74',parcellation,'.mat')), 'meanMatrix')
     end
 end
