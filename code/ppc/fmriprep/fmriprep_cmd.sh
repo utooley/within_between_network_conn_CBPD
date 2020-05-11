@@ -21,6 +21,7 @@ participant \
 --use-aroma \
 --output-space T1w template fsaverage5 \
 --cifti-output \
+--ignore fieldmaps sbref \
 --nthreads 1 \
 
 
