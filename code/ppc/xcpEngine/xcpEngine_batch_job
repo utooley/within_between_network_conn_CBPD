@@ -2,10 +2,10 @@
 MACKEY_HOME=/data/picsl/mackey_group
 project_dir=/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD
 sublist_dir=/data/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists
-#tools_dir=${MACKEY_HOME}/tools/singularity
-tools_dir=/data/joy/BBL/applications/bids_apps #eventually check on that this hasn't changed.
+tools_dir=${MACKEY_HOME}/tools/singularity
+#tools_dir=/data/joy/BBL/applications/bids_apps #eventually check on that this hasn't changed.
 
-FULL_COHORT=${sublist_dir}/n19_all_longitudinal_usable_t1_rest_1mm_outliers_10_2mm_nosleep_101119.csv
+FULL_COHORT=${sublist_dir}/nxxx_ursula_pipeline_all_finished_fmriprep_first_run_for_xcpEngine.csv
 
 #FULL_COHORT=${sublist_dir}/n2_test.csv
 NJOBS=`wc -l < $FULL_COHORT`
@@ -18,14 +18,14 @@ fi
 
 cat << EOF > xcpParallel.sh
 #$ -j y
-#$ -q all.q,basic.q,himem.q,gpu.q
-#$ -l h_vmem=19.1G,s_vmem=19.0G
+#$ -q all.q,gpu.q,himem.q
+#$ -l h_vmem=90.1G,s_vmem=90.0G
 #$ -o /data${project_dir}/output/qsub_output
 #$ -t 1-${NJOBS}
 
 # Adjust these so they work on your system
 SNGL=/share/apps/singularity/2.5.1/bin/singularity
-SIMG=${tools_dir}/xcpEngine.simg
+SIMG=${tools_dir}/xcpEngine-100219.simg
 FULL_COHORT=${FULL_COHORT}
 
 # Create a temp cohort file with 1 line
@@ -36,11 +36,13 @@ TEMP_COHORT=\${FULL_COHORT}.\${SGE_TASK_ID}.csv
 echo \$HEADER > \$TEMP_COHORT
 echo \$LINE >> \$TEMP_COHORT
 
-\$SNGL run --cleanenv -B /data:/mnt \$SIMG \\
+echo 'temporary directory is ' \$TMPDIR
+\$SNGL run --cleanenv -B /data:/mnt,\$TMPDIR:/tmp \$SIMG \\
   -c /mnt\${TEMP_COHORT#/data} \\
-  -d /mnt${project_dir}/code/ppc/fc-36p-nogsr-meancsfwm-spkreg-dropvols.dsn \\
-  -o /mnt/picsl/mackey_group//BPD/CBPD_bids/derivatives/xcpEngine_nogsr_spkreg_fd1.25dvars2_drpvls \\
-  -i \$TMPDIR
+  -d /mnt${project_dir}/code/ppc/fc-36p-gsr-meancsfwm-spkreg-fd0.5-dv1.75-dropvols.dsn \\
+  -o /mnt/picsl/mackey_group//BPD/CBPD_bids/derivatives/xcpEngine_gsr_spkreg_fd0.5dvars1.75_drpvls \\
+  -i /mnt/picsl/mackey_group//BPD/CBPD_bids/derivatives/fmriprep_wd \\
+  -t 2
 
 EOF
 

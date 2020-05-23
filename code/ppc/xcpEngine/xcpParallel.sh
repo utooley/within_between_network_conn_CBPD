@@ -1,13 +1,13 @@
 #$ -j y
-#$ -q all.q,basic.q,himem.q,gpu.q
-#$ -l h_vmem=19.1G,s_vmem=19.0G
+#$ -q all.q,gpu.q,himem.q
+#$ -l h_vmem=90.1G,s_vmem=90.0G
 #$ -o /data/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/output/qsub_output
-#$ -t 1-43
+#$ -t 1-27
 
 # Adjust these so they work on your system
 SNGL=/share/apps/singularity/2.5.1/bin/singularity
-SIMG=/data/joy/BBL/applications/bids_apps/xcpEngine.simg
-FULL_COHORT=/data/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists/n19_all_longitudinal_usable_t1_rest_1mm_outliers_10_2mm_nosleep_101119.csv
+SIMG=/data/picsl/mackey_group/tools/singularity/xcpEngine-100219.simg
+FULL_COHORT=/data/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists/nxxx_ursula_pipeline_all_finished_fmriprep_first_run_for_xcpEngine.csv
 
 # Create a temp cohort file with 1 line
 HEADER=$(head -n 1 $FULL_COHORT)
@@ -17,9 +17,11 @@ TEMP_COHORT=${FULL_COHORT}.${SGE_TASK_ID}.csv
 echo $HEADER > $TEMP_COHORT
 echo $LINE >> $TEMP_COHORT
 
-$SNGL run --cleanenv -B /data:/mnt $SIMG \
+echo 'temporary directory is ' $TMPDIR
+$SNGL run --cleanenv -B /data:/mnt,$TMPDIR:/tmp $SIMG \
   -c /mnt${TEMP_COHORT#/data} \
-  -d /mnt/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/code/ppc/fc-36p-nogsr-meancsfwm-spkreg-dropvols.dsn \
-  -o /mnt/picsl/mackey_group//BPD/CBPD_bids/derivatives/xcpEngine_nogsr_spkreg_fd1.25dvars2_drpvls \
-  -i $TMPDIR
+  -d /mnt/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/code/ppc/fc-36p-gsr-meancsfwm-spkreg-fd0.5-dv1.75-dropvols.dsn \
+  -o /mnt/picsl/mackey_group//BPD/CBPD_bids/derivatives/xcpEngine_gsr_spkreg_fd0.5dvars1.75_drpvls \
+  -i /mnt/picsl/mackey_group//BPD/CBPD_bids/derivatives/fmriprep_wd \
+  -t 2
 

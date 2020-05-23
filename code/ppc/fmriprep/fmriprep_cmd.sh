@@ -15,10 +15,9 @@ echo 'job is running'
 singularity run --cleanenv -B ${BIDS_folder}:/mnt ${tools_dir}/fmriprep-1.2.6-1.simg \
 /mnt/ /mnt/derivatives \
 participant \
--w /tmp/utooley${subject} \
+-w  /mnt/derivatives/fmriprep_wd/ \
 --participant-label ${subject} \
 --fs-license-file $HOME/license.txt \
---use-aroma \
 --output-space T1w template fsaverage5 \
 --cifti-output \
 --ignore fieldmaps sbref \
