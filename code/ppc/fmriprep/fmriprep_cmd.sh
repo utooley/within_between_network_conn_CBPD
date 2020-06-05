@@ -18,12 +18,13 @@ participant \
 -w  /mnt/derivatives/fmriprep_wd/ \
 --participant-label ${subject} \
 --fs-license-file $HOME/license.txt \
---output-space T1w template fsaverage5 \
---cifti-output \
+--output-space T1w template \
 --ignore fieldmaps sbref \
 --nthreads 1 \
 
 
 #--skip-bids-validation \
 #--templace-resampling-grid native \
+#--cifti-output \
+#--use-aroma
 #must bind to a folder that already exists in the container, and must point to data dir not subject dir

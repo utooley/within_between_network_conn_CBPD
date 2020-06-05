@@ -10,17 +10,17 @@ tools_dir=${MACKEY_HOME}/tools/singularity
 singularity shell --cleanenv -B /data:/mnt ${tools_dir}/xcpEngine-100219.simg
 
 #then run this command
-outputdir=/mnt/picsl/mackey_group/BPD/CBPD_bids/derivatives/xcpEngine_gsr_censor_5contig_fd1.25dvars2_drpvls
-
+pipeline=xcpEngine_gsr_spkreg_fd0.5dvars1.75_drpvls
+outputdir=/mnt/picsl/mackey_group/BPD/CBPD_bids/derivatives/${pipeline}
 ${XCPEDIR}/utils/combineOutput \
    -p $outputdir  \
    -f "*quality.csv" \
-   -o XCP_QAVARS.csv \
+   -o XCP_QAVARS_${pipeline}.csv \
 
 ${XCPEDIR}/utils/combineOutput \
     -p $outputdir  \
     -f "*audit.csv" \
-    -o XCP_AUDIT.csv \
+    -o XCP_AUDIT_${pipeline}.csv \
 
 ${XCPEDIR}/utils/qcfc.R \
     –c ${outputdir}/qcfc/n74_qcfc_input.csv \

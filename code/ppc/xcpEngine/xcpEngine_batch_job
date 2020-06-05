@@ -5,7 +5,7 @@ sublist_dir=/data/jux/mackey_group/Ursula/projects/in_progress/within_between_ne
 tools_dir=${MACKEY_HOME}/tools/singularity
 #tools_dir=/data/joy/BBL/applications/bids_apps #eventually check on that this hasn't changed.
 
-FULL_COHORT=${sublist_dir}/nxxx_ursula_pipeline_all_finished_fmriprep_first_run_for_xcpEngine.csv
+FULL_COHORT=${sublist_dir}/nxxx_ursula_pipeline_cleanup_for_xcpEngine.csv
 
 #FULL_COHORT=${sublist_dir}/n2_test.csv
 NJOBS=`wc -l < $FULL_COHORT`
@@ -19,7 +19,7 @@ fi
 cat << EOF > xcpParallel.sh
 #$ -j y
 #$ -q all.q,gpu.q,himem.q
-#$ -l h_vmem=90.1G,s_vmem=90.0G
+#$ -l h_vmem=95.1G,s_vmem=95.0G
 #$ -o /data${project_dir}/output/qsub_output
 #$ -t 1-${NJOBS}
 
@@ -39,9 +39,9 @@ echo \$LINE >> \$TEMP_COHORT
 echo 'temporary directory is ' \$TMPDIR
 \$SNGL run --cleanenv -B /data:/mnt,\$TMPDIR:/tmp \$SIMG \\
   -c /mnt\${TEMP_COHORT#/data} \\
-  -d /mnt${project_dir}/code/ppc/fc-36p-gsr-meancsfwm-spkreg-fd0.5-dv1.75-dropvols.dsn \\
-  -o /mnt/picsl/mackey_group//BPD/CBPD_bids/derivatives/xcpEngine_gsr_spkreg_fd0.5dvars1.75_drpvls \\
-  -i /mnt/picsl/mackey_group//BPD/CBPD_bids/derivatives/fmriprep_wd \\
+  -d /mnt${project_dir}/code/ppc/fc-36p-nogsr-meancsfwm-spkreg-fd0.5-dv1.75-dropvols.dsn \\
+  -o /mnt/picsl/mackey_group//BPD/CBPD_bids/derivatives/xcpEngine_nogsr_spkreg_fd0.5dvars1.75_drpvls \\
+  -i /mnt/picsl/mackey_group//BPD/CBPD_bids/derivatives/xcpengine_wd_2 \\
   -t 2
 
 EOF

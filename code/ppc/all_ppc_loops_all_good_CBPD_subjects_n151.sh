@@ -134,32 +134,67 @@ for sub in `cat ${subject_list}`
 do
   echo ${sub}
   newsub=`echo ${sub} | tr -d _`
-# if [ -e ${julia_BIDS_dir}/derivatives/mriqc_fd_2_mm/sub-${newsub}_run-01_T1w.html ]; then
-#   echo '' ${sub}
-#   echo ''
-# else
-#   echo '' ${sub}
-#   #qsub -j y ${SCRIPTS_DIR}/mriqc/mriqc_cmd.sh ${newsub}
-# fi
+if [ -e ${julia_BIDS_dir}/derivatives/mriqc_fd_2_mm/sub-${newsub}_run-01_T1w.html ]; then
+  echo 'MRIQC already run for' ${sub}
+  echo ''
+else
+  echo 'Submitting MRIQC job for' ${sub}
+  #qsub -j y ${SCRIPTS_DIR}/mriqc/mriqc_cmd.sh ${newsub}
+fi
 if [[ -e /data/picsl/mackey_group/BPD/CBPD_bids/derivatives/fmriprep/sub-${newsub}/func/sub-${newsub}_task-rest_run-01_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz ]]; then
   echo 'fmriprep exists for' ${sub}
   #check if xcpEngine is already run for this pipeline and this person.
-  #for run in xxx, check each run separately
-  if [[ -e /data/picsl/mackey_group/BPD/CBPD_bids/derivatives/xcpEngine_gsr_spkreg_fd0.5dvars1.75_drpvls/sub-${newsub}/run-02/regress/sub-${newsub}_run-02_residualised.nii.gz ]]; then
-    echo '' ${sub}
+  last_run=$(find ${julia_BIDS_dir}/sub-${newsub}/func/ -name "*task-rest_run-*" -type f| cut -d- -f5 | cut -d_ -f1 |sort -n | tail -n1)
+  last_run=${last_run:1}
+  echo $last_run
+  for run in $(seq 1 $last_run); #loop through the runs
+  do
+  if [[ -e /data/picsl/mackey_group/BPD/CBPD_bids/derivatives/xcpEngine_nogsr_spkreg_fd0.5dvars1.75_drpvls/sub-${newsub}/run-0${run}/regress/sub-${newsub}_run-0${run}_residualised.nii.gz ]]; then
+    echo 'Xcpengine run already for run' ${run} 'sub' ${sub}
   else
-    rm /data/picsl/mackey_group/BPD/CBPD_bids/derivatives/xcpEngine_gsr_spkreg_fd0.5dvars1.75_drpvls/sub-${newsub}/run-02/ -R
-    echo 'Put them in list for xcpEngine for' ${sub}
-    find ${julia_BIDS_dir} -type f | grep "${newsub}_task-rest_run-[0-9][0-9]_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz\$"| while read fname; do
-    tmp=$(echo "$fname" | awk -F '_' '{print $5}' ) #this parses on underscores and pulls 'run-01'
-    fname_mnt=$(echo "$fname" | sed -e 's|/data/|/mnt/|' )
-    echo sub-${newsub},${tmp},${fname_mnt} >> ${subject_list_dir}/nxxx_ursula_pipeline_all_finished_fmriprep_first_run_for_xcpEngine.csv
-    done;
+    echo rm /data/picsl/mackey_group/BPD/CBPD_bids/derivatives/xcpEngine_nogsr_spkreg_fd0.5dvars1.75_drpvls/sub-${newsub}/run-0${run}/ -R
+    # echo 'Put run' ${run} 'in list for xcpEngine for' ${sub}
+    # find ${julia_BIDS_dir} -type f | grep "${newsub}_task-rest_run-0${run}_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz\$"| while read fname; do
+    # tmp=$(echo "$fname" | awk -F '_' '{print $5}' ) #this parses on underscores and pulls 'run-01'
+    # fname_mnt=$(echo "$fname" | sed -e 's|/data/|/mnt/|' )
+    # echo sub-${newsub},${tmp},${fname_mnt} >> ${subject_list_dir}/nxxx_cleanup_for_xcpEngine.csv
+    # done;
   fi
+done
 else
   echo 'No fMRIprep'
   #qsub -j y ${SCRIPTS_DIR}/fmriprep/fmriprep_cmd.sh sub-${newsub}
 fi
 done
 
-#Then run xcp batch job
+#Do it by run!
+SCRIPTS_DIR=/data/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/code/ppc
+pipeline=xcpEngine_gsr_spkreg_fd0.5dvars1.75_drpvls
+subject_list=/data/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists/n150_cross_sect_one_or_more_nonsleep_rest_at_least_130_vols.csv
+for line in `cat ${subject_list}`
+do
+  sub=`echo $line | cut -d, -f1`
+  echo ${sub}
+  run=`echo $line | cut -d, -f2| tr -d '\r\n'` #or just \n if it isn't working
+  echo ${run}
+  newsub=${sub}
+  if [[ -f /data/picsl/mackey_group/BPD/CBPD_bids/derivatives/fmriprep/${sub}/func/${sub}_task-rest_${run}_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz ]]; then
+    echo 'fmriprep exists for' ${sub} ${run}
+    if [[ -e /data/picsl/mackey_group/BPD/CBPD_bids/derivatives/${pipeline}/${sub}/${run}/fcon/schaefer400x7/${sub}_${run}_schaefer400x7_network.txt ]]; then
+      echo 'Xcpengine run already for run' ${run} 'sub' ${sub}
+    elif [[ -e /data/picsl/mackey_group/BPD/CBPD_bids/derivatives/${pipeline}/${sub}/${run}/fcon/schaefer400/${sub}_${run}_schaefer400_network.txt ]]; then
+      echo 'Xcpengine run already for run' ${run} 'sub' ${sub}
+    else
+      echo rm /data/picsl/mackey_group/BPD/CBPD_bids/derivatives/${pipeline}/${sub}/${run}/ -R
+      # echo 'Put run' ${run} 'in list for xcpEngine for' ${sub}
+      # find ${julia_BIDS_dir} -type f | grep "${sub}_task-rest_${run}_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz\$"| while read fname; do
+      # tmp=$(echo "$fname" | awk -F '_' '{print $5}' ) #this parses on underscores and pulls 'run-01'
+      # fname_mnt=$(echo "$fname" | sed -e 's|/data/|/mnt/|' )
+      # echo ${sub},${tmp},${fname_mnt} >> ${subject_list_dir}/nxxx_ursula_pipeline_cleanup_for_xcpEngine.csv
+      # done;
+    fi
+  else
+    echo 'No fMRIprep'
+    #qsub -j y ${SCRIPTS_DIR}/fmriprep/fmriprep_cmd.sh sub-${newsub}
+  fi
+done
