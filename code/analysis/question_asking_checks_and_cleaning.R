@@ -138,7 +138,7 @@ qa_data$Total_time_coded_book_averaged_all <- minute(qa_data$Total_time_coded_bo
 qa_data$exclude <- ifelse(qa_data$Total_time_coded_averaged_all < 16, 1, qa_data$exclude)
 
 # Merge with demographic and brain data, exclude CBPD subjects with diagnoses  --------
-demo <- read.csv("~/Box/Mackey_Lab/CBPD (825656)/Data/Data Maintenance Day/2020-06-Data/CBPD_data_DMD_2020.06.29.csv") %>% select(-c( cbcl_18mo_admin:totalDuration.adult_p_play_avg)) %>% rename(.,age_behav=age_behav.x)
+demo <- read.csv("~/Box/Mackey_Lab/CBPD (825656)/Data/Data Maintenance Day/2020-06-Data/CBPD_data_DMD_2020.06.29.csv") %>% select(-c( cbcl_18mo_admin:totalDuration.adult_p_play_avg)) %>% dplyr::rename(.,age_behav=age_behav.x)
 #CHECK THAT THIS IS HOW WE CHOOSE TO DO RACE
 demo$race2 <- ifelse(demo$race_americanindian+demo$race_asian+demo$race_black+demo$race_hawaiian+demo$race_white > 1, 4, ifelse(demo$race_americanindian==1, 3, ifelse(demo$race_other==1,3, ifelse(demo$race_asian == 1, 3, ifelse(demo$race_hawaiian==1, 3, ifelse(demo$race_black==1, 2, ifelse(demo$race_white==1, 1, NA)))))))
 demo$race2 <- factor(demo$race2, labels=c("White", "Black", "Other", "Multiracial"))
@@ -158,6 +158,7 @@ full_kidq <- full %>% filter(is.na(exclude))
 full_kidq %>% select(age_behav,parent1_edu, income_median, epcuriosity_dtype_sum, epcuriosity_itype_sum, wisc_vocab_raw, 
                      Total_q_kid_allpcit_averaged_all, Total_q_parent_bookreading_averaged_all, Total_pq_parent_bookreading_averaged_all) %>% 
 chart.Correlation()
+
 #SES and I-D type
 summary(lm(Total_q_kid_allpcit_averaged_all~age_behav+Total_time_coded_averaged_all+parent1_edu+income_median,data=full_kidq))
 visreg(lm(Total_q_kid_allpcit_averaged_all~age_behav+parent1_edu+income_median,data=full_kidq))
@@ -221,6 +222,115 @@ summary(lm(Total_pq_parent_bookreading_averaged_all~age_behav+full_mr_both+Total
 summary(lm(Total_pq_parent_bookreading_averaged_all~age_behav+full_mr_both+parent1_edu+Total_time_coded_book_averaged_all,data=full_kidq))
 summary(lm(Total_pq_parent_bookreading_averaged_all~age_behav+full_vocabinfo_both+Total_time_coded_book_averaged_all,data=full_kidq))
 
-# Relationship with brain networks ----------------------------------------
+# Replicating Shah paper with I-D type questionnaire ----------------------------------------
+library(PerformanceAnalytics)
+library(lubridate)
+library(GGally)
 
+#Pull WPPSI Information, WISC VOCAB
+full %>% select(age_behav,parent1_edu, income_median, epcuriosity_dtype_sum, epcuriosity_itype_sum, wppsi_info_raw, wppsi_info_scaled,
+                wisc_vocab_raw, wisc_vocab_scaled, wj_letterword_correct, 
+                math_numeration_raw) %>%
+  chart.Correlation() 
+
+#merge wppsi info + wisc vocab
+full$full_infovoc_both <- ifelse(!is.na(full$wppsi_info_scaled), full_kidq$wppsi_info_scaled, full_kidq$wisc_vocab_scaled)
+
+#Variables of interest: wppsi_info_valid, wppsi_info_raw, wppsi_info_scaled,
+#wisc_vocab_valid, wisc_vocab_raw, wisc_vocab_scaled, wj_letterword_valid, wj_letterword_correct, 
+#math_numeration_raw, math_numeration_valid_loose
+
+#I-D type to SES
+library(MASS)
+library(sfsmisc)
+full_vocab <- full %>% filter(., wisc_vocab_valid==1 | wppsi_info_valid ==1) %>% filter(., longitudinal!=1)
+#Should be excluding on whether this is valid or not?!
+l <- rlm(epcuriosity_itype_sum~age_behav+parent1_edu+income_median,data=full)
+summary(l)
+visreg(l) 
+f.robftest(l, "parent1_edu")
+f.robftest(l, "income_median")
+
+#D-type
+l <- rlm(epcuriosity_dtype_sum~age_behav+parent1_edu+income_median,data=full)
+summary(l)
+visreg(l) 
+f.robftest(l, "parent1_edu")
+f.robftest(l, "income_median")
+
+#Vocab 
+l <- rlm(epcuriosity_dtype_sum~age_behav+income_median+full_infovoc_both,data=full_vocab)
+summary(l)
+visreg(l) 
+
+
+# Letter-word -------------------------------------------------------------
+full_letterword <- full %>% filter(., longitudinal!=1)
+#Allyson says the valid flag is not updated, don't use it.
+l <- rlm(wj_letterword_correct~age_behav+income_median+epcuriosity_dtype_sum,data=full_letterword)
+summary(l)
+visreg(l) 
+avPlot(l, "epcuriosity_dtype_sum")
+f.robftest(l, "epcuriosity_dtype_sum")
+
+hist(full_letterword$wj_letterword_correct)
+plot(full_letterword$wj_letterword_correct, full_letterword$epcuriosity_dtype_sum)
+
+#Letter-word interaction-D type
+l <- lm(wj_letterword_correct~age_behav+income_median*epcuriosity_dtype_sum,data=full_letterword)
+summary(l)
+visreg(l, "epcuriosity_dtype_sum", by= "income_median", overlay=T)
+f.robftest(l, "income_median:epcuriosity_dtype_sum")
+
+l <- lm(wj_letterword_correct~age_behav+parent1_edu*epcuriosity_dtype_sum,data=full_letterword)
+summary(l)
+visreg(l, "epcuriosity_dtype_sum", by= "parent1_edu", overlay=T)
+
+#Letter-word interaction-I type
+l <- lm(wj_letterword_correct~age_behav+income_median*epcuriosity_itype_sum,data=full_letterword)
+summary(l)
+visreg(l, "epcuriosity_itype_sum", by= "income_median", overlay=T)
+plot_model(l, type = "pred", terms = c("epcuriosity_itype_sum","income_median"))
+f.robftest(l, "income_median:epcuriosity_dtype_sum")
+
+l <- lm(wj_letterword_correct~age_behav+parent1_edu*epcuriosity_itype_sum,data=full_letterword)
+summary(l)
+visreg(l, "epcuriosity_itype_sum", by= "parent1_edu", overlay=T)
+
+
+# Math --------------------------------------------------------------------
+full_math<- full %>% filter(., longitudinal!=1)
+#Allyson says the valid flag is not updated, don't use it.
+l <- lm(math_numeration_raw~age_behav+parent1_edu+epcuriosity_dtype_sum,data=full_math)
+summary(l)
+visreg(l) 
+avPlot(l, "epcuriosity_dtype_sum")
+f.robftest(l, "epcuriosity_dtype_sum")
+
+l <- lm(math_numeration_raw~age_behav+parent1_edu+epcuriosity_itype_sum,data=full_math)
+summary(l)
+visreg(l) 
+avPlot(l, "epcuriosity_dtype_sum")
+f.robftest(l, "epcuriosity_itype_sum")
+
+#Math interaction d-type
+l <- lm(math_numeration_raw~age_behav+income_median*epcuriosity_dtype_sum,data=full_math)
+summary(l)
+visreg(l, "epcuriosity_dtype_sum", by= "income_median", overlay=T)
+f.robftest(l, "income_median:epcuriosity_dtype_sum")
+
+l <- lm(math_numeration_raw~age_behav+parent1_edu*epcuriosity_dtype_sum,data=full_math)
+summary(l)
+visreg(l, "epcuriosity_dtype_sum", by= "parent1_edu", overlay=T)
+
+#Letter-word interaction-I type
+l <- lm(math_numeration_raw~age_behav+income_median*epcuriosity_itype_sum,data=full_math)
+summary(l)
+visreg(l, "epcuriosity_itype_sum", by= "income_median", overlay=T)
+plot_model(l, type = "pred", terms = c("epcuriosity_itype_sum","income_median"))
+f.robftest(l, "income_median:epcuriosity_dtype_sum")
+
+l <- lm(math_numeration_raw~age_behav+parent1_edu*epcuriosity_itype_sum,data=full_math)
+summary(l)
+visreg(l, "epcuriosity_itype_sum", by= "parent1_edu", overlay=T)
 
