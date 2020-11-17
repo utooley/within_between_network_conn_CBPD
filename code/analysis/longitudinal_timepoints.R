@@ -7,7 +7,6 @@ data_maintenance_day_dir="~/Box/Mackey_Lab/CBPD (825656)/Data/Data Maintenance D
 alldata=read.csv(paste0(data_dir,"CBPD_data_redcapexport_2020.1.31.csv"))
 long_t2_time_gaps_only=read.csv(paste0(data_dir,"long_t2_data_gaps_1.31.20.csv"))
 
-
 # Data Cleaning -----------------------------------------------------------
 
 #make new id to match on, match the longitudinal time gaps from one file to the baseline data in the other
