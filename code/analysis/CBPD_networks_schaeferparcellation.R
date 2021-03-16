@@ -7,25 +7,26 @@ library(summarytools)
 library(psych)
 library(polycor)
 library(psy)
-library(nFactors)
+library(stringi)
+#library(nFactors)
 #library(MASS)
 # Load Data ---------------------------------------------------------------
-parcellation="schaefer400_"
 #pipelines=c('nogsr_spkreg_fd0.5dvars1.75_drpvls','gsr_spkreg_fd0.5dvars1.75_drpvls', "gsr_censor_5contig_fd0.5dvars1.75_drpvls", "gsr_censor_5contig_fd1.25dvars2_drpvls", "nogsr_spkreg_fd1.25dvars2_drpvls")
 pipelines=c('nogsr_spkreg_fd0.5dvars1.75_drpvls', 'gsr_spkreg_fd0.5dvars1.75_drpvls', "nogsr_spkreg_fd1.25dvars2_drpvls")
 #runs=c("run1", "run2")
 run="both"
 #for (run in runs){
 for (pipeline in pipelines){
+parcellation="schaefer400_"
 subjdata_dir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/subjectData/"
 outdir=paste0("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/",pipeline)
-cluster_outdir=paste0("/data/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/",pipeline)
+cluster_outdir=paste0("/cbica/home/tooleyu/projects/in_progress/within_between_network_conn_CBPD/data/imageData/",pipeline)
 netdata_dir=paste0("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/",pipeline)
-cluster_mounted_data="/data/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/"
+cluster_mounted_data="/cbica/home/tooleyu/projects/in_progress/within_between_network_conn_CBPD/data/imageData/"
 
 #ages <- read.csv(paste0(subjdata_dir,"CBPD_data_DMD_2020.02.24_revised.csv")) #find most recent CBPD data wherever it is
-main <- read.csv(paste0(subjdata_dir,"CBPD_data_DMD_2020.02.24_revised.csv")) #find most recent CBPD data wherever it is
-withavgweight <- read.csv(paste0(netdata_dir,"/n125_long_inc_within_between_Yeo7_avgruns_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
+main <- read.csv(paste0(subjdata_dir,"CBPD_data_DMD_2020.05.22_UNOFFICIAL_mergedPITMRIdropout.csv")) #find most recent CBPD data wherever it is
+withavgweight <- read.csv(paste0(netdata_dir,"/n150_long_inc_within_between_Yeo7_avgruns_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
 
 #filter out some unneeded variables
 main <- main %>% dplyr::select(., -c(work_life_balance_questionnaire_timestamp:les_c_other_explain, colorado_child_temperament_index_timestamp:ccti_sum, cbcl_18mo_admin:cbcl_total_t))
@@ -37,13 +38,12 @@ withavgweight$ID <- as.character(withavgweight$ID)
 main$ID <- paste0("sub-",as.character(main$record_id))
 main$ID <- sub("_","",main$ID)
 main <- merge(withavgweight,main, by="ID")
-# #keep only ages, merge those in
-# ages$ID <- paste0("sub-",ages$record_id)
-# ages <- ages %>% dplyr::select(., ID,dob_entered:age_ques)
-# main <- merge(main,ages, by="ID")
 
 #take out the participant with the glitter in her hair and artifact in rest?
 main <- main %>% filter(.,ID!="sub-CBPD0020")
+
+#Take out anyone with a 1 in the exclude column
+main <- main %>% filter(.,exclude!=1)
 
 # Data Cleaning -----------------------------------------------------------
 #make factor variables as factors
@@ -58,15 +58,22 @@ main$ethnicity <- factor(main$ethnicity, labels=c("Not Hispanic or Latino","Hisp
 #main <- main %>% select(.,-c(cbcl_18mo_admin:cbcl_6yr_complete))
 #main <- main %>% select(.,-c(has_diagnoses:letterword_identification_comple))
 
-main$ses_composite <- as.numeric(scale(main$parent1_edu)+scale(main$income_median))
+main$avg_parentedu <- main %>% select(contains("_edu")) %>% rowMeans(., na.rm=T) #average parent education first
+main$ses_composite <- main %>% select(income_median, avg_parentedu) %>% scale(.) %>% rowMeans(., na.rm = T)
 
 #make categorical child aces
 main$aces3category <- ifelse(main$childaces_sum_ignorenan == 0, 0, ifelse(main$childaces_sum_ignorenan == 1, 1, ifelse(main$childaces_sum_ignorenan==2, 2, ifelse(main$childaces_sum_ignorenan>=3, 3, NA))))
 main$aces3category <- factor(main$aces3category, labels=c("None"," or One", "Two", "Three+"))
 
+#make a num uncensored vols variable
+main$totalUncensoredVols <- main$totalSizet-main$totalnVolCensored
+
 #Take out people with mean motion over 1, or more than 50% of frames censored (pctSpikesFD), or max motion > 10 mm
-main_filt <- main %>% filter(., pctVolsCensored< 0.5 & relMaxRMSMotion < 10 & fd_mean_avg < 1 & fd_perc_2mm_avg < 10)
-#main_filt <- main %>% filter(., pctSpikesFD< 0.5 & relMaxRMSMotion < 10 & relMeanRMSMotion< 1)
+main_filt <- main %>% filter(., pctVolsCensored< 0.5 & relMaxRMSMotion < 10 & fd_mean_avg < 0.5 )
+& fd_perc_2mm_avg < 10) #old threshold
+main_filt <- main %>% filter(., pctVolsCensored< 0.5 & relMaxRMSMotion < 10 & fd_mean_avg < 1 & fd_perc_2mm_avg < 10 & totalSizet > 130)
+main_filt <- main %>% filter(., pctVolsCensored< 0.5 & relMaxRMSMotion < 10 & fd_mean_avg < 1 & fd_perc_2mm_avg < 10 & totalSizet > 130 & totalUncensoredVols > 100)
+
 #filter out only kids under 8
 main_under9 <- filter(main_filt, age_scan <=9)
 
@@ -74,11 +81,9 @@ main_under9 <- filter(main_filt, age_scan <=9)
 main_filt$base_ID <- stri_split(main_filt$record_id.y,fixed="_", simplify=T)[,1]
 main_filt$longitudinal_visit_num[is.na(main_filt$longitudinal_visit_num)] <- 1
 
-#either take run 1 or run 2 depending on the value of the variable
+#only take one set of brain data from each participant, no matter the timepoint.
 main_unique <- main_filt  %>% group_by(base_ID) %>% arrange(longitudinal) %>% filter(row_number() == 1)
-
-#then melt it into wide format and average across participants with more than one run?
-#view(dfSummary(main_unique))
+dim(main_unique)
 
 # Load Replicate in Schaefer200 Data ---------------------------------------------------------------
 parcellation="schaefer200_"
@@ -87,22 +92,21 @@ outdir=paste0("~/Documents/projects/in_progress/within_between_network_conn_CBPD
 netdata_dir=paste0("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/",pipeline)
 cluster_mounted_data="~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/"
 
-ages <- read.csv(paste0(subjdata_dir,"CBPD_data_190729_age_ses_ccti.csv")) #find most recent CBPD data wherever it is
-main_replicate <- read.csv(paste0(subjdata_dir,"CBPD_parent_questionnaires_upto_177_080819.csv")) #find most recent CBPD data wherever it is
-withavgweight <- read.csv(paste0(netdata_dir,"/n74_within_between_Yeo7_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
+main_replicate <- read.csv(paste0(subjdata_dir,"CBPD_data_DMD_2020.05.22_UNOFFICIAL_mergedPITMRIdropout.csv")) #find most recent CBPD data wherever it is
+withavgweight <- read.csv(paste0(netdata_dir,"/n150_long_inc_within_between_Yeo7_avgruns_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
 
 #filter out extra variables in average weight
 withavgweight$record_id <- withavgweight$ID
 #merge in main_replicate CBPD data
 main_replicate$ID <- paste0("sub-",main_replicate$record_id)
+main_replicate$ID <- sub("_","",main_replicate$ID)
 main_replicate <- merge(withavgweight,main_replicate, by="ID")
-#keep only ages, merge those in
-ages$ID <- paste0("sub-",ages$record_id)
-ages <- ages %>% dplyr::select(., ID,dob_entered:age_ques)
-main_replicate <- merge(main_replicate,ages, by="ID")
 
 #take out the participant with the glitter in her hair and artifact in rest?
 main_replicate <- main_replicate %>% filter(.,ID!="sub-CBPD0020")
+
+#Take out anyone with a 1 in the exclude column
+main_replicate <- main_replicate %>% filter(.,exclude!=1)
 
 # Data Cleaning -----------------------------------------------------------
 #make factor variables as factors
@@ -118,26 +122,34 @@ main_replicate <- main_replicate %>% dplyr::select(., -c(colorado_child_temperam
 #main_replicate <- main_replicate %>% select(.,-c(cbcl_18mo_admin:cbcl_6yr_complete))
 #main_replicate <- main_replicate %>% select(.,-c(has_diagnoses:letterword_identification_comple))
 
-main_replicate$ses_composite <- as.numeric(scale(main_replicate$parent1_edu)+scale(main_replicate$income_median))
+main_replicate$avg_parentedu <- main_replicate %>% select(contains("_edu")) %>% rowMeans(., na.rm=T) #average parent education first
+main_replicate$ses_composite <- main_replicate %>% select(income_median, avg_parentedu) %>% scale(.) %>% rowMeans(., na.rm = T)
 
 #make categorical child aces
 main_replicate$aces3category <- ifelse(main_replicate$childaces_sum_ignorenan <= 1, 0, ifelse(main_replicate$childaces_sum_ignorenan == 2, 1, ifelse(main_replicate$childaces_sum_ignorenan>=3, 2, NA)))
 main_replicate$aces3category <- factor(main_replicate$aces3category, labels=c("None or One", "Two", "Three+"))
 
-#Take out people with mean motion over 1, or more than 50% of frames censored (pctSpikesFD), or masys motion > 10 mm
-main_replicate_filt <- main_replicate %>% filter(., pctVolsCensored < 0.5 & relMaxRMSMotion < 10 & fd_mean_avg < 1)
-#main_replicate_filt <- main_replicate %>% filter(., pctSpikesFD< 0.5 & relMaxRMSMotion < 10 & relMeanRMSMotion< 1)
+#make a num uncensored vols variable
+main_replicate$totalUncensoredVols <- main_replicate$totalSizet-main_replicate$totalnVolCensored
+
+#Take out people with mean motion over 1, or more than 50% of frames censored (pctSpikesFD), or max motion > 10 mm
+main_replicate_filt <- main_replicate %>% filter(., pctVolsCensored< 0.5 & relMaxRMSMotion < 10 & fd_mean_avg < 1 & fd_perc_2mm_avg < 10) #old threshold
+main_replicate_filt <- main_replicate %>% filter(., pctVolsCensored< 0.5 & relMaxRMSMotion < 10 & fd_mean_avg < 1 & fd_perc_2mm_avg < 10 & totalSizet > 130)
+main_replicate_filt <- main_replicate %>% filter(., pctVolsCensored< 0.5 & relMaxRMSMotion < 10 & fd_mean_avg < 1 & fd_perc_2mm_avg < 10 & totalSizet > 130 & totalUncensoredVols > 100)
+
 #filter out only kids under 8
 main_replicate_under9 <- filter(main_replicate_filt, age_scan <=9)
-#either take run 1 or run 2
-if (run=='run1'){
-  main_replicate_unique <- main_replicate_filt %>% arrange(.,run) %>% group_by(ID) %>% filter(row_number() == 1)
-} else{
-  main_replicate_unique <- main_replicate_filt  %>% group_by(ID) %>% filter(row_number() == 1)
-}
+
+#take only the first data we have from a subject
+main_replicate_filt$base_ID <- stri_split(main_replicate_filt$record_id.y,fixed="_", simplify=T)[,1]
+main_replicate_filt$longitudinal_visit_num[is.na(main_replicate_filt$longitudinal_visit_num)] <- 1
+
+#only take one set of brain data from each participant, no matter the timepoint.
+main_replicate_unique <- main_replicate_filt  %>% group_by(base_ID) %>% arrange(longitudinal) %>% filter(row_number() == 1)
+dim(main_replicate_unique)
 
 # Look at each column and correct for multiple comparisons
-covariates="~ age_scan+male+fd_mean_avg+avgweight+pctSpikesFD_avg+totalSizet"
+covariates="~ age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet"
 
 #make a dataframe with no repeats of net comparisons
 main_unique <- dplyr::select(main_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
@@ -170,7 +182,7 @@ colnames(networks_age_pvals_fdr_replicate) <- c("pvalue", "network")
 print(networks_age_pvals_fdr_replicate)
 
 # Separate Networks and Effects of SES ------------------------------------
-covariates="~ age_scan+male+fd_mean_avg+avgweight+pctSpikesFD_avg+totalSizet+ses_composite+race2+ethnicity"
+covariates="~ age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet+ses_composite+race2+ethnicity"
 #make a dataframe with no repeats of net comparisons
 #main_unique <- dplyr::select(main_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
 #run and compare for multiple comparisons again
@@ -201,14 +213,14 @@ networks_ses_pvals_fdr_replicate
 
 # Save models for use in markdown file ------------------------------------
 if(run=='run1'){
-  outfile=paste0(outdir,"/CBPD_n74_schaefer400_run1.Rdata")
+  outfile=paste0(outdir,"/CBPD_n91_schaefer400_run1.Rdata")
 } else if (run=='run2'){
-  outfile=paste0(outdir,"/CBPD_n74_schaefer400_run2.Rdata")
+  outfile=paste0(outdir,"/CBPD_n91_schaefer400_run2.Rdata")
 } else if (run=='average'){
-  outfile=paste0(outdir,"/CBPD_n74_schaefer400_avgruns.Rdata")
-  outfile2=paste0(cluster_outdir,"/CBPD_n74_schaefer400_avgruns.Rdata")
-}else {outfile=paste0(outdir,"/CBPD_n74_schaefer400.Rdata")
-outfile2=paste0(cluster_outdir,"/CBPD_n74_schaefer400.Rdata")
+  outfile=paste0(outdir,"/CBPD_n91_schaefer400_avgruns.Rdata")
+  outfile2=paste0(cluster_outdir,"/CBPD_n91_schaefer400_avgruns.Rdata")
+}else {outfile=paste0(outdir,"/CBPD_n90_schaefer400_allruns.Rdata")
+outfile2=paste0(cluster_outdir,"/CBPD_n90_schaefer400_allruns.Rdata")
 }
 save(main, main_filt, main_unique,file=outfile)
 save(main, main_filt, main_unique,file=outfile2)
@@ -217,140 +229,45 @@ save(main, main_filt, main_unique, networks_age_pvals_fdr,networks_ses_pvals_fdr
 save(main, main_filt, main_unique, networks_age_pvals_fdr,networks_ses_pvals_fdr, networks_age_pvals_fdr_replicate,networks_ses_pvals_fdr_replicate, main_replicate, main_replicate_filt, main_replicate_unique, file=outfile2)
 }
 
-# Exploratory Factor Analysis of Stress -----------------------------------
-#Child ACES, PSS, WLBQ items
-#per Allyson on 8-9, used ACES sum score, PSS sum score, and WLBQ individual items for stress, along with neighborhood safety 
-#sum the two neighborhood safety scores
-stress_variables <- main_unique %>% dplyr::select(.,ID,pss_sum, childaces_sum_ignorenan, wlbq_q1:wlbq_q12,neighborhood_q1,neighborhood_q2) %>% data.frame()
-#stress_variables <- main %>% dplyr::select(.,childaces_q1:childaces_q10b_notreversed, pss_q1:pss_q10,wlbq_q1:wlbq_q12)
-#remove variables with no variance
-#stress_variables <- stress_variables%>% dplyr::select(.,-c(childaces_q8,childaces_q9,childaces_q6b,childaces_q6a,childaces_q6d,  pss_q4_notreversed,pss_q5_notreversed,pss_q8_notreversed))
-#stress_variables <- stress_variables%>% dplyr::select(.,-c(pss_q4_notreversed,pss_q5_notreversed,pss_q8_notreversed, pss_q7_notreversed))
-stress_variables <- stress_variables[complete.cases(stress_variables),]
-stress_variables_id <- stress_variables$ID
-stress_variables <- dplyr::select(stress_variables, -ID)
-view(dfSummary(stress_variables))
-#since this is a mix of continuous and dichotomous variables, need to get a correlation matrix in some other way
-#convert variables with < 4 categories to factor? Easier if they're continuous!
-# col_names <- sapply(stress_variables, function(col) length(unique(col)) <= 4)
-# stress_variables[ , col_names] <- lapply(stress_variables[ , col_names] , factor)
-
-#one factor analysis with factanal()
-fit <- factanal(stress_variables, factors = 2, rotation = "varimax", scores = "regression")
-fit
-scree.plot(fit$correlation)
-#a different scree plot
-ev <- eigen(cor(stress_variables)) # get eigenvalues
-ap <- parallel(subject=nrow(stress_variables),var=ncol(stress_variables), rep=100, cent=.05)
-nS <- nScree(x=ev$values, aparallel=ap$eigen$qevpea)
-plotnScree(nS) #looks like should be extracting 3 or 4 factors
-firststressfactor <- fit$scores[,2]
-temp <- data.frame(stress_variables_id,firststressfactor)
-colnames(temp) <- c("ID","firststressfactor")
-main_unique<- right_join(temp,main_unique,by="ID")
-main_replicate_unique<- right_join(temp,main_replicate_unique,by="ID")
-
-#another factor analysis with fa()
-#main_unique <- main_unique %>% group_by(ID) %>% filter(row_number() == 1)
-fa.2 <- fa(stress_variables, nfactors = 2, rotate = "varimax")
-print(fa.2, cut = 0.1)
-factorscores <- factor.scores(stress_variables, fa.2)$scores[,2]
-temp <- data.frame(stress_variables_id,factorscores)
-colnames(temp) <- c("ID","firststressfactor1")
-main_unique<- right_join(temp,main_unique,by="ID")
-main_replicate_unique<- right_join(temp,main_replicate_unique,by="ID")
-
-#trying to do factor analysis with dichotomous variables, ignore for now.
-#mixedCor(data=stress_variables,d=1:9,p=10:17, c=18:29) #for some reason it doesn't like pss_q5_notreversed or pss_q8_notreversed, take those out-not working
-cormat <- polycor::hetcor(stress_variables)
-fit <- factanal(covmat = cormat$correlations, factors = 3, rotation = "varimax")
-fa.2 <- fa(r = cormat$correlations, nfactors = 3, n.obs = nrow(stress_variables))
-
-# Exploratory Factor Analysis of Cognitive Stimulation -----------------------------------
-#HOME, Literacy and Numeracy Questionnaire for cog stimulation, take only those from litnum that are applicable
-#recode HOME into subscales
-## RECODE HOME INTO SUBSCALES per that found online on "Early Childhood HOME Record Form"
-main_unique$home_learningmats <- main_unique$home_q1+ main_unique$home_q2 + main_unique$home_q3 +main_unique$home_q4 + main_unique$home_q6+main_unique$home_q7 + main_unique$home_q8 +main_unique$home_q9 + main_unique$home_q10 + main_unique$home_q11+ main_unique$home_q15
-main_unique$home_langstim <- main_unique$home_q12 + main_unique$home_q16 + main_unique$home_q17 + main_unique$home_q23+ main_unique$home_q24 
-main_unique$home_academicstim <- main_unique$home_q18+main_unique$home_q19+main_unique$home_q20+main_unique$home_q21+main_unique$home_q22
-main_unique$home_variety <- main_unique$home_q13+main_unique$home_q30+main_unique$home_q32+main_unique$home_q33+main_unique$home_q31+main_unique$home_q14+main_unique$home_q5
-main_unique$home_modeling  #this requires coding of written-in responses
-main_unique$home_total <- main_unique$home_learningmats +main_unique$home_langstim+main_unique$home_academicstim+main_unique$home_variety
-
-#the HOME has only dichotomous variables, need to use IRT on this?
-cogstim_variables <- main_unique %>% dplyr::select(.,ID,home_learningmats:home_variety, litnum_freq_num_avg:litnum_freq_finemotor_avg, litnum_child_books,litnum_hrs_childreadto) %>% data.frame()
-#cogstim_variables <- main %>% dplyr::select(.,childaces_q1:childaces_q10b_notreversed, pss_q1:pss_q10,wlbq_q1:wlbq_q12)
-#remove variables with no variance
-#cogstim_variables <- cogstim_variables%>% dplyr::select(.,-c(childaces_q8,childaces_q9,childaces_q6b,childaces_q6a,childaces_q6d,  pss_q4_notreversed,pss_q5_notreversed,pss_q8_notreversed))
-#cogstim_variables <- cogstim_variables%>% dplyr::select(.,-c(pss_q4_notreversed,pss_q5_notreversed,pss_q8_notreversed, pss_q7_notreversed))
-cogstim_variables <- cogstim_variables[complete.cases(cogstim_variables),]
-cogstim_variables_id <- cogstim_variables$ID
-cogstim_variables <- dplyr::select(cogstim_variables, -ID)
-view(dfSummary(cogstim_variables))
-#since this is a mix of continuous and dichotomous variables, need to get a correlation matrix in some other way
-#convert variables with < 4 categories to factor? Easier if they're continuous!
-# col_names <- sapply(cogstim_variables, function(col) length(unique(col)) <= 4)
-# cogstim_variables[ , col_names] <- lapply(cogstim_variables[ , col_names] , factor)
-
-#one factor analysis with factanal()
-fit <- factanal(cogstim_variables, factors = 3, rotation = "varimax", scores = "regression")
-scree.plot(fit$correlation)
-#a different scree plot
-ev <- eigen(cor(cogstim_variables)) # get eigenvalues
-ap <- parallel(subject=nrow(cogstim_variables),var=ncol(cogstim_variables), rep=100, cent=.05)
-nS <- nScree(x=ev$values, aparallel=ap$eigen$qevpea)
-plotnScree(nS) #looks like should be extracting 3 or 4 factors
-firstcogstimfactor <- fit$scores[,1]
-temp <- data.frame(cogstim_variables_id,firstcogstimfactor)
-colnames(temp) <- c("ID","firstcogstimfactor")
-main_unique<- right_join(temp,main_unique,by="ID")
-main_replicate_unique<- right_join(temp,main_replicate_unique,by="ID")
-
-#another factor analysis with fa()
-#main_unique <- main_unique %>% group_by(ID) %>% filter(row_number() == 1)
-fa.2 <- fa(cogstim_variables, nfactors = 3, rotate = "varimax")
-print(fa.2,cut = .1)
-factorscores <- factor.scores(cogstim_variables, fa.2)$scores[,1]
-temp <- data.frame(cogstim_variables_id,factorscores)
-colnames(temp) <- c("ID","firstcogstimfactor1")
-main_unique<- right_join(temp,main_unique,by="ID")
-main_replicate_unique<- right_join(temp,main_replicate_unique,by="ID")
-
 # Age and measures of segregation -----------------------------------------
 #Need to control for the amount of good data a participant has, size_t
 
 #look at mean within and between with age
-lm_within_sys_age <- lm(sys4to7~age_scan*ses_composite+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet+race2+ethnicity, data=main_unique)
+lm_within_sys_age <- lm(mean_within_sys~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet, data=main_unique)
 summary(lm_within_sys_age)
 lm.beta(lm_within_sys_age)
-~age_scan+male+fd_mean+avgweight+pctVolsCensored+totalSizet
 lm.beta(l)
-lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean+avgweight+pctVolsCensored+totalSizet, data=main_unique)
+lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet, data=main_unique)
 summary(lm_between_sys_age)
-lm.beta(l)
-lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean+avgweight+pctVolsCensored+totalSizet, data=main_unique)
+lm.beta(lm_between_sys_age)
+lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet, data=main_unique)
 summary(lm_segreg_age)
-lm_modul_age <- lm(modul_avg~age_scan+male+fd_mean+avgweight+pctVolsCensored+totalSizet, data=main_unique)
+lm.beta(lm_segreg_age)
+lm_modul_age <- lm(modul_avg~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet, data=main_unique)
 summary(lm_modul_age)
-lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean+avgweight+pctVolsCensored+totalSizet, data=main_unique)
+lm.beta(lm_modul_age)
+lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet, data=main_unique)
 summary(lm_part_coef_age)
+lm.beta(lm_part_coef_age)
 
 #Does number of communities detected with modul change with age?
-lm_num_comms_age <- lm(num_comms_modul_avg~age_scan+male+fd_mean+avgweight+pctVolsCensored+totalSizet, data=main_unique)
+lm_num_comms_age <- lm(num_comms_modul_avg~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet, data=main_unique)
 summary(lm_num_comms_age) #Decreases slightly with age
 #look at average weight with age
-l <- lm(avgweight~age_scan+male+fd_mean+pctVolsCensored+totalSizet, data=main_unique)
+l <- lm(avgweight~age_scan+male+fd_mean_avg+pctVolsCensored+totalSizet, data=main_unique)
 summary(l)
 lm.beta(l)
 
 # Longitudinal random effects models --------------------------------------
 library(nlme)
-library(lmer)
+library(lme4)
 #melt data
 main_filt_long <- dplyr::select(main_filt, c(ID:record_id.y,age_scan,male,fd_mean_avg,avgweight,pctVolsCensored,totalSizet,race2,ethnicity, longitudinal_visit_num,base_ID))
+#need to filter out only the first datapoint from each timepoint
+main_filt_long <- main_filt_long  %>% group_by(ID) %>% filter(row_number() == 1)
 main_long_only <- main_filt_long %>% group_by(base_ID) %>% filter(any(longitudinal_visit_num==2))
-#plots
 
+library(lattice)
 xyplot(mean_within_sys ~ age_scan | base_ID, main_long_only, aspect = "xy",
             type = c("g", "p", "r"), index.cond = function(x,y) coef(lm(y ~ x))[1])
 
@@ -372,20 +289,19 @@ summary(lm_modul_age)
 lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean+avgweight+pctVolsCensored+totalSizet, data=main_unique)
 summary(lm_part_coef_age)
 
-
-# Non-linear effects of age? ----------------------------------------------
+ # Non-linear effects of age? ----------------------------------------------
 gam_part_coef_age <- gam(part_coef~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
 l <- gam(modul~s(ageAtScan1cent)+sex+avgweight+envSES, data=master, method = "REML")
 
 #This is in the RMarkdown document.
 
 # Separate Networks and Effects of Age ------------------------------------
-networks <- dplyr::select(main_unique, sys1to1:sys7to7)
+networks <- dplyr::select(main_unique, sys1to1:sys7to7) 
 nets <- colnames(networks)
 #look at non-linear interaction between age and envSES 
 for (net in nets){
   name<-paste0("lm_",net)
-  formula<-formula(paste0(net, '~age_scan+male+fd_mean+pctSpikesFD+size_t+avgweight'))
+  formula<-formula(paste0(net, '~age_scan+male+fd_mean+avgweight+pctVolsCensored+totalSizet'))
   assign(name, lm(formula, data=main_unique))
   #p_val[net] <- summary(name)$coefficients[2,4]
 }
@@ -398,7 +314,7 @@ summary(lm_sys1to4)
 summary(lm_sys1to5)
 summary(lm_sys1to6)
 summary(lm_sys1to7)
-summary(lm_sys2to2)
+summary(lm_sys2to2) #increase
 lm.beta(lm_sys2to2)
 summary(lm_sys2to3)
 summary(lm_sys2to4)
@@ -413,16 +329,17 @@ summary(lm_sys5to5)
 lm.beta(lm_sys5to5)
 summary(lm_sys6to6)
 lm.beta(lm_sys6to6)
-summary(lm_sys6to3)
-summary(lm_sys6to4)
-summary(lm_sys6to5)
+summary(lm_sys3to6)
+summary(lm_sys4to6)
+summary(lm_sys5to6)
 summary(lm_sys6to6)
 summary(lm_sys6to7)
 summary(lm_sys7to7)#increase with age
 lm.beta(lm_sys7to7)
-summary(lm_sys7to3) #marginal decrease with age
-lm.beta(lm_sys7to3)
-summary(lm_sys7to4)
+summary(lm_sys3to7) #marginal decrease with age
+lm.beta(lm_sys3to7)
+summary(lm_sys4to7)
+lm.beta(lm_sys4to7)
 visreg(lm_sys7to4) #strong decrease with age
 summary(lm_sys7to5)
 main_unique$within_system <- (main_unique$sys1to1+main_unique$sys2to2+main_unique$sys3to3
@@ -642,3 +559,101 @@ distances_vector <- distances[upper.tri(distances, diag=FALSE)]
 #plot the edge weight pvals by distance
 plot(distances_vector, sig_edges_AgexSES$edge_pvals_agexses, col=alpha("blue",0.2), cex=0.2)
 
+# Exploratory Factor Analysis of Stress -----------------------------------
+#Child ACES, PSS, WLBQ items
+#per Allyson on 8-9, used ACES sum score, PSS sum score, and WLBQ individual items for stress, along with neighborhood safety 
+#sum the two neighborhood safety scores
+stress_variables <- main_unique %>% dplyr::select(.,ID,pss_sum, childaces_sum_ignorenan, wlbq_q1:wlbq_q12,neighborhood_q1,neighborhood_q2) %>% data.frame()
+#stress_variables <- main %>% dplyr::select(.,childaces_q1:childaces_q10b_notreversed, pss_q1:pss_q10,wlbq_q1:wlbq_q12)
+#remove variables with no variance
+#stress_variables <- stress_variables%>% dplyr::select(.,-c(childaces_q8,childaces_q9,childaces_q6b,childaces_q6a,childaces_q6d,  pss_q4_notreversed,pss_q5_notreversed,pss_q8_notreversed))
+#stress_variables <- stress_variables%>% dplyr::select(.,-c(pss_q4_notreversed,pss_q5_notreversed,pss_q8_notreversed, pss_q7_notreversed))
+stress_variables <- stress_variables[complete.cases(stress_variables),]
+stress_variables_id <- stress_variables$ID
+stress_variables <- dplyr::select(stress_variables, -ID)
+view(dfSummary(stress_variables))
+#since this is a mix of continuous and dichotomous variables, need to get a correlation matrix in some other way
+#convert variables with < 4 categories to factor? Easier if they're continuous!
+# col_names <- sapply(stress_variables, function(col) length(unique(col)) <= 4)
+# stress_variables[ , col_names] <- lapply(stress_variables[ , col_names] , factor)
+
+#one factor analysis with factanal()
+fit <- factanal(stress_variables, factors = 2, rotation = "varimax", scores = "regression")
+fit
+scree.plot(fit$correlation)
+#a different scree plot
+ev <- eigen(cor(stress_variables)) # get eigenvalues
+ap <- parallel(subject=nrow(stress_variables),var=ncol(stress_variables), rep=100, cent=.05)
+nS <- nScree(x=ev$values, aparallel=ap$eigen$qevpea)
+plotnScree(nS) #looks like should be extracting 3 or 4 factors
+firststressfactor <- fit$scores[,2]
+temp <- data.frame(stress_variables_id,firststressfactor)
+colnames(temp) <- c("ID","firststressfactor")
+main_unique<- right_join(temp,main_unique,by="ID")
+main_replicate_unique<- right_join(temp,main_replicate_unique,by="ID")
+
+#another factor analysis with fa()
+#main_unique <- main_unique %>% group_by(ID) %>% filter(row_number() == 1)
+fa.2 <- fa(stress_variables, nfactors = 2, rotate = "varimax")
+print(fa.2, cut = 0.1)
+factorscores <- factor.scores(stress_variables, fa.2)$scores[,2]
+temp <- data.frame(stress_variables_id,factorscores)
+colnames(temp) <- c("ID","firststressfactor1")
+main_unique<- right_join(temp,main_unique,by="ID")
+main_replicate_unique<- right_join(temp,main_replicate_unique,by="ID")
+
+#trying to do factor analysis with dichotomous variables, ignore for now.
+#mixedCor(data=stress_variables,d=1:9,p=10:17, c=18:29) #for some reason it doesn't like pss_q5_notreversed or pss_q8_notreversed, take those out-not working
+cormat <- polycor::hetcor(stress_variables)
+fit <- factanal(covmat = cormat$correlations, factors = 3, rotation = "varimax")
+fa.2 <- fa(r = cormat$correlations, nfactors = 3, n.obs = nrow(stress_variables))
+
+# Exploratory Factor Analysis of Cognitive Stimulation -----------------------------------
+#HOME, Literacy and Numeracy Questionnaire for cog stimulation, take only those from litnum that are applicable
+#recode HOME into subscales
+## RECODE HOME INTO SUBSCALES per that found online on "Early Childhood HOME Record Form"
+main_unique$home_learningmats <- main_unique$home_q1+ main_unique$home_q2 + main_unique$home_q3 +main_unique$home_q4 + main_unique$home_q6+main_unique$home_q7 + main_unique$home_q8 +main_unique$home_q9 + main_unique$home_q10 + main_unique$home_q11+ main_unique$home_q15
+main_unique$home_langstim <- main_unique$home_q12 + main_unique$home_q16 + main_unique$home_q17 + main_unique$home_q23+ main_unique$home_q24 
+main_unique$home_academicstim <- main_unique$home_q18+main_unique$home_q19+main_unique$home_q20+main_unique$home_q21+main_unique$home_q22
+main_unique$home_variety <- main_unique$home_q13+main_unique$home_q30+main_unique$home_q32+main_unique$home_q33+main_unique$home_q31+main_unique$home_q14+main_unique$home_q5
+main_unique$home_modeling  #this requires coding of written-in responses
+main_unique$home_total <- main_unique$home_learningmats +main_unique$home_langstim+main_unique$home_academicstim+main_unique$home_variety
+
+#the HOME has only dichotomous variables, need to use IRT on this?
+cogstim_variables <- main_unique %>% dplyr::select(.,ID,home_learningmats:home_variety, litnum_freq_num_avg:litnum_freq_finemotor_avg, litnum_child_books,litnum_hrs_childreadto) %>% data.frame()
+#cogstim_variables <- main %>% dplyr::select(.,childaces_q1:childaces_q10b_notreversed, pss_q1:pss_q10,wlbq_q1:wlbq_q12)
+#remove variables with no variance
+#cogstim_variables <- cogstim_variables%>% dplyr::select(.,-c(childaces_q8,childaces_q9,childaces_q6b,childaces_q6a,childaces_q6d,  pss_q4_notreversed,pss_q5_notreversed,pss_q8_notreversed))
+#cogstim_variables <- cogstim_variables%>% dplyr::select(.,-c(pss_q4_notreversed,pss_q5_notreversed,pss_q8_notreversed, pss_q7_notreversed))
+cogstim_variables <- cogstim_variables[complete.cases(cogstim_variables),]
+cogstim_variables_id <- cogstim_variables$ID
+cogstim_variables <- dplyr::select(cogstim_variables, -ID)
+view(dfSummary(cogstim_variables))
+#since this is a mix of continuous and dichotomous variables, need to get a correlation matrix in some other way
+#convert variables with < 4 categories to factor? Easier if they're continuous!
+# col_names <- sapply(cogstim_variables, function(col) length(unique(col)) <= 4)
+# cogstim_variables[ , col_names] <- lapply(cogstim_variables[ , col_names] , factor)
+
+#one factor analysis with factanal()
+fit <- factanal(cogstim_variables, factors = 3, rotation = "varimax", scores = "regression")
+scree.plot(fit$correlation)
+#a different scree plot
+ev <- eigen(cor(cogstim_variables)) # get eigenvalues
+ap <- parallel(subject=nrow(cogstim_variables),var=ncol(cogstim_variables), rep=100, cent=.05)
+nS <- nScree(x=ev$values, aparallel=ap$eigen$qevpea)
+plotnScree(nS) #looks like should be extracting 3 or 4 factors
+firstcogstimfactor <- fit$scores[,1]
+temp <- data.frame(cogstim_variables_id,firstcogstimfactor)
+colnames(temp) <- c("ID","firstcogstimfactor")
+main_unique<- right_join(temp,main_unique,by="ID")
+main_replicate_unique<- right_join(temp,main_replicate_unique,by="ID")
+
+#another factor analysis with fa()
+#main_unique <- main_unique %>% group_by(ID) %>% filter(row_number() == 1)
+fa.2 <- fa(cogstim_variables, nfactors = 3, rotate = "varimax")
+print(fa.2,cut = .1)
+factorscores <- factor.scores(cogstim_variables, fa.2)$scores[,1]
+temp <- data.frame(cogstim_variables_id,factorscores)
+colnames(temp) <- c("ID","firstcogstimfactor1")
+main_unique<- right_join(temp,main_unique,by="ID")
+main_replicate_unique<- right_join(temp,main_replicate_unique,by="ID")
