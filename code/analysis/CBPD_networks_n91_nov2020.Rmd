@@ -239,7 +239,7 @@ fm2 <- lme(mean_within_sys~scale(age_scan)+male+scale(fd_mean_avg)+scale(avgweig
 summary(fm2)
 fm2
 
-fm2 <- lme(mean_within_sys~age_scan+male+fd_mean_avg+avgweight+totalSizet+pctVolsCensored, data = main_long_only, random = ~ 1|base_ID)
+fm2 <- lme(sys4to7~age_scan+male+fd_mean_avg+avgweight+totalSizet+pctVolsCensored, data = main_long_only, random = ~ 1|base_ID)
 
 newdat <- expand.grid(male=unique(main_long_only$male),
                   age_scan=c(min(main_long_only$age_scan),
@@ -252,7 +252,7 @@ newdat <- expand.grid(male=unique(main_long_only$male),
                                 max(main_long_only$totalSizet)),
                   pctVolsCensored=c(min(main_long_only$pctVolsCensored),
                                 max(main_long_only$pctVolsCensored)))
-p <- ggplot(main_long_only, aes(x=age_scan, y=mean_within_sys))+
+p <- ggplot(main_long_only, aes(x=age_scan, y=predict(fm2)))+
   geom_point(size=3) +
   geom_line(aes(y=predict(fm2), group=base_ID, size="Subjects")) +
   geom_line(data=newdat, aes(y=predict(fm2, level=0, newdata=newdat), size="Population")) +
@@ -271,6 +271,19 @@ xyplot(mean_within_sys ~ age_scan | base_ID, main_long_only, aspect = "xy",
             type = c("g", "p", "r"), subset = )
        
        index.cond = function(x,y) coef(lm(y ~ x))[1])
+
+#Using ggplot to plot the predicted datapoints (controlling)
+lm_sys4to7_age <- lmer(sys4to7~age_scan+male+fd_mean+avgweight+pctVolsCensored+totalSizet+(1|base_ID), data=main_long_only)
+main_long_only$pred_sys4to7 <- predict(lm_sys4to7_age)
+ggplot(data=main_long_only, aes(x=age_scan, y=pred_sys4to7, group=factor(base_ID), colour="gray"), legend=FALSE) +
+  geom_smooth(method=lm, se=F, fullrange=F, lty=1, size=.5, color="gray60") +
+  geom_smooth(aes(group=1), method=lm, se=FALSE, fullrange=FALSE, lty=1, size=2, color="black") +
+  geom_point(aes(x=age_scan,y=pred_sys4to7))+
+  xlab("Age at Scan (years)") + ylab("Predicted time brushing (sec)") +
+  theme_classic() +
+  theme(axis.title=element_text(size=18),
+        axis.text=element_text(size=14),
+        plot.title=element_text(size=18, hjust=.5))
 ```
 
 ## Environment and Measures of Network Segregation
