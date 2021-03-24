@@ -1,0 +1,506 @@
+---
+title: "CBPD Functional Network Results"
+author: "Ursula Tooley"
+date: "12/3/2020"
+output:
+  html_document:
+    theme: united
+    toc: yes
+    toc_depth: 6
+  pdf_document:
+    toc: yes
+    toc_depth: '6'
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(stats)
+library(parallel)
+library(lm.beta)
+library(packrat)
+library(summarytools)
+library(visreg)
+library(mgcv)
+library(RLRsim)
+library(GGally)
+#load the .RDS file
+pipeline='nogsr_spkreg_fd0.5dvars1.75_drpvls'
+pipeline="nogsr_spkreg_fd1.25dvars2_drpvls"
+pipeline='gsr_spkreg_fd0.5dvars1.75_drpvls'
+network_dir=paste0("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/",pipeline)
+
+load(paste0(network_dir,"/CBPD_n90_schaefer400_allruns.Rdata"))
+```
+## Data Descriptives
+
+###Motion
+
+We start with n= `r length(unique(main$ID))`. In these analyses, I used a stringent pipeline, censoring and interpolating over vols with > FD of 0.5 mm or DVARS > 1.75. Those are excluded from the timeseries used to calculate the networks used here. I excluded anyone with > 50% frames censored (following Yeo, 2011) or mean motion > 1 mm, or max motion over 10 mm, leaving us with `r length(unique(main_filt$ID))` participants, `r length(main_filt$run[main_filt$run=="run-02"])` of which have a second run. 
+
+The dataframe below shows all runs for subjects who meet this criteria. At the moment, I'm just examining the first run, not averaging in those who have a second run.
+
+```{r Filtered Motion Summary,echo=FALSE}
+motion <- select(main_filt, age_scan, run, fd_mean,pctSpikesFD:relMaxRMSMotion)
+print(dfSummary(motion), method = 'render')
+```
+
+###SES
+```{r SES of Sample Summary,echo=FALSE, results='hold'}
+ses <- select(main_unique, male, race2,ethnicity,has_diagnoses, parent1_edu:parent2_edu, income_median:monthslive_iflostincome, childaces_sum_ignorenan) %>% 
+print(dfSummary(ses), method = 'render')
+```
+
+## Age and measures of network segregation
+
+We find that overall, all measures of network segregation significantly increase with age in our dataset, with remarkable consistency. We examined within-network connectivity, between network connectivity, system segregation (as calculated in Chan et al. 2018), the modul_avgarity quality index, and the participation coefficient (summed across negative and positive weights). 
+
+We controlled for sex, mean framewise displacement across both scans weighted by length of scan, percent of volumes censored for FD spikes in the data, the number of total volumes a participant had, and the average weight of the functional network across both scans (weighted by amount of good data per scan).
+
+```{r models of segregation, echo=FALSE, include=FALSE, results='hide'}
+#look at mean within and between with age
+lm_within_sys_age <- lm(mean_within_sys~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet, data=main_unique)
+summary(lm_within_sys_age)
+lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet, data=main_unique)
+summary(lm_between_sys_age)
+lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet, data=main_unique)
+summary(lm_segreg_age)
+lm_modul_avg_age <- lm(modul_avg~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet, data=main_unique)
+summary(lm_modul_avg_age)
+lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet, data=main_unique)
+summary(lm_part_coef_age)
+lm_num_comms_age <- lm(num_comms_modul_avg~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet, data=main_unique)
+summary(lm_num_comms_age)
+
+```
+
+```{r plots of segregation, echo=FALSE, include=TRUE, results='hide'}
+par(mfrow=c(2,3))
+visreg(lm_between_sys_age,"age_scan", main="Mean between-system connectivity", ylab="", xlab="Age at scan (years)")
+visreg(lm_within_sys_age,"age_scan", main= "Mean within-system connectivity", ylab="", xlab="Age at scan (years)")
+visreg(lm_segreg_age,"age_scan", main="Average segregation", ylab="", xlab="Age at scan (years)")
+visreg(lm_modul_avg_age,"age_scan", main="modul_avgarity quality index Q", ylab="", xlab="Age at scan (years)")
+visreg(lm_part_coef_age,"age_scan", main="Average participation coefficient", ylab="", xlab="Age at scan (years)")
+visreg(lm_num_comms_age,"age_scan")
+```
+
+The number of communities detected using modul_avgarity maximization on this data does not significantly decrease with age (each subject ran 100x, averaged Q and *k*, range in k is `r range(main_unique$num_comms_modul_avg)`).
+
+###Non-linear effects of age?
+
+We also used restricted least ratio tests to test for the presence of non-linearity in our data. As you can see in the plots below, which use GAMs, most measures are linear and look no different from the linear models above.
+```{r gam models of segregation, echo=FALSE, include=FALSE, results='hide'}
+#look at mean within and between with age
+gam_within_sys_age <- gam(mean_within_sys~s(age_scan)+male+fd_mean_avg+avgweight+pctSpikesFD_avg+totalSizet, data=main_unique)
+model<- gamm(mean_within_sys~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique, method = "REML")$lme
+exactRLRT(model)
+gam_between_sys_age <- gam(mean_between_sys~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+model<- gamm(mean_between_sys~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)$lme
+exactRLRT(model)
+gam_segreg_age<- gam(system_segreg~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+model<- gamm(system_segreg~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)$lme
+exactRLRT(model)
+gam_modul_avg_age <- gam(modul_avg~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+model<- gamm(modul_avg~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)$lme
+exactRLRT(model)
+gam_part_coef_age <- gam(part_coef~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+model<- gamm(part_coef~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)$lme
+exactRLRT(model)
+gam_clustco_age <- gam(avgclustco_both~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
+model<- gamm(part_coef~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)$lme
+exactRLRT(model)
+```
+
+```{r gam plots of segregation, echo=FALSE, include=TRUE, results='hide'}
+par(mfrow=c(2,3))
+visreg(gam_between_sys_age,"age_scan",main=names(model.frame(gam_between_sys_age))[1])
+visreg(gam_within_sys_age,"age_scan", main=names(model.frame(gam_within_sys_age))[1])
+visreg(gam_segreg_age,"age_scan",  main=names(model.frame(gam_segreg_age))[1])
+visreg(gam_modul_avg_age,"age_scan", main=names(model.frame(gam_modul_avg_age))[1])
+visreg(gam_part_coef_age,"age_scan", main=names(model.frame(gam_part_coef_age))[1])
+```
+
+Tests of non-linearity confirmed that no non-linear effects are present. The wiggly participation coefficient line is just over-fitting.
+
+## Which systems are driving this effect?
+
+We fit the same model, controlling for sex, mean framewise displacement, percent of FD spikes in the data, the number of volumes a participant had, and the average weight of the functional network, to between- and within-system connectivity for each of the Yeo 7 systems. 
+
+We find the strongest effects are in the default mode system, between default and attentional networks.
+```{r lm plots, echo=FALSE, include=TRUE, results='hide',fig.show='hold', out.width='33.33%', fig.align='default'}
+networks_age_pvals_fdr #FDR-corrected
+lm_sys1to3<- lm(sys1to3~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet, data=main_unique)
+lm_sys3to7<- lm(sys3to7~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet, data=main_unique)
+lm_sys4to7<- lm(sys4to7~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet, data=main_unique)
+# ############## investigating plotting options #############
+# crPlots(lm_sys4to7, "age_scan")
+# plot(main_unique$age_scan, (lm_sys4to7$fitted.values))
+# 
+# library(car)
+#avPlots(lm_sys4to7, "age_scan")
+# sys4to7<- ((rstandard(lm(sys4to7~male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)))*rmse(lm_sys4to7, main_unique))+ mean(main_unique$sys4to7)
+# age <- ((rstandard(lm(age_scan~male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)))*rmse(lm_sys4to7, main_unique)) + mean(main_unique$age_scan)
+# xxx <- data.frame(sys4to7,age)
+# l <- lm(sys4to7~age, data=xxx)
+# visreg(l)
+# plot(xxx$sys4to7~xxx$age)
+# plot(lm_sys)
+visreg(lm_sys1to3,"age_scan",main="VIS to DAN", ylab="", xlab="Age at scan (years)")
+visreg(lm_sys3to7,"age_scan", main="DMN to DAN",ylab="", xlab="Age at scan (years)")
+visreg(lm_sys4to7,"age_scan",  main="DMN to VAN",ylab="", xlab="Age at scan (years)")
+# 
+# crPlots(lm_sys4to7)
+# visreg(lm_sys4to7,"age_scan",band=FALSE, gg=TRUE)+geom_smooth()+theme_classic()
+```
+
+None of these showed significantly non-linear effects, either. 
+
+Effects on default mode connectivity survive FDR correction across the tests conducted, with DMN-VAN *p_fdr*=`r networks_age_pvals_fdr$pvalue[networks_age_pvals_fdr$network=="sys3to7"]` and DMN-DAN *p_fdr*= `r networks_age_pvals_fdr$pvalue[networks_age_pvals_fdr$network=="sys4to7"]`. Vis-DAN *p_fdr*= `r networks_age_pvals_fdr$pvalue[networks_age_pvals_fdr$network=="sys1to3"]`.
+
+## Longitudinal data
+
+### Longitudinal data descriptives
+
+We have `r sum(main_filt$longitudinal_visit_num==2)` 
+```{r longitudinal descriptives}
+#melt data
+main_filt_long <- dplyr::select(main_filt, c(ID:record_id.y,date_scan, date_behav, age_scan,male,fd_mean_avg,avgweight,pctVolsCensored,totalSizet,race2,ethnicity, longitudinal_visit_num,base_ID, part_coef))
+#need to filter out only the first datapoint from each timepoint, since the network data is repeated across multiple runs at each timepoint
+#to see why -> main_filt %>% select(base_ID,longitudinal_visit_num,sys1to1)
+main_long_only <- main_filt_long %>% group_by(base_ID, longitudinal_visit_num) %>% filter(row_number() == 1)
+main_long_only %>% select(base_ID,longitudinal_visit_num,sys1to1) #now has one set of network stats from each timepoint for each subject
+table(main_long_only$longitudinal_visit_num)
+
+#get gaps between visits
+main_long_only<- main_long_only %>% group_by(base_ID) %>% mutate(diffageT1toT2=nth(age_scan,2)-first(age_scan),
+                                                diffageT2toT3=nth(age_scan,3)-nth(age_scan,2)) %>% ungroup()
+#Summary in months
+main_long_only %>% select(diffageT1toT2) %>%  summarise(.,min=min(diffageT1toT2*12, na.rm=T), max=max(diffageT1toT2*12, na.rm=T))
+main_long_only %>% select(diffageT2toT3) %>%  summarise(.,min=min(diffageT2toT3*12, na.rm=T), max=max(diffageT2toT3*12, na.rm=T))
+```
+
+We have `r sum(main_long_only$longitudinal_visit_num==2)` T2 visits and `r sum(main_long_only$longitudinal_visit_num==3)` T3 visits.
+
+```{r longitudinal global effects with age}
+library(nlme)
+library(lme4)
+library(lmerTest) #this will provide p-values
+
+measures=c("mean_within_sys","mean_between_sys", "system_segreg", "modul_avg", "part_coef", "avgclustco_both")
+for (meas in measures){
+  print(meas)
+  name<-paste0("lm_", meas,"_age")
+  formula<-formula(paste0(meas,'~scale(age_scan)+male+scale(fd_mean_avg)+scale(avgweight)+scale(totalSizet)+scale(pctVolsCensored)+(1|base_ID)'))
+  assign(name, lmer(formula,data=main_long_only))
+  print(summary(get(name)))
+  print(get(name))
+}
+#within, between, system segreg and part coef are singular, use lm instead 
+#clustco and modul are not singular
+  
+#Without the random effect for subject, for those models that don't converge, the fixed effects with lm are the same as those using lmer, Bart suggests using lm instead
+lm_within_sys_age <- lm(mean_within_sys~age_scan+male+fd_mean+avgweight+pctVolsCensored+totalSizet, data=main_long_only)
+summary(lm_within_sys_age) 
+lm_within_sys_age
+
+lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean+avgweight+pctVolsCensored+totalSizet, data=main_long_only)
+summary(lm_between_sys_age)
+lm.beta(lm_between_sys_age)
+
+lm_system_segreg_age <- lm(system_segreg~age_scan+male+fd_mean+avgweight+pctVolsCensored+totalSizet, data=main_long_only)
+summary(lm_system_segreg_age)
+lm.beta(lm_system_segreg_age)
+```
+
+### System-level effects
+```{r longitudinal system-level effects with age}
+lm_sys4to7_age <- lmer(sys4to7~scale(age_scan)+male+scale(fd_mean_avg)+scale(avgweight)+scale(totalSizet)+scale(pctVolsCensored)+(1|base_ID), data=main_long_only)
+summary(lm_sys4to7_age)
+lm_sys4to7_age 
+
+#1to3 and 3to7 are singular, use lm
+lm_sys1to3_age <- lm(sys1to3~age_scan+male+fd_mean+avgweight+pctVolsCensored+totalSizet, data=main_long_only)
+summary(lm_sys1to3_age)
+lm.beta(lm_sys1to3_age)
+
+lm_sys3to7_age <- lm(sys3to7~age_scan+male+fd_mean+avgweight+pctVolsCensored+totalSizet, data=main_long_only)
+summary(lm_sys3to7_age)
+lm.beta(lm_sys3to7_age)
+```
+
+### Playing with plotting mixed effects
+```{r plotting mixed effects}
+#with sjplot
+library(sjPlot)
+plot_model(lm_within_sys_age,terms=c("age_scan"), type = "pred", pred.type = "re", show.data = T)
+
+#Using ggplot to recreate 
+fm2 <- lme(mean_within_sys~scale(age_scan)+male+scale(fd_mean_avg)+scale(avgweight)+scale(totalSizet)+scale(pctVolsCensored), data = main_long_only, random = ~ 1|base_ID)
+summary(fm2)
+fm2
+
+fm2 <- lme(sys4to7~age_scan+male+fd_mean_avg+avgweight+totalSizet+pctVolsCensored, data = main_long_only, random = ~ 1|base_ID)
+
+newdat <- expand.grid(male=unique(main_long_only$male),
+                  age_scan=c(min(main_long_only$age_scan),
+                            max(main_long_only$age_scan)),
+                  fd_mean_avg=c(min(main_long_only$fd_mean_avg),
+                                max(main_long_only$fd_mean_avg)),
+                  avgweight=c(min(main_long_only$avgweight),
+                                max(main_long_only$avgweight)),
+                  totalSizet=c(min(main_long_only$totalSizet),
+                                max(main_long_only$totalSizet)),
+                  pctVolsCensored=c(min(main_long_only$pctVolsCensored),
+                                max(main_long_only$pctVolsCensored)))
+p <- ggplot(main_long_only, aes(x=age_scan, y=predict(fm2)))+
+  geom_point(size=3) +
+  geom_line(aes(y=predict(fm2), group=base_ID, size="Subjects")) +
+  geom_line(data=newdat, aes(y=predict(fm2, level=0, newdata=newdat), size="Population")) +
+  scale_size_manual(name="Predictions", values=c("Subjects"=0.5, "Population"=3)) +
+  theme_bw(base_size=22)
+p
+
+tab_model(lm_within_sys_age)
+
+#try bayesian approach?
+stan_glmer
+
+#plotting
+library(lattice)
+xyplot(mean_within_sys ~ age_scan | base_ID, main_long_only, aspect = "xy",
+            type = c("g", "p", "r"), subset = )
+       
+       index.cond = function(x,y) coef(lm(y ~ x))[1])
+
+#Using ggplot to plot the predicted datapoints (controlling)
+lm_sys4to7_age <- lmer(sys4to7~age_scan+male+fd_mean+avgweight+pctVolsCensored+totalSizet+(1|base_ID), data=main_long_only)
+main_long_only$pred_sys4to7 <- predict(lm_sys4to7_age)
+ggplot(data=main_long_only, aes(x=age_scan, y=pred_sys4to7, group=factor(base_ID), colour="gray"), legend=FALSE) +
+  geom_smooth(method=lm, se=F, fullrange=F, lty=1, size=.5, color="gray60") +
+  geom_smooth(aes(group=1), method=lm, se=FALSE, fullrange=FALSE, lty=1, size=2, color="black") +
+  geom_point(aes(x=age_scan,y=pred_sys4to7))+
+  xlab("Age at Scan (years)") + ylab("Predicted time brushing (sec)") +
+  theme_classic() +
+  theme(axis.title=element_text(size=18),
+        axis.text=element_text(size=14),
+        plot.title=element_text(size=18, hjust=.5))
+```
+
+## Environment and Measures of Network Segregation
+
+```{r recode race to use way Cassidy did in molar eruption paper-5-category}
+main_unique$race_factor <- ifelse(main_unique$race_americanindian==1, "Multiracial_Other", ifelse(main_unique$race_asian == 1, "Asian", ifelse(main_unique$race_hawaiian==1,"Multiracial_Other", ifelse(main_unique$race_other==1, "Multiracial_Other",(ifelse(main_unique$race_black==1,  "AABlack", ifelse(main_unique$race_white==1, "White", ifelse(main_unique$race_americanindian+main_unique$race_asian+main_unique$race_black+main_unique$race_hawaiian+main_unique$race_white > 1,  "Multiracial_Other", NA))))))))
+main_unique$race_factor[which(main_unique$ethnicity == "Hispanic or Latino")] <- "Hispanic"
+
+main_replicate_unique$race_factor <- ifelse(main_replicate_unique$race_americanindian==1, "Multiracial_Other", ifelse(main_replicate_unique$race_asian == 1, "Asian", ifelse(main_replicate_unique$race_hawaiian==1,"Multiracial_Other", ifelse(main_replicate_unique$race_other==1, "Multiracial_Other",(ifelse(main_replicate_unique$race_black==1,  "AABlack", ifelse(main_replicate_unique$race_white==1, "White", ifelse(main_replicate_unique$race_americanindian+main_replicate_unique$race_asian+main_replicate_unique$race_black+main_replicate_unique$race_hawaiian+main_replicate_unique$race_white > 1,  "Multiracial_Other", NA))))))))
+main_replicate_unique$race_factor[which(main_replicate_unique$ethnicity == "Hispanic or Latino")] <- "Hispanic"
+```
+
+Race: There are small significant effects of race on within- and between-system connectivity such that white and Asian kids tend to have higher within and lower between system connectivity than Black kids.
+
+SES: No significant effects of SES (median income, ses composite of income and parental education, or parent1 education) on measures of segregation (controlling for race or not).
+
+ACES sum: No significant effects of ACES sum on measures of segregation. However, didn't examine 3-category ACES.
+
+For future reference, the estimates and p-values for other covariates (excluding the intercept) don't change based on the reference level of a factor (re: Allyson's concerns in Black vs. White ref category).
+
+```{r models of segregation with ses, echo=FALSE, include=FALSE, results='hide'}
+lm_within_sys_age <- lm(mean_within_sys~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet+race_factor, data=main_unique)
+summary(lm_within_sys_age)
+lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet+race_factor, data=main_unique)
+summary(lm_between_sys_age)
+lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet+race_factor, data=main_unique)
+summary(lm_segreg_age)
+lm_modul_avg_age <- lm(modul_avg~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet+race_factor, data=main_unique)
+summary(lm_modul_avg_age)
+lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet+race_factor, data=main_unique)
+summary(lm_part_coef_age)
+
+#swap out race2 for income_median, parent1_edu, ses_composite, or childaces_sum_ignorenan
+lm_within_sys_age <- lm(mean_within_sys~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet+race_factor+parent1_edu, data=main_unique)
+summary(lm_within_sys_age)
+lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet+race_factor+parent1_edu, data=main_unique)
+summary(lm_between_sys_age)
+lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet+race_factor+parent1_edu, data=main_unique)
+summary(lm_segreg_age)
+lm_modul_avg_age <- lm(modul_avg~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet+race_factor+parent1_edu, data=main_unique)
+summary(lm_modul_avg_age)
+lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet+race_factor+parent1_edu, data=main_unique)
+summary(lm_part_coef_age)
+
+#childaces_sum_ignorenan
+lm_within_sys_age <- lm(mean_within_sys~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet+childaces_sum_ignorenan, data=main_unique)
+summary(lm_within_sys_age)
+lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet+childaces_sum_ignorenan, data=main_unique)
+summary(lm_between_sys_age)
+lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet+childaces_sum_ignorenan, data=main_unique)
+summary(lm_segreg_age)
+lm_modul_avg_age <- lm(modul_avg~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet+childaces_sum_ignorenan, data=main_unique)
+summary(lm_modul_avg_age)
+lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet+childaces_sum_ignorenan, data=main_unique)
+summary(lm_part_coef_age)
+```
+
+However, there are effects of the binned ACES (into 0-1, 2, or 3+) on within- and between-network connectivity as well as the participation coefficient. We see that 2 ACES is associated with significantly less within- and more between-network connectivity and lower system segregation.
+
+```{r main effect aces on segregation plots, echo=FALSE, include=TRUE, results='hide',fig.show='hold', out.width='33.33%', fig.align='default'}
+lm_within_sys_age <- lm(mean_within_sys~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet+aces3category+ses_composite, data=main_unique)
+summary(lm_within_sys_age)
+lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet+aces3category+ses_composite, data=main_unique)
+summary(lm_between_sys_age)
+lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet+aces3category+ses_composite, data=main_unique)
+lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet+aces3category+ses_composite, data=main_unique)
+visreg(lm_within_sys_age,"age_scan",by="aces3category", overlay=TRUE)
+visreg(lm_between_sys_age,"age_scan",by="aces3category", overlay=TRUE)
+visreg(lm_part_coef_age,"age_scan",by="aces3category", overlay=TRUE)
+```
+
+## Questions, Notes, & Future Directions
+
+* There are also sometimes outliers on some of the measures that flatten out age or environment trends, I have been looking into using robust regression to examine these trends instead, but did not go through all the trouble to bootstrap p-values for this time around. However, I think it's possible that robust regression might be a more defensible choice.
+
+* Spin tests for parcellations/cortical regions: https://github.com/frantisekvasa/rotate_parcellation
+  * Can you do this for networks somehow--is this relevant? Graham has done it before, maybe?
+
+## Plot average functional connectivity matrices
+
+We can also compare these to the PNC adolescent matrix and see how it differs.
+
+ggcorrplot
+
+ggcorr is better
+
+What if we add the two runs for subjects who have more than one, what does that buy us? 
+```{r plot matrices,  echo=FALSE, include=TRUE,fig.show='hold', out.width='100%'}
+library(mdpeer)
+network_dir=paste0("~/Desktop/cluster/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/",pipeline)
+avg_matrix <- read.csv(paste0(network_dir,""), header = FALSE)
+#reorder by yeo labels
+#read in schaefer to yeo labels
+#put labels on top and bottom
+#subject_clustco_yeo_system<-l %>% arrange(labels) %>% summarize_all(mean)
+
+avgmatrix <- as.matrix(avg_matrix)
+# palf <- colorRampPalette(c("red","white", "blue")) 
+# heatmap(avgmatrix, Rowv = NA, Colv = NA, col = palf(20))
+plot(vizu.mat(avgmatrix, fill.scale.limits = c(-1.3, 1.3), x.lab=pipeline))
+
+```
+
+# Supplemental Analyses
+
+## Replication parcellation: Schaefer200
+
+```{r replication in Schaefer200}
+#Use main_replicate_unique instead
+
+
+
+networks_age_pvals_fdr_replicate
+```
+
+### Age and measures of network segregation
+
+We used Schaefer200 as the replication parcellation, since it has nice correspondence to Schaefer400 and the Yeo7 systems. 
+
+```{r replicate models of segregation, echo=FALSE, include=FALSE, results='hide'}
+#look at mean within and between with age
+lm_within_sys_age <- lm(mean_within_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
+lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
+
+lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
+
+lm_modul_avg_age <- lm(modul_avg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
+
+lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
+lm_num_comms_age <- lm(num_comms_modul_avg~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
+
+```
+
+```{r replicate plots of segregation, echo=FALSE, include=TRUE, results='hide'}
+par(mfrow=c(2,3))
+visreg(lm_between_sys_age,"age_scan")
+visreg(lm_within_sys_age,"age_scan")
+visreg(lm_segreg_age,"age_scan")
+visreg(lm_modul_avg_age,"age_scan")
+visreg(lm_part_coef_age,"age_scan")
+visreg(lm_num_comms_age,"age_scan")
+```
+
+All previous findings significant increases in network segregation with age hold in our replication parcellation! The only finding that is inconsistent is the number of communities detected using modul_avgarity maximization decreasing with age, which was likely spurious anyways.
+
+As a reminder, we controlled for sex, mean framewise displacement, percent of FD spikes in the data, the number of volumes a participant had, and the average weight of the functional network.
+
+Also, no non-linear effects of age.
+
+### System-level effects
+Again, we find the strongest effects in Vis-DAN, DMN-DAN, and DMN-VAN, which are the only effects that pass *fdr* correction.
+
+```{r lm replicate plots, echo=FALSE, include=TRUE, results='hide', fig.show='hold', out.width='33.33%', fig.align='default'}
+networks_age_pvals_fdr_replicate
+lm_sys1to3<- lm(sys1to3~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
+lm_sys3to7<- lm(sys3to7~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
+lm_sys4to7<- lm(sys4to7~age_scan+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_replicate_unique)
+
+visreg(lm_sys1to3,"age_scan",main="Vis to DAN")
+visreg(lm_sys3to7,"age_scan", main="DMN to DAN")
+visreg(lm_sys4to7,"age_scan",  main="DMN to VAN")
+```
+
+All three effects survive FDR correction across the tests conducted, with DMN-VAN *p_fdr*=`r networks_age_pvals_fdr_replicate$pvalue[networks_age_pvals_fdr_replicate$network=="sys3to7"]`, DMN-DAN *p_fdr*= `r networks_age_pvals_fdr_replicate$pvalue[networks_age_pvals_fdr_replicate$network=="sys4to7"]`, Vis-DAN *p_fdr*= `r networks_age_pvals_fdr_replicate$pvalue[networks_age_pvals_fdr_replicate$network=="sys1to3"]`.
+
+## Replication with a pipeline without GSR
+
+```{r replication without GSR}
+#load the .RDS file
+pipeline='nogsr_spkreg_fd0.5dvars1.75_drpvls'
+network_dir=paste0("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/",pipeline)
+load(paste0(network_dir,"/CBPD_n90_schaefer400_allruns.Rdata"))
+
+
+```
+
+## Test-retest reliability of network metrics
+
+Using both Pearson's correlation and the ICC. Noble et al. 2019 in their review on TRT of functional connectivity metrics suggest using ICC(1,1), or single_raters_absolute, which is used to estimate agreement in exact values when sources of error are unspecified. However, they acknowledge that using ICC(1,2) (averaging across two runs) yields an estimate of how much reliability improves when averaging across multiple sessions.
+
+"Absolute agreement of connectivity derived from a single session (k=1) is necessarily lower than that averaged over two sessions (k=2), and this k=2 estimate may be used to estimate how much reliability improves when averaging over multiple measurements (e.g., repeated sessions), assuming they are interchangeable."
+
+Tozzi et al. 2019 also looked at individual edges reliability, but they used ICC(3,1), which will always result in a higher value! Both papers find individual edges generally have poor reliability (< 0.4).
+```{r TRT of net metrics,  echo=FALSE, include=TRUE,fig.show='hold', out.width='100%'}
+pipelines=c("nogsr_spkreg_fd1.25dvars2_drpvls", 'nogsr_spkreg_fd0.5dvars1.75_drpvls', "gsr_censor_5contig_fd1.25dvars2_drpvls",'gsr_spkreg_fd0.5dvars1.75_drpvls', "gsr_censor_5contig_fd0.5dvars1.75_drpvls")
+for (pipeline in pipelines){
+network_dir=paste0("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/",pipeline)
+load(paste0(network_dir,"/CBPD_n74_schaefer400.Rdata"))
+#filter for only participants with more than 2 runs
+dim(main)
+#### examine the number of good vols in run1 vs run2####
+l <- main_filt %>% group_by(ID) %>% filter(n() >= 2) %>% filter(run=="run-01")
+hist(l$nVolCensored, main = "run 1= red, run 2 = blue, n Vols Censored", col=rgb(1,0,0,0.5))
+l2 <- main_filt %>% group_by(ID) %>% filter(n() >= 2) %>% filter(run=="run-02")
+hist(l2$nVolCensored,col=rgb(0,0,1,0.5), add=T)
+### Test ret-test ####
+trt <- main_filt %>% group_by(ID) %>% filter(n() >= 2) %>% dplyr::select(.,ID:pctSpikesFD_avg)
+#rename 150 run 3 to run 2 so it goes in the right column
+trt$run[trt$ID=="sub-CBPD0150" & trt$run=="run-03"] <- "run-02"
+cols <- trt %>% ungroup() %>% dplyr::select(.,avgweight:sys7to7) %>%  colnames()
+trt <- dcast(setDT(trt), ID~run, value.var = cols)
+colnames(trt) <- make.names(colnames(trt)) #reshaped column names have - in them which is prohibited, then we can have a dataframe
+trt <- as.data.frame(trt)
+for (column in cols){
+  temp <- trt %>% dplyr::select(.,matches(paste0("^",column)))
+  assign(paste0(column, "_trt_corr"),cor.test(temp[,1], temp[,2])) #correlation
+  assign(paste0(column, "_trt_icc"), ICC(temp, lmer = FALSE))
+}
+print(pipeline)
+avgweight_trt_corr
+modul_avg_trt_corr
+mean_within_sys_trt_corr
+mean_between_sys_trt_corr
+system_segreg_trt_corr
+avgweight_trt_icc
+modul_avg_trt_icc
+mean_within_sys_trt_icc
+mean_between_sys_trt_icc
+system_segreg_trt_icc
+```
