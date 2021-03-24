@@ -33,7 +33,7 @@ cd#!/usr/bin/env bash
 ###################################################################
 
 analysis=fc_$(whoami)
-design=/mnt/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/code/ppc/fc-36p-nogsr-meancsfwm-spkreg-dropvols.dsn
+design=/cbica/home/tooleyu/projects/in_progress/within_between_network_conn_CBPD/code/ppc/fc-36p-nogsr-meancsfwm-spkreg-dropvols.dsn
 sequence=anatomical
 standard=MNI%2x2x2
 

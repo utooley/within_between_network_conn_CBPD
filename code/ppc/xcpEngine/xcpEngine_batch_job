@@ -1,11 +1,11 @@
 #!/bin/bash
-MACKEY_HOME=/data/picsl/mackey_group
-project_dir=/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD
-sublist_dir=/data/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists
+MACKEY_HOME=/cbica/projects/cbpd_main_data
+project_dir=/cbica/home/tooleyu/projects/in_progress/within_between_network_conn_CBPD
+sublist_dir=${project_dir}/data/subjectLists
 tools_dir=${MACKEY_HOME}/tools/singularity
 #tools_dir=/data/joy/BBL/applications/bids_apps #eventually check on that this hasn't changed.
 
-FULL_COHORT=${sublist_dir}/nxxx_ursula_pipeline_cleanup_for_xcpEngine.csv
+FULL_COHORT=${sublist_dir}/n3_anne_cohort_piper_xcpEngine.csv
 
 #FULL_COHORT=${sublist_dir}/n2_test.csv
 NJOBS=`wc -l < $FULL_COHORT`
@@ -18,13 +18,12 @@ fi
 
 cat << EOF > xcpParallel.sh
 #$ -j y
-#$ -q all.q,gpu.q,himem.q
 #$ -l h_vmem=95.1G,s_vmem=95.0G
-#$ -o /data${project_dir}/output/qsub_output
+#$ -o /cbica/projects/cbpd_main_data/qsub_output
 #$ -t 1-${NJOBS}
 
 # Adjust these so they work on your system
-SNGL=/share/apps/singularity/2.5.1/bin/singularity
+SNGL=/usr/bin/singularity
 SIMG=${tools_dir}/xcpEngine-100219.simg
 FULL_COHORT=${FULL_COHORT}
 
@@ -37,11 +36,11 @@ echo \$HEADER > \$TEMP_COHORT
 echo \$LINE >> \$TEMP_COHORT
 
 echo 'temporary directory is ' \$TMPDIR
-\$SNGL run --cleanenv -B /data:/mnt,\$TMPDIR:/tmp \$SIMG \\
-  -c /mnt\${TEMP_COHORT#/data} \\
-  -d /mnt${project_dir}/code/ppc/fc-36p-nogsr-meancsfwm-spkreg-fd0.5-dv1.75-dropvols.dsn \\
-  -o /mnt/picsl/mackey_group//BPD/CBPD_bids/derivatives/xcpEngine_nogsr_spkreg_fd0.5dvars1.75_drpvls \\
-  -i /mnt/picsl/mackey_group//BPD/CBPD_bids/derivatives/xcpengine_wd_2 \\
+\$SNGL run --cleanenv --env R_PROFILE_USER=usr,R_ENVIRON_USER=usr -B \$TMPDIR:/tmp \$SIMG \\
+  -c \${TEMP_COHORT} \\
+  -d ${project_dir}/code/ppc/fc-36p-nogsr-meancsfwm-spkreg-dropvols.dsn \\
+  -o ${MACKEY_HOME}/CBPD_bids_crosssectional/derivatives/xcpEngine_piper_nogsr_spkreg_fd1.25dvars2_drpvls \\
+  -i ${MACKEY_HOME}/CBPD_bids_crosssectional/derivatives/xcpengine_wd_2 \\
   -t 2
 
 EOF
