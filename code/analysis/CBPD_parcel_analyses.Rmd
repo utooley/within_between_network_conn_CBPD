@@ -117,7 +117,7 @@ chordDiagramFromMatrix(edge_age_betas_mat[1:400,1:400], annotationTrack = c("nam
 #code to read back into a 400 x 400 matrix! This works correctly.
 # vec<- mat[lower.tri(mat)]
 edge_age_pvals_mat <- matrix(nrow = 400, ncol=400)
-edge_age_pvals_mat[lower.tri(edge_age_pvals_mat, diag=FALSE)] <- edgewise_age_betas #take uncorrected p-values for now
+edge_age_pvals_mat[lower.tri(edge_age_pvals_mat, diag=FALSE)] <- edgewise_age_pvals_fdr[1,] #take uncorrected p-values for now
 #copy lower triangle to upper triangle
 edge_age_pvals_mat <- t(edge_age_pvals_mat)
 ```
@@ -156,6 +156,7 @@ values <- vector(mode = "double", 400)
 for (i in 1:400){
 values[as.numeric(as.character(l$indices[i]))] <- l$Freq[i]#replace the indices in values with the num of sig edges from that parcel in the table
 }
+values <- values/2 #because we indexed the full matrix, there are duplicates for each edge
 num_of_sig_age_edges_lh=as.list(setNames(c(0, values[1:200]), schaefer_atlas_region_names_lh))
 num_of_sig_age_edges_rh=as.list(setNames(c(0, values[201:400]), schaefer_atlas_region_names_rh))
 #colormap
@@ -218,7 +219,7 @@ edge_age_pvals_mat[upper.tri(edge_age_pvals_mat)] <- t(edge_age_pvals_mat)[upper
 pvalues=c(0.01,0.001,0.0001,0.00001)
 for (pvalue in pvalues){
 indices <- which(edge_age_pvals_mat<pvalue, arr.ind = T) #indices of edges that have age effects  below a pval
-l <- data.frame(table(indices)) #for each parcel, how many age-significant edges does it have at a given pval thresh
+l <- data.frame(table(indices[1:(dim(indices)[1]/2),])) #for each parcel, how many age-significant edges does it have at a given pval thresh--indices gives duplicates!
 values <- vector(mode = "double", 400)
 for (i in 1:400){
 values[as.numeric(as.character(l$indices[i]))] <- l$Freq[i]#replace the indices in values with the num of sig edges from that parcel in the table
@@ -246,13 +247,72 @@ First, need to compute the distance matrix for Schaefer400 (distances between ce
 
 ## Compare cosine similarity across significance levels for nodes
 
-Need to use Rick's Matlab code to make null models. Or use some kind of null model.
+Need to use Rick's Matlab code to make null models. Or use some kind of null model--maybe first just use different random pairs of parcels.
 
 Also--would do this on the average matrix (Do I already have this on the cluster? If not, make it), and not the subject matrices? Seems like so.
 For a given significance level, take the sig parcels and compute cosine similarity between pairs of connectivity profiles->mean or distribution
-Then, compare that to consine similarity between those same pairs of parcels but on randomized null networks generated using Rick's code.
-```{r cosine similarity between significant age nodes}
-
+Then, compare that to consine similarity between those same pairs of parcels but on randomized null networks generated using Rick's code, or to random pairs of parcels as a less stringent test.
+```{r make average FC matrix}
+edges_dir=paste0("/cbica/home/tooleyu/projects/in_progress/within_between_network_conn_CBPD/data/imageData/",pipeline,"/schaefer400zNetworks_avg/")
+#get adj matrix files
+files <- data.frame(list.files(edges_dir)) %>% filter( list.files.edges_dir. %in% paste0(main_unique$ID, "_schaefer400MNI_zavgnetwork.txt")); files$list.files.edges_dir. <- paste0(edges_dir,files$list.files.edges_dir.)
+#make an average matrix
+summed=matrix(0,400,400)
+for (i in 1:dim(main_unique)[1]){
+mat <- as.matrix(read_csv(file =paste0(edges_dir,main_unique$ID[i], "_schaefer400MNI_zavgnetwork.txt"), col_names = F))
+summed<- summed+mat
+}
+average <- summed/dim(main_unique)[1]
+#save for reloading in future
+write.csv(average,file= "~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/n90_average_zscored_FC_matrix.csv", row.names = F)
 ```
 
+
+```{r cosine similarity between significant age nodes}
+library(lsa) #for cosine similarity
+#read in average matrix
+average_FC_mat <- as.matrix(read.csv("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/n90_average_zscored_FC_matrix.csv"))
+#load back in edge age effects
+load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/edgewise_age_effects.Rdata")
+
+#Use different pval thresholds and plot parcels that have age-nonlin-sig edges at that threshold
+sig_parcel_cosine=vector()
+#skip 0.01 for now, because it's really big
+pvalues=c(0.001,0.0001,0.00001)
+for (pvalue in pvalues){
+  i=1
+  sig_parcel_cosine=vector()
+indices <- which(edge_age_pvals_mat<pvalue, arr.ind = T) #indices of edges that have age effects  below a pval
+for (x in indices[,1]){
+  for (y in indices[,2]){
+    sig_parcel_cosine[i] <- print(cosine(average_FC_mat[,x], average_FC_mat[,y]))#take both columns
+    i <- i+1
+  }
+}
+assign(paste0("sig_parcel_",pvalue,"cosine"), sig_parcel_cosine[sig_parcel_cosine!=1]) #each cosine value has a duplicate?
+}
+sig_parcel_0.0001cosine <- `sig_parcel_1e-04cosine`
+sig_parcel_0.00001cosine <- `sig_parcel_1e-05cosine`
+save(sig_parcel_0.001cosine, sig_parcel_0.0001cosine, sig_parcel_0.00001cosine, file="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/cosine_similarity_data.Rdata")
+
+#null model
+indicesx=random_sample(1:400);indicesy=random(1:400)
+random_parcels[i] <- cosine similarity(average_FC_mat[x_vector], average_FC_mat[y_vector])
+
+#plot the difference
+
+l <- data.frame(table(indices)) #for each parcel, how many age-significant edges does it have at a given pval thresh
+values <- vector(mode = "double", 400)
+for (i in 1:400){
+values[as.numeric(as.character(l$indices[i]))] <- l$Freq[i]#replace the indices in values with the num of sig edges from that parcel in the table
+}
+num_of_sig_age_edges_lh=as.list(setNames(c(0, values[1:200]), schaefer_atlas_region_names_lh))
+num_of_sig_age_edges_rh=as.list(setNames(c(0, values[201:400]), schaefer_atlas_region_names_rh))
+#colormap
+colFn_diverging = colorRampPalette(c("white","orange", "red"));makecmap_options=list('colFn'=colFn_diverging)
+rglactions=list("snapshot_png"=paste0(output_image_directory,"age_nonlin_pvals_", pvalue,"regions.png"))
+vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  num_of_sig_age_edges_lh, 
+                             num_of_sig_age_edges_rh, makecmap_options = makecmap_options, "inflated", views="t4", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
+}
+```
 #get SA and run same models across parcels.
