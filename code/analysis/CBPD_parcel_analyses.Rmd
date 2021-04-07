@@ -31,6 +31,27 @@ network_dir=paste0("~/Documents/projects/in_progress/within_between_network_conn
 load(paste0(network_dir,"/CBPD_n90_schaefer400_allruns.Rdata"))
 ```
 
+```{r brain plotting setup, include=FALSE, echo=FALSE}
+library(fsbrain) #this may not work if you're editing the script directly on the cluster...
+library(freesurferformats)
+#rearrange the order of the brains in the T9 view of fsbrain
+source("~/Documents/tools/fsbrain_fix_t9.R")
+environment(brainview.t9) <- asNamespace('fsbrain')
+assignInNamespace("brainview.t9", brainview.t9, ns = "fsbrain")
+subjects_dir = "/Users/utooley/Documents/tools/CBIG/stable_projects/brain_parcellation/Schaefer2018_LocalGlobal/Parcellations/FreeSurfer5.3/";
+subject_id = 'fsaverage';       # for functions which use one subject only
+atlas='Schaefer2018_400Parcels_7Networks_order'
+
+#Get the Schaefer atlas region names
+schaefer_atlas_region_names_lh = get.atlas.region.names(atlas, template_subjects_dir = subjects_dir,template_subject=subject_id, hemi="lh");
+schaefer_atlas_region_names_rh = get.atlas.region.names(atlas, template_subjects_dir = subjects_dir,template_subject=subject_id, hemi="rh");
+
+#set output dir for saving images
+output_image_directory="~/Documents/projects/in_progress/within_between_network_conn_CBPD/output/figures/brains/"
+  
+#Set RGL defaults, larger window and how to make snapshots!
+rgloptions=list("windowRect"=c(50,50,1000,1000));
+```
 ## Load data
 ```{r load parcel data, include=FALSE, echo=FALSE}
 edges_dir=paste0("/cbica/home/tooleyu/projects/in_progress/within_between_network_conn_CBPD/data/imageData/",pipeline,"/schaefer400zNetworks_avg/")
@@ -124,28 +145,6 @@ edge_age_pvals_mat <- t(edge_age_pvals_mat)
 ```
 
 ## Plot pvals on brain.
-```{r brain plotting setup, include=FALSE, echo=FALSE}
-library(fsbrain) #this may not work if you're editing the script directly on the cluster...
-library(freesurferformats)
-#rearrange the order of the brains in the T9 view of fsbrain
-source("~/Documents/tools/fsbrain_fix_t9.R")
-environment(brainview.t9) <- asNamespace('fsbrain')
-assignInNamespace("brainview.t9", brainview.t9, ns = "fsbrain")
-subjects_dir = "/Users/utooley/Documents/tools/CBIG/stable_projects/brain_parcellation/Schaefer2018_LocalGlobal/Parcellations/FreeSurfer5.3/";
-subject_id = 'fsaverage';       # for functions which use one subject only
-atlas='Schaefer2018_400Parcels_7Networks_order'
-
-#Get the Schaefer atlas region names
-schaefer_atlas_region_names_lh = get.atlas.region.names(atlas, template_subjects_dir = subjects_dir,template_subject=subject_id, hemi="lh");
-schaefer_atlas_region_names_rh = get.atlas.region.names(atlas, template_subjects_dir = subjects_dir,template_subject=subject_id, hemi="rh");
-
-#set output dir for saving images
-output_image_directory="~/Documents/projects/in_progress/within_between_network_conn_CBPD/output/figures/brains/"
-  
-#Set RGL defaults, larger window and how to make snapshots!
-rgloptions=list("windowRect"=c(50,50,1000,1000));
-```
-
 
 ```{r brain plotting initial, include=FALSE, echo=FALSE}
 #Use different pval thresholds and plot parcels that have age-sig edges at that threshold
@@ -282,14 +281,14 @@ edge_age_pvals_mat[upper.tri(edge_age_pvals_mat)] <- t(edge_age_pvals_mat)[upper
 #Use different pval thresholds and plot parcels that have age-nonlin-sig edges at that threshold
 sig_parcel_cosine=vector()
 #skip 0.01 for now, because it's really big
-pvalues=c(0.001,0.0001,0.00001)
+pvalues=c(0.01, 0.001,0.0001,0.00001)
 for (pvalue in pvalues){
   #i=1
   sig_parcel_cosine=vector()
 indices <- which(edge_age_pvals_mat<pvalue, arr.ind = T) #indices of edges that have age effects below a pval
 for (x in 1:dim(indices)[1]){
   #for (y in indices[,2]){
-    sig_parcel_cosine[x] <- cosine(average_FC_mat[,as.numeric(indices[x,1])], average_FC_mat[,as.numeric(indices[x,2])])#take both columns
+    sig_parcel_cosine[x] <- cosine(average_FC_mat[,indices[x,1]], average_FC_mat[,indices[x,2]])#take both columns
     #i <- i+1
   #}
 }
@@ -312,7 +311,7 @@ indices[,2] <- sample(1:400,dim(indices)[1], replace = T)#replace with random in
 for (x in 1:dim(indices)[1]){
   #for (y in indices[,2]){
     #null_parcel_cosine[i] <- print(cosine(average_FC_mat[,x], average_FC_mat[,y]))#take both columns
-    null_parcel_cosine[x] <- cosine(average_FC_mat[,as.numeric(indices[x,1])], average_FC_mat[,as.numeric(indices[x,2])])
+    null_parcel_cosine[x] <- cosine(average_FC_mat[,indices[x,1]], average_FC_mat[,indices[x,2]])
     #i <- i+1
   #}
 }
@@ -325,8 +324,8 @@ save(null_parcel_edges_only_0.001cosine, null_parcel_edges_only_0.0001cosine, nu
 
 #plot the difference
 pvalues=c(0.001,0.0001,0.00001)
-j <- hist(null_parcel_edges_only_0.00001cosine)
-l <- hist(sig_parcel_edges_only_0.00001cosine)
+j <- hist(null_parcel_edges_only_0.001cosine)
+l <- hist(sig_parcel_edges_only_0.001cosine)
 plot(j, col=rgb(0,0,1,1/4), xlim=c(-1,1))  # first histogram
 plot(l, col=rgb(1,0,0,1/4), xlim=c(-1,1), add=T)
 t.test(sig_parcel_0.00001cosine, null_parcel_0.00001cosine)
@@ -371,7 +370,7 @@ visreg(lm(total_SA~age_scan+male+t1_rating_avg, data=n90_total_SA_wholebrain_dat
 
 The R function in fsbrain called `group.agg.atlas.native` will get SA within each parcel with an annot file.
 However, this function looks like it computes surface area within each parcel itself, based on the annotation file I wrote with mri_surf2surf, meaning that the mri_segstats I ran was not needed. 
-These values don't match those generated by mri_segstats, though, maybe because of the --accumulate flag I used that weights each parcel by the # of voxels? They are on different scales.
+These values don't match those generated by mri_segstats, though.
 
 ```{r get raw SA age effect within Schaefer400 parcels for each subject}
 lh <- read.delim("/cbica/projects/cbpd_main_data/CBPD_bids_crosssectional/derivatives/freesurfer/schaefer400_lh_surfarea_stats.txt") %>% rename(.,ID=lh.schaefer400_7nets.surfarea.area);rh <- read.delim("/cbica/projects/cbpd_main_data/CBPD_bids_crosssectional/derivatives/freesurfer/schaefer400_rh_surfarea_stats.txt")%>% rename(.,ID=rh.schaefer400_7nets.surfarea.area)
@@ -420,10 +419,10 @@ vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcel
 
 #plot betas for significant regions
 parcel_SA_betas_thresh <- ifelse(parcel_SA_pvals<0.05,parcel_SA_betas,NA)
-num_of_sig_age_edges_lh=as.list(setNames(c(NA,parcel_SA_betas_thresh[2:201]), schaefer_atlas_region_names_lh)) #this has the medial wall in it.
-num_of_sig_age_edges_rh=as.list(setNames(c(NA,parcel_SA_betas_thresh[203:402]), schaefer_atlas_region_names_rh))
+num_of_sig_age_edges_lh=as.list(setNames(c(NA,parcel_SA_betas[2:201]), schaefer_atlas_region_names_lh)) #this has the medial wall in it.
+num_of_sig_age_edges_rh=as.list(setNames(c(NA,parcel_SA_betas[203:402]), schaefer_atlas_region_names_rh))
 colormap= colorRampPalette(rev(RColorBrewer::brewer.pal(9, name="RdBu")));makecmap_options=list('colFn'=colormap)
-rglactions=list("snapshot_png"=paste0(output_image_directory,"SA_age_thresh_betas.png"))
+rglactions=list("snapshot_png"=paste0(output_image_directory,"SA_age_betas.png"))
 vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  num_of_sig_age_edges_lh, 
                              num_of_sig_age_edges_rh, makecmap_options = makecmap_options, "inflated", views="t4", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
 ```
@@ -462,13 +461,18 @@ vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcel
 
 ## Are the edge and SA maps more similar than is expected by chance?
 ```{r similarity of edge and SA age effects}
+library(lsa)
 #load back in edge age effects
 load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/edgewise_age_effects.Rdata")
 edge_age_pvals_mat <- matrix(nrow = 400, ncol=400)
 edge_age_pvals_mat[lower.tri(edge_age_pvals_mat, diag=FALSE)] <- edgewise_age_pvals_fdr[,1] #take uncorrected p-values for now
 edge_age_pvals_mat <- t(edge_age_pvals_mat)#copy lower triangle to upper triangle
+#load in parcel SA age effects
+load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/parcel_SA_age_n90.Rdata")
 
-pvalue= 0.0001#pvalue for edges to examine
+#for SA age effect pvalues
+pvalues=c(0.01,0.001,0.0001,0.00001)
+for (pvalue in pvalues){
 indices <- which(edge_age_pvals_mat<pvalue, arr.ind = T) #indices of edges that have age effects  below a pval
 l <- data.frame(table(indices)) #for each parcel, how many age-significant edges does it have at a given pval thresh
 values <- vector(mode = "double", 400)
@@ -477,41 +481,184 @@ values[as.numeric(as.character(l$indices[i]))] <- l$Freq[i]#replace the indices 
 }
 #compare
 edge_vector=values
-SA_vector=parcel_SA_pvals_thresh[-c(1,202)] #take out the medial wall#parcel_SA_pvals, or thresh of either of these
-SA_vector[is.na(SA_vector)] <- 0
-dice_coef <- mclustcomp(edge_vector, SA_vector, type="sdc")
-dice_coef_perm <- numeric(length = )
+SA_vector=parcel_SA_pvals_fdr[-c(1,202),1] #take out the medial wall #parcel_SA_pvals, or thresh of either of these
+SA_vector=round(SA_vector,digits = 2)#need to round the pvalues or betas so they are not "singleton", e.g. all different
+#SA_vector[is.na(SA_vector)] <- 0
+similarity_metric<- cosine(edge_vector, SA_vector) #or correlation, cosine similarity, or mahalabonois distance? Other distance metrics?
+similarity_metric_perm <- numeric()
 #create a null distribution
-for (x in 1:1000){
+for (x in 1:10000){
   edge_vector_perm=sample(edge_vector, replace = F)
   SA_vector_perm=sample(SA_vector, replace = F)
-  dice_coef_perm[x] <- mclustcomp(edge_vector_perm, SA_vector_perm, type="sdc")$scores
+  similarity_metric_perm[x] <- cosine(edge_vector_perm, SA_vector_perm)
 }
- hist(unlist(dice_coef_perm))
- 
-  for (pvalue in pvalues){
+p<- ecdf(unlist(similarity_metric_perm))(similarity_metric)
+hist(unlist(similarity_metric_perm), main = paste0("Cosine sim between FC edge age effects and SA pvalues, edge p < ",pvalue), 
+     xlab = paste0("p=",p))
+abline(v = similarity_metric, col="blue", lwd=3)
+}
+
+#for SA age effect betas
+pvalues=c(0.01,0.001,0.0001,0.00001)
+for (pvalue in pvalues){
 indices <- which(edge_age_pvals_mat<pvalue, arr.ind = T) #indices of edges that have age effects  below a pval
 l <- data.frame(table(indices)) #for each parcel, how many age-significant edges does it have at a given pval thresh
 values <- vector(mode = "double", 400)
 for (i in 1:400){
 values[as.numeric(as.character(l$indices[i]))] <- l$Freq[i]#replace the indices in values with the num of sig edges from that parcel in the table
 }
-values <- values/2 #because we indexed the full matrix, there are duplicates for each edge
-num_of_sig_age_edges_lh=as.list(setNames(c(0, values[1:200]), schaefer_atlas_region_names_lh))
-num_of_sig_age_edges_rh=as.list(setNames(c(0, values[201:400]), schaefer_atlas_region_names_rh))
-
-which(edgewise_age_nonlin_pvals<0.00001)
-#make a big plot of them
-par(mfrow=c(5,5))
-lapply(which(edgewise_age_nonlin_pvals<0.00001)
+#compare
+edge_vector=values
+SA_vector=parcel_SA_betas[-c(1,202)] #take out the medial wall #parcel_SA_pvals, or thresh of either of these
+SA_vector=round(SA_vector,digits = 2)#need to round the pvalues or betas so they are not "singleton", e.g. all different
+#SA_vector[is.na(SA_vector)] <- 0
+similarity_metric<- cosine(edge_vector, SA_vector) #or correlation, cosine similarity, or mahalabonois distance? Other distance metrics?
+similarity_metric_perm <- numeric()
+#create a null distribution
+for (x in 1:10000){
+  edge_vector_perm=sample(edge_vector, replace = F)
+  SA_vector_perm=sample(SA_vector, replace = F)
+  similarity_metric_perm[x] <- cosine(edge_vector_perm, SA_vector_perm)
+}
+p<- ecdf(unlist(similarity_metric_perm))(similarity_metric)
+hist(unlist(similarity_metric_perm), main = paste0("Cosine sim between FC edge age effects and SA betas, edge p < ",pvalue), 
+     xlab = paste0("p=",p))
+abline(v = similarity_metric, col="blue", lwd=3)
+}
 ```
 
-## Spin test?
-## Is SA related to FC? 
+## Spin test of the edge and SA maps
 
-Structure-function relationship. 
-In Graham's PNAS paper, they just correlate x with x, find that x.
+Before running this code block, use the MATLAB function `centroid_extraction_sphere.m` to get the centroid coordinates on the Freesurfer sphere of each of the parcels in the Schaefer400 parcellation. That is needed as input to these functions.
 
-Also look at diffusion nets?
-Hagmann paper back in 2010 in PNAS also found that structure-function coupling was inversely related to age, but only n=15. 
+```{r spin test edge and SA age effects}
+source("~/Documents/tools/rotate_parcellation/R/rotate.parcellation.R")
+source("~/Documents/tools/rotate_parcellation/R/perm.sphere.p.R")
+library(matrixStats) #otherwise get rowMins error
+#read in centroids of the Schaefer400 parcels
+lh_centroids <- as.matrix(read.csv("~/Documents/tools/parcellations/lh.Schaefer400_7Nets_fsaverage6.centroids.csv", header = F));rh_centroids <- as.matrix(read.csv("~/Documents/tools/parcellations/rh.Schaefer400_7Nets_fsaverage6.centroids.csv", header = F))
+#SHOULD BE MASKING OUT MEDIAL WALL? Assuming that is first centroid for each
+lh_centroids <- lh_centroids[-1,];rh_centroids <- rh_centroids[-1,];
+
+#load back in edge age effects
+load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/edgewise_age_effects.Rdata")
+edge_age_pvals_mat <- matrix(nrow = 400, ncol=400)
+edge_age_pvals_mat[lower.tri(edge_age_pvals_mat, diag=FALSE)] <- edgewise_age_pvals_fdr[,1] #take uncorrected p-values for now
+edge_age_pvals_mat <- t(edge_age_pvals_mat)#copy lower triangle to upper triangle
+
+pvalue= 0.01#pvalue for edges to examine
+indices <- which(edge_age_pvals_mat<pvalue, arr.ind = T) #indices of edges that have age effects  below a pval
+l <- data.frame(table(indices)) #for each parcel, how many age-significant edges does it have at a given pval thresh
+values <- vector(mode = "double", 400)
+for (i in 1:400){
+values[as.numeric(as.character(l$indices[i]))] <- l$Freq[i]#replace the indices in values with the num of sig edges from that parcel in the table
+}
+#maps to compare
+edge_vector=values
+
+#other map of SA or CT
+#parcel_SA_pvals_thresh <- ifelse(parcel_SA_pvals_fdr[,1]<0.05,parcel_SA_pvals_fdr[,1],0)
+SA_vector=parcel_SA_pvals_thresh[-c(1,202)]
+SA_vector=parcel_SA_pvals_fdr[-c(1,202),1] #parcel_SA_pvals uncorrected, or thresholded p-values
+SA_vector=round(SA_vector,2) #need to round?
+
+rotations<- rotate.parcellation(lh_centroids,rh_centroids,100)
+perm.sphere.p(edge_vector,SA_vector, rotations, "pearson")
+```
+
+## CT models with edited brains
+```{r get CT data}
+library(fsbrain)
+library(freesurferformats)
+not_edited=c("sub-CBPD0054", "sub-CBPD0038","sub-CBPD0068","sub-CBPD0089","sub-CBPD0090","sub-CBPD0097","sub-CBPD0113","sub-CBPD0121")
+subjects_list <- main_unique$ID[! main_unique$ID %in% not_edited]
+subjects_dir = "/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/"
+
+#get mean thickness for these subjects using fsbrain
+n90_averageCT_edited_data = group.multimorph.agg.native(subjects_dir, subjects_list, "thickness",
+     c("lh", "rh"), cast=FALSE, cortex_only=TRUE, agg_fun=mean,
+     agg_fun_extra_params=list("na.rm"=TRUE));
+#save it
+save(n90_averageCT_edited_data, file="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/mean_edited_CT_n90.Rdata")
+#load it
+load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/mean_edited_CT_n90.Rdata")
+#plot mean whole-brain with age
+brain_data <- left_join(rename(n90, ID=subject_id), main_unique, by="ID") %>% mutate(mean_CT=(rh.thickness+lh.thickness)/2)
+summary(lm(mean_CT~age_scan+male+t1_rating_avg, data=brain_data))
+visreg(lm(mean_CT~age_scan+male+t1_rating_avg, data=brain_data), main= "Surface Area")
+
+#get total SA using fsbrain
+n90_edited_sum_SA_wholebrain_data = group.multimorph.agg.native(subjects_dir, subjects_list, "area",
+     c("lh", "rh"), cast=FALSE, cortex_only=TRUE, agg_fun=sum,
+     agg_fun_extra_params=list("na.rm"=TRUE));
+#save it
+save(n90_edited_sum_SA_wholebrain_data, file="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/total_edited_SA_n90.Rdata")
+#save it
+load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/total_edited_SA_n90.Rdata") 
+n90_total_SA_wholebrain_data <- left_join(main_unique, mutate(n9, total_SA=rh.area+lh.area), by="ID")
+summary(lm(total_SA~age_scan+male+t1_rating_avg, data=n90_total_SA_wholebrain_data))
+visreg(lm(total_SA~age_scan+male+t1_rating_avg, data=n90_total_SA_wholebrain_data), main= "Total Surface Area")
+```
+
+## Run parcel-wise age models with CT
+
+The R function in fsbrain called `group.agg.atlas.native` will get SA within each parcel with an annot file.
+However, that function looks gets different values than those generated by mri_segstats, sometimes.
+
+```{r get mean CT age effect within Schaefer400 parcels for each subject}
+lh <- read.delim("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/schaefer400_lh_thickness_stats.txt") %>% rename(.,ID=Measure.mean) %>% select(-Background.FreeSurfer_Defined_Medial_Wall);rh <- read.delim("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/schaefer400_rh_thickness_stats.txt")%>% rename(.,ID=Measure.mean)%>% select(-Background.FreeSurfer_Defined_Medial_Wall)
+#raw surface area in mm2
+n90_parcel_CT_data <- left_join(main_unique,lh, by= "ID")
+n90_parcel_CT_data <- left_join(n90_parcel_CT_data,rh, by= "ID")
+
+#get total SA using this approach
+n90_parcel_CT_data$mean_parcel_CT <- rowMeans(n90_parcel_CT_data[,793:1192])
+summary(lm(mean_parcel_CT~age_scan+male+t1_rating_avg, data=n90_parcel_CT_data))
+visreg(lm(mean_parcel_CT~age_scan+male+t1_rating_avg, data=n90_parcel_CT_data), main= "Total CT")
+exactRLRT(gamm(mean_parcel_CT~s(age_scan)+male+t1_rating_avg, data = n90_parcel_CT_data, method = "REML")$lme)
+visreg(gam(mean_parcel_CT~s(age_scan)+male+t1_rating_avg, data = n90_parcel_CT_data, method = "REML"), main="Summed total SA")
+
+#plot mean whole-brain with age
+parcel_CT_pvals<- lapply(names(n90_parcel_CT_data[,793:1192]), function(x) { summary(lm(as.formula(paste0(x,"~age_scan+male+t1_rating_avg")), data=n90_parcel_CT_data))$coef[2,4]})
+parcel_CT_pvals <- unlist(parcel_CT_pvals)
+parcel_CT_pvals_fdr <- cbind(parcel_CT_pvals,p.adjust(parcel_CT_pvals,method = "fdr"))
+#get age betas
+parcel_CT_betas<- lapply(names(n90_parcel_CT_data[,793:1192]), function(x) { lm.beta(lm(as.formula(paste0(x,"~age_scan+male+t1_rating_avg")), data=n90_parcel_CT_data))$standardized.coefficients[[2]]})
+parcel_CT_betas <- unlist(parcel_CT_betas)
+
+#save for reloading in future
+save(parcel_CT_pvals_fdr, parcel_CT_betas, file="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/parcel_CT_age_n90.Rdata")
+```
+
+```{r plot parcel-wise age CT effect}
+library(viridis)
+num_of_sig_age_edges_lh=as.list(setNames(c(NA,parcel_CT_pvals[1:200]), schaefer_atlas_region_names_lh)) #this has the medial wall in it.
+num_of_sig_age_edges_rh=as.list(setNames(c(NA,parcel_CT_pvals[201:400]), schaefer_atlas_region_names_rh))
+#colormap
+colFn_diverging = colorRampPalette(magma(20,direction=-1));makecmap_options=list('colFn'=colFn_diverging)
+rglactions=list("snapshot_png"=paste0(output_image_directory,"CT_age_pvals.png"))
+vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  num_of_sig_age_edges_lh, 
+                             num_of_sig_age_edges_rh, makecmap_options = makecmap_options, "inflated", views="t4", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
+
+#plot only significant regions
+parcel_CT_pvals_thresh <- ifelse(parcel_CT_pvals<0.05,parcel_CT_pvals,NA)
+num_of_sig_age_edges_lh=as.list(setNames(c(NA,parcel_CT_pvals_thresh[1:200]), schaefer_atlas_region_names_lh)) #this has the medial wall in it.
+num_of_sig_age_edges_rh=as.list(setNames(c(NA,parcel_CT_pvals_thresh[201:400]), schaefer_atlas_region_names_rh))
+#colormap
+colormap= colorRampPalette(rev(RColorBrewer::brewer.pal(9, name="OrRd")));makecmap_options=list('colFn'=colormap)
+rglactions=list("snapshot_png"=paste0(output_image_directory,"CT_age_thresh_pvals.png"))
+vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  num_of_sig_age_edges_lh, 
+                             num_of_sig_age_edges_rh, makecmap_options = makecmap_options, "inflated", views="t4", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
+
+#plot betas for significant regions
+parcel_CT_betas_thresh <- ifelse(parcel_CT_pvals<0.05,parcel_CT_betas,NA)
+num_of_sig_age_edges_lh=as.list(setNames(c(NA,parcel_CT_betas_thresh[1:200]), schaefer_atlas_region_names_lh)) #this has the medial wall in it.
+num_of_sig_age_edges_rh=as.list(setNames(c(NA,parcel_CT_betas_thresh[201:400]), schaefer_atlas_region_names_rh))
+colormap= colorRampPalette(rev(RColorBrewer::brewer.pal(9, name="RdBu")));makecmap_options=list('colFn'=colormap)
+rglactions=list("snapshot_png"=paste0(output_image_directory,"CT_age_thresh_betas.png"))
+vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  num_of_sig_age_edges_lh, 
+                             num_of_sig_age_edges_rh, makecmap_options = makecmap_options, "inflated", views="t4", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
+```
+
+## SA models with edited brains
 
