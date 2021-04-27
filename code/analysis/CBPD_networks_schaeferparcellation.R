@@ -301,7 +301,7 @@ nets <- colnames(networks)
 #look at non-linear interaction between age and envSES 
 for (net in nets){
   name<-paste0("lm_",net)
-  formula<-formula(paste0(net, '~age_scan+male+fd_mean+avgweight+pctVolsCensored+totalSizet'))
+  formula<-formula(paste0(net, '~age_scan+male+fd_mean+avgweight+totalSizet'))
   assign(name, lm(formula, data=main_unique))
   #p_val[net] <- summary(name)$coefficients[2,4]
 }

@@ -55,21 +55,22 @@ print(dfSummary(ses), method = 'render')
 
 We find that overall, all measures of network segregation significantly increase with age in our dataset, with remarkable consistency. We examined within-network connectivity, between network connectivity, system segregation (as calculated in Chan et al. 2018), the modul_avgarity quality index, and the participation coefficient (summed across negative and positive weights). 
 
-We controlled for sex, mean framewise displacement across both scans weighted by length of scan, percent of volumes censored for FD spikes in the data, the number of total volumes a participant had, and the average weight of the functional network across both scans (weighted by amount of good data per scan).
+We controlled for sex, mean framewise displacement across both scans weighted by length of scan, the number of total volumes a participant had, and the average weight of the functional network across both scans (weighted by amount of good data per scan). We previously also controlled for the percent of volumes censored for FD spikes in the data, but Allyson suggested taking out 4.4.21.
 
 ```{r models of segregation, echo=FALSE, include=FALSE, results='hide'}
 #look at mean within and between with age
-lm_within_sys_age <- lm(mean_within_sys~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet, data=main_unique)
+#lm_within_sys_age <- lm(mean_within_sys~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet, data=main_unique)
+lm_within_sys_age <- lm(mean_within_sys~age_scan+male+fd_mean_avg+avgweight+totalSizet, data=main_unique)
 summary(lm_within_sys_age)
-lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet, data=main_unique)
+lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean_avg+avgweight+totalSizet, data=main_unique)
 summary(lm_between_sys_age)
-lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet, data=main_unique)
+lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean_avg+avgweight+totalSizet, data=main_unique)
 summary(lm_segreg_age)
-lm_modul_avg_age <- lm(modul_avg~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet, data=main_unique)
+lm_modul_avg_age <- lm(modul_avg~age_scan+male+fd_mean_avg+avgweight+totalSizet, data=main_unique)
 summary(lm_modul_avg_age)
-lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet, data=main_unique)
+lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean_avg+avgweight+totalSizet, data=main_unique)
 summary(lm_part_coef_age)
-lm_num_comms_age <- lm(num_comms_modul_avg~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet, data=main_unique)
+lm_num_comms_age <- lm(num_comms_modul_avg~age_scan+male+fd_mean_avg+avgweight+totalSizet, data=main_unique)
 summary(lm_num_comms_age)
 
 ```
@@ -79,7 +80,7 @@ par(mfrow=c(2,3))
 visreg(lm_between_sys_age,"age_scan", main="Mean between-system connectivity", ylab="", xlab="Age at scan (years)")
 visreg(lm_within_sys_age,"age_scan", main= "Mean within-system connectivity", ylab="", xlab="Age at scan (years)")
 visreg(lm_segreg_age,"age_scan", main="Average segregation", ylab="", xlab="Age at scan (years)")
-visreg(lm_modul_avg_age,"age_scan", main="modul_avgarity quality index Q", ylab="", xlab="Age at scan (years)")
+visreg(lm_modul_avg_age,"age_scan", main="Modularity quality index Q", ylab="", xlab="Age at scan (years)")
 visreg(lm_part_coef_age,"age_scan", main="Average participation coefficient", ylab="", xlab="Age at scan (years)")
 visreg(lm_num_comms_age,"age_scan")
 ```
@@ -91,23 +92,23 @@ The number of communities detected using modul_avgarity maximization on this dat
 We also used restricted least ratio tests to test for the presence of non-linearity in our data. As you can see in the plots below, which use GAMs, most measures are linear and look no different from the linear models above.
 ```{r gam models of segregation, echo=FALSE, include=FALSE, results='hide'}
 #look at mean within and between with age
-gam_within_sys_age <- gam(mean_within_sys~s(age_scan)+male+fd_mean_avg+avgweight+pctSpikesFD_avg+totalSizet, data=main_unique)
-model<- gamm(mean_within_sys~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique, method = "REML")$lme
+gam_within_sys_age <- gam(mean_within_sys~s(age_scan)+male+fd_mean_avg+avgweight+totalSizet, data=main_unique)
+model<- gamm(mean_within_sys~s(age_scan)+male+fd_mean+avgweight+size_t, data=main_unique, method = "REML")$lme
 exactRLRT(model)
-gam_between_sys_age <- gam(mean_between_sys~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
-model<- gamm(mean_between_sys~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)$lme
+gam_between_sys_age <- gam(mean_between_sys~s(age_scan)+male+fd_mean+avgweight+size_t, data=main_unique)
+model<- gamm(mean_between_sys~s(age_scan)+male+fd_mean+avgweight+size_t, data=main_unique)$lme
 exactRLRT(model)
-gam_segreg_age<- gam(system_segreg~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
-model<- gamm(system_segreg~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)$lme
+gam_segreg_age<- gam(system_segreg~s(age_scan)+male+fd_mean+avgweight+size_t, data=main_unique)
+model<- gamm(system_segreg~s(age_scan)+male+fd_mean+avgweight+size_t, data=main_unique)$lme
 exactRLRT(model)
-gam_modul_avg_age <- gam(modul_avg~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
-model<- gamm(modul_avg~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)$lme
+gam_modul_avg_age <- gam(modul_avg~s(age_scan)+male+fd_mean+avgweight+size_t, data=main_unique)
+model<- gamm(modul_avg~s(age_scan)+male+fd_mean+avgweight+size_t, data=main_unique)$lme
 exactRLRT(model)
-gam_part_coef_age <- gam(part_coef~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
-model<- gamm(part_coef~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)$lme
+gam_part_coef_age <- gam(part_coef~s(age_scan)+male+fd_mean+avgweight+size_t, data=main_unique)
+model<- gamm(part_coef~s(age_scan)+male+fd_mean+avgweight+size_t, data=main_unique)$lme
 exactRLRT(model)
-gam_clustco_age <- gam(avgclustco_both~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)
-model<- gamm(part_coef~s(age_scan)+male+fd_mean+avgweight+pctSpikesFD+size_t, data=main_unique)$lme
+gam_clustco_age <- gam(avgclustco_both~s(age_scan)+male+fd_mean+avgweight+size_t, data=main_unique)
+model<- gamm(part_coef~s(age_scan)+male+fd_mean+avgweight+size_t, data=main_unique)$lme
 exactRLRT(model)
 ```
 
@@ -124,14 +125,14 @@ Tests of non-linearity confirmed that no non-linear effects are present. The wig
 
 ## Which systems are driving this effect?
 
-We fit the same model, controlling for sex, mean framewise displacement, percent of FD spikes in the data, the number of volumes a participant had, and the average weight of the functional network, to between- and within-system connectivity for each of the Yeo 7 systems. 
+We fit the same model, controlling for sex, mean framewise displacement, the number of volumes a participant had, and the average weight of the functional network, to between- and within-system connectivity for each of the Yeo 7 systems. 
 
 We find the strongest effects are in the default mode system, between default and attentional networks.
 ```{r lm plots, echo=FALSE, include=TRUE, results='hide',fig.show='hold', out.width='33.33%', fig.align='default'}
 networks_age_pvals_fdr #FDR-corrected
-lm_sys1to3<- lm(sys1to3~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet, data=main_unique)
-lm_sys3to7<- lm(sys3to7~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet, data=main_unique)
-lm_sys4to7<- lm(sys4to7~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet, data=main_unique)
+lm_sys1to3<- lm(sys1to3~age_scan+male+fd_mean_avg+avgweight+totalSizet, data=main_unique)
+lm_sys3to7<- lm(sys3to7~age_scan+male+fd_mean_avg+avgweight+totalSizet, data=main_unique)
+lm_sys4to7<- lm(sys4to7~age_scan+male+fd_mean_avg+avgweight+totalSizet, data=main_unique)
 # ############## investigating plotting options #############
 # crPlots(lm_sys4to7, "age_scan")
 # plot(main_unique$age_scan, (lm_sys4to7$fitted.values))
@@ -154,6 +155,27 @@ visreg(lm_sys4to7,"age_scan",  main="DMN to VAN",ylab="", xlab="Age at scan (yea
 ```
 
 None of these showed significantly non-linear effects, either. 
+
+```{r system level FDR-corrected effects}
+# Look at each column and correct for multiple comparisons
+covariates="~ age_scan+male+fd_mean_avg+avgweight+totalSizet"
+
+#make a dataframe with no repeats of net comparisons
+main_unique <- dplyr::select(main_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
+#run and compare for multiple comparisons again
+m <- mclapply(names((dplyr::select(ungroup(main_unique),sys1to1:sys7to7))), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
+networks_Age_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_unique))$coefficients[2,4]},mc.cores=1)
+networks_Age_pvals <- as.data.frame(networks_Age_pvals)
+networks_Age_pvals <- t(networks_Age_pvals)
+networks_Age_pvals <- as.data.frame(networks_Age_pvals)
+#bonferroni correct
+networks_Age_pvals_fdr <- p.adjust(networks_Age_pvals$V1, method="fdr")
+networks_age_pvals_fdr <- data.frame(networks_Age_pvals_fdr,names((dplyr::select(ungroup(main_unique),sys1to1:sys7to7))))
+colnames(networks_age_pvals_fdr) <- c("pvalue", "network")
+#FDR correction shows DMN to attentional networks and visual to dorsal attention is marginal.
+print(networks_age_pvals_fdr)
+
+```
 
 Effects on default mode connectivity survive FDR correction across the tests conducted, with DMN-VAN *p_fdr*=`r networks_age_pvals_fdr$pvalue[networks_age_pvals_fdr$network=="sys3to7"]` and DMN-DAN *p_fdr*= `r networks_age_pvals_fdr$pvalue[networks_age_pvals_fdr$network=="sys4to7"]`. Vis-DAN *p_fdr*= `r networks_age_pvals_fdr$pvalue[networks_age_pvals_fdr$network=="sys1to3"]`.
 
@@ -358,9 +380,6 @@ visreg(lm_part_coef_age,"age_scan",by="aces3category", overlay=TRUE)
 ## Questions, Notes, & Future Directions
 
 * There are also sometimes outliers on some of the measures that flatten out age or environment trends, I have been looking into using robust regression to examine these trends instead, but did not go through all the trouble to bootstrap p-values for this time around. However, I think it's possible that robust regression might be a more defensible choice.
-
-* Spin tests for parcellations/cortical regions: https://github.com/frantisekvasa/rotate_parcellation
-  * Can you do this for networks somehow--is this relevant? Graham has done it before, maybe?
 
 ## Plot average functional connectivity matrices
 

@@ -83,17 +83,17 @@ Run linear models on edges, controlling for age, sex and average motion.
 # edgewise_age_pvals<- apply(n90_all_edges,2, function(x) { summary(lm(x~main_unique$age_scan+main_unique$male+main_unique$fd_mean_avg+main_unique$avgweight+main_unique$pctVolsCensored+main_unique$totalSizet))$coef[2,4]}) #without multicore
 
 #multi-core apply the linear model across the matrix of edges, get age pvals 
-# edgewise_age_pvals<- mclapply(1:79800, function(x) { summary(lm(n90_all_edges[,x]~main_unique$age_scan+main_unique$male+main_unique$fd_mean_avg))$coef[2,4]}, mc.cores = 4)
+# edgewise_age_pvals<- mclapply(1:79800, function(x) { summary(lm(n90_all_edges[,x]~main_unique$age_scan+main_unique$male+main_unique$fd_mean_avg+main_unique$avgweight+main_unique$totalSizet))$coef[2,4]}, mc.cores = 4)
 # edgewise_age_pvals <- unlist(edgewise_age_pvals)
 # edgewise_age_pvals_fdr <- cbind(edgewise_age_pvals,p.adjust(edgewise_age_pvals,method = "fdr"))
 # #get age betas
-# edgewise_age_betas<- mclapply(1:79800, function(x) { lm.beta(lm(n90_all_edges[,x]~main_unique$age_scan+main_unique$male+main_unique$fd_mean_avg))$standardized.coefficients[[2]]}, mc.cores = 4)
+# edgewise_age_betas<- mclapply(1:79800, function(x) { lm.beta(lm(n90_all_edges[,x]~main_unique$age_scan+main_unique$male+main_unique$fd_mean_avg+main_unique$avgweight+main_unique$totalSizet))$standardized.coefficients[[2]]}, mc.cores = 4)
 # edgewise_age_betas <- unlist(edgewise_age_betas)
 #save for reloading in future
-save(edgewise_age_pvals_fdr, edgewise_age_betas,file= "~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/edgewise_age_effects.Rdata")
+save(edgewise_age_pvals_fdr, edgewise_age_betas,file= "~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/edgewise_age_effects_all_cov.Rdata")
 
 #load back in edge age effects
-load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/edgewise_age_effects.Rdata")
+load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/edgewise_age_effects_all_cov.Rdata")
 
 #code to read back into a 400 x 400 matrix! This works correctly.
 # vec<- mat[lower.tri(mat)]
@@ -115,21 +115,49 @@ library(dplyr)
 #read in node identity and order
 community_assign <- read.delim("~/Documents/tools/parcellations/schaefer400x7CommunityAffiliation.1D", header = F)
 communities <- paste0("comm",community_assign$V1) %>% car::recode(.,"'comm1'='Visual'; 'comm2'='Somatomotor' ; 'comm3'='Dorsal Attention';'comm4'='Ventral Attention';'comm5'='Limbic';'comm6'='Frontoparietal';'comm7'='Default'")
+community_colors <- communities %>% car::recode(.,"'Visual'='#7B287E'; 'Somatomotor'='#5CA1C8' ; 'Dorsal Attention'='#0A9045';'Ventral Attention'='#C33AF8';'Limbic'='#dcf8a4';'Frontoparietal'='#EF9C23';'Default'='#E34A53'")
 
 #just threshold the betas
-links_to_show=edge_age_pvals_mat<= 0.001;edge_age_betas_mat[links_to_show==FALSE] <- 0
+links_to_show=edge_age_pvals_mat<= 0.01;edge_age_betas_mat[links_to_show==FALSE] <- 0
 #how stringently you threshold determines when you hit the memory limit, 400x400 won't show at 0.005.
-col_fun = colorRamp2(breaks = c(-0.48,-0.25, 0,0.25, 0.5),
-                  colors = c("blue", "white","white","white", "red"),
+col_fun = colorRamp2(breaks = c(-0.48,-0.25,0,0.25,0.5),
+                  colors = c("blue", "white","white","white","red"),
                   transparency = .5)
-#adding rownames and colnames makes the graph weird.
+#Original chord diagram
 rownames(edge_age_betas_mat) <- communities;colnames(edge_age_betas_mat) <- communities
 par(cex = 1.5)
-chordDiagramFromMatrix(edge_age_betas_mat[1:400,1:400], annotationTrack = c("name","grid"),
-             symmetric = TRUE,grid.col = c("#7B287E", "#5CA1C8", "#0A9045","#C33AF8","#dcf8a4", "#EF9C23", "#E34A53"), col=col_fun, reduce = -1) #reduce keeps even the tiny grids, keeps from eliminating some sectors, annotationTrack turns off the tick marks
+chordDiagramFromMatrix(edge_age_betas_mat[1:200,1:200], annotationTrack = c("name","grid"),
+             symmetric = TRUE, grid.col = c("#7B287E", "#5CA1C8", "#0A9045","#C33AF8","#dcf8a4", "#EF9C23", "#E34A53"), col=col_fun, reduce = -1) #reduce keeps even the tiny grids, keeps from eliminating some sectors, annotationTrack turns off the tick marks
 
-# circos.par(gap.after = c(rep(1, nrow(edge_age_pvals_mat)-1), 15, rep(1, ncol(edge_age_pvals_mat)-1), 15)) try and make gap between nodes smaller
+#Diagrams trying to keep sectors (regions in this case) in order of region
+#make the sector names vertical
+rownames(edge_age_betas_mat) <- paste0("region", rep(1:400));colnames(edge_age_betas_mat) <- paste0("region", rep(1:400))
+chordDiagramFromMatrix(edge_age_betas_mat[1:200,1:200], annotationTrack = c("grid"), preAllocateTracks = list(track.height = max(strwidth(unlist(dimnames(edge_age_betas_mat[1:200,1:200]))))), 
+             symmetric = TRUE, grid.col = community_colors[1:200], col=col_fun, reduce = -1)
 
+#try ordering the sectors--this works!
+chordDiagramFromMatrix(edge_age_betas_mat[1:200,1:200], annotationTrack = c("grid"), preAllocateTracks = list(track.height = max(strwidth(unlist(dimnames(edge_age_betas_mat[1:200,1:200]))))), order=rownames(edge_age_betas_mat[1:200,1:200]),
+             symmetric = TRUE, col=col_fun, reduce = -1)
+
+#using grouped chord diagram--this is it!
+rownames(edge_age_betas_mat) <- paste0("region", rep(1:400));colnames(edge_age_betas_mat) <- paste0("region", rep(1:400))
+group = structure(communities[1:400], names = rownames(edge_age_betas_mat[1:400,1:400]))
+group = factor(group, levels = c("Visual","Somatomotor","Dorsal Attention","Ventral Attention", "Limbic","Frontoparietal","Default"))#make it a factor with levels in the order I want to see them
+group.col=structure(community_colors[1:400],
+                names = rownames(edge_age_betas_mat[1:400,1:400]))
+chordDiagramFromMatrix(edge_age_betas_mat[1:400,1:400], annotationTrack = c("grid"), preAllocateTracks = list(track.height = max(strwidth(unlist(dimnames(edge_age_betas_mat[1:400,1:400]))))), order=rownames(edge_age_betas_mat[1:400,1:400]),
+             symmetric = TRUE, col=col_fun, reduce = -1, group=group, grid.col = group.col, small.gap = 0, big.gap = 5)
+
+#this adds vertical labels to check region order
+# we go back to the first track and customize sector labels
+circos.track(track.index = 1, panel.fun = function(x, y) {
+    circos.text(CELL_META$xcenter, CELL_META$ylim[1], CELL_META$sector.index, 
+        facing = "clockwise", niceFacing = TRUE, adj = c(0, 0.5))
+}, bg.border = NA) # here set bg.border to NA is important
+
+#take out the vertical labels
+chordDiagramFromMatrix(edge_age_betas_mat[1:400,1:400], annotationTrack = c("grid"),  order=rownames(edge_age_betas_mat[1:400,1:400]),
+             symmetric = TRUE, col=col_fun, reduce = -1, group=group, grid.col = group.col, small.gap = 0, big.gap = 5)
 ```
 
 ## Plot parcelwise on brain at different sig thresholds
@@ -156,7 +184,8 @@ values <- vector(mode = "double", 400)
 for (i in 1:400){
 values[as.numeric(as.character(l$indices[i]))] <- l$Freq[i]#replace the indices in values with the num of sig edges from that parcel in the table
 }
-values <- values/2 #because we indexed the full matrix, there are duplicates for each edge
+print(max(values))
+#values <- values/2 #because we indexed the full matrix, there are duplicates for each edge
 num_of_sig_age_edges_lh=as.list(setNames(c(0, values[1:200]), schaefer_atlas_region_names_lh))
 num_of_sig_age_edges_rh=as.list(setNames(c(0, values[201:400]), schaefer_atlas_region_names_rh))
 #colormap
@@ -173,7 +202,7 @@ num_of_sig_age_edges_lh=as.list(setNames(c(0, comms_and_edges[1:200]), schaefer_
 num_of_sig_age_edges_rh=as.list(setNames(c(0, comms_and_edges[201:400]), schaefer_atlas_region_names_rh))
 
 #plot with colors of communities
-yeo_colors=colorRampPalette(c("#000000","#000000","#A9A9A9", "#7B287E", "#5CA1C8", "#0A9045","#C33AF8", "#dcf8a4", "#EF9C23", "#E34A53"))
+yeo_colors=colorRampPalette(c("#000000","#A9A9A9", "#7B287E", "#5CA1C8", "#0A9045","#C33AF8", "#dcf8a4", "#EF9C23", "#E34A53"))
 makecmap_options=list('colFn'=yeo_colors)
 
 rgloptions=list("windowRect"=c(50,50,1000,1000));
@@ -184,6 +213,109 @@ vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcel
 rglactions=list("snapshot_png"=paste0(output_image_directory,"community_colors.png"))
 vis.subject.annot(subjects_dir, 'fsaverage6','Schaefer2018_400Parcels_7Networks_order','both', "inflated", views="t4",
                   rgloptions = rgloptions,rglactions = rglactions)
+```
+
+## Plot specific communities age-significant edges
+
+```{r specific communities age-significant edges, include=FALSE, echo=FALSE}
+#take each set of communities and 
+communities <- paste0("comm",community_assign$V1) %>% car::recode(.,"'comm1'='Visual'; 'comm2'='Somatomotor' ; 'comm3'='Dorsal Attention';'comm4'='Ventral Attention';'comm5'='Limbic';'comm6'='Frontoparietal';'comm7'='Default'")
+edge_age_pvals_mat;edge_age_betas_mat
+#threshold the betas to only keep those at p < 0.01
+pvalue=0.001
+links_to_show=edge_age_pvals_mat<= pvalue;edge_age_betas_mat[links_to_show==FALSE] <- 0
+
+rownames(edge_age_betas_mat) <- communities;colnames(edge_age_betas_mat) <- communities
+#for all possible combinations of communities
+combinations=combn(unique(communities),2)
+set=combinations[,1]#take vis and sm community
+#do the max
+for (j in 1:dim(combinations)[2]){
+  set=combinations[,j]
+  #take the rows from vis and the columns from SM (and vice-versa?)
+  #View(edge_age_betas_mat[rownames(edge_age_betas_mat)==set[1],colnames(edge_age_betas_mat)==set[2]])
+  #rows <- which(rownames(edge_age_betas_mat)==set[1], arr.ind = T);cols <- which(colnames(edge_age_betas_mat)==set[2], arr.ind = T)
+  colmax=rep(0,400)
+  rowmax=rep(0,400)
+  indices=which(rownames(edge_age_betas_mat)==set[1])
+  for (x in indices){
+      rowmax[x] <- max(edge_age_betas_mat[x,which(colnames(edge_age_betas_mat)==set[2])], na.rm = T)
+  }
+  indices=which(colnames(edge_age_betas_mat)==set[2])
+  for (x in indices){
+      colmax[x] <- max(edge_age_betas_mat[rownames(edge_age_betas_mat)==set[1],x], na.rm = T)
+  }
+  #these two vectors should be non-overlapping, for the combinations of communities, so can add them together
+  values=colmax+rowmax
+  pos_sig_age_betas_lh=as.list(setNames(c(0, values[1:200]), schaefer_atlas_region_names_lh))
+  pos_sig_age_betas_rh=as.list(setNames(c(0, values[201:400]), schaefer_atlas_region_names_rh))
+  #colormap
+  colFn_diverging = colorRampPalette(c("white","white","orange","red"));makecmap_options=list('colFn'=colFn_diverging)
+  rglactions=list("snapshot_png"=paste0(output_image_directory,"max_sig_pos_age_betas_for_parcel_",set[1],set[2],"_regions_",pvalue,".png"))
+  vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  pos_sig_age_betas_lh, 
+                               pos_sig_age_betas_rh, makecmap_options = makecmap_options, "inflated", views="t4", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
+}
+#do the min
+for (j in 1:dim(combinations)[2]){
+  set=combinations[,j]
+  #take the rows from vis and the columns from SM (and vice-versa?)
+  #View(edge_age_betas_mat[rownames(edge_age_betas_mat)==set[1],colnames(edge_age_betas_mat)==set[2]])
+  #rows <- which(rownames(edge_age_betas_mat)==set[1], arr.ind = T);cols <- which(colnames(edge_age_betas_mat)==set[2], arr.ind = T)
+  colmax=rep(0,400)
+  rowmax=rep(0,400)
+  indices=which(rownames(edge_age_betas_mat)==set[1])
+  for (x in indices){
+      rowmax[x] <- min(edge_age_betas_mat[x,which(colnames(edge_age_betas_mat)==set[2])], na.rm = T)
+  }
+  indices=which(colnames(edge_age_betas_mat)==set[2])
+  for (x in indices){
+      colmax[x] <- min(edge_age_betas_mat[rownames(edge_age_betas_mat)==set[1],x], na.rm = T)
+  }
+  #these two vectors should be non-overlapping, for the combinations of communities, so can add them together
+  values=colmax+rowmax
+  pos_sig_age_betas_lh=as.list(setNames(c(0, values[1:200]), schaefer_atlas_region_names_lh))
+  pos_sig_age_betas_rh=as.list(setNames(c(0, values[201:400]), schaefer_atlas_region_names_rh))
+  #colormap
+  colFn_diverging = colorRampPalette(c("blue","lightblue","white","white"));makecmap_options=list('colFn'=colFn_diverging)
+  rglactions=list("snapshot_png"=paste0(output_image_directory,"min_sig_neg_age_betas_for_parcel_",set[1],set[2],"_regions_",pvalue,".png"))
+  vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  pos_sig_age_betas_lh, 
+                               pos_sig_age_betas_rh, makecmap_options = makecmap_options, "inflated", views="t4", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
+}
+
+#Do with the within-community edges
+combinations=rbind(unique(communities),unique(communities))
+#do the max
+for (j in 1:dim(combinations)[2]){
+  set=combinations[,j]
+  rowmax=rep(0,400)
+  indices=which(rownames(edge_age_betas_mat)==set[1])
+  for (x in indices){
+      rowmax[x] <- max(edge_age_betas_mat[x,which(colnames(edge_age_betas_mat)==set[2])], na.rm = T)
+  }
+  pos_sig_age_betas_lh=as.list(setNames(c(0, rowmax[1:200]), schaefer_atlas_region_names_lh))
+  pos_sig_age_betas_rh=as.list(setNames(c(0, rowmax[201:400]), schaefer_atlas_region_names_rh))
+  #colormap
+  colFn_diverging = colorRampPalette(c("white","white","orange","red"));makecmap_options=list('colFn'=colFn_diverging)
+  rglactions=list("snapshot_png"=paste0(output_image_directory,"max_sig_pos_age_betas_for_parcel_",set[1],set[2],"_regions_",pvalue,".png"))
+  vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  pos_sig_age_betas_lh, 
+                               pos_sig_age_betas_rh, makecmap_options = makecmap_options, "inflated", views="t4", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
+}
+#do the min
+for (j in 1:dim(combinations)[2]){
+  set=combinations[,j]
+  rowmax=rep(0,400)
+  indices=which(rownames(edge_age_betas_mat)==set[1])
+  for (x in indices){
+      rowmax[x] <- min(edge_age_betas_mat[x,which(colnames(edge_age_betas_mat)==set[2])], na.rm = T)
+  }
+  pos_sig_age_betas_lh=as.list(setNames(c(0, rowmax[1:200]), schaefer_atlas_region_names_lh))
+  pos_sig_age_betas_rh=as.list(setNames(c(0, rowmax[201:400]), schaefer_atlas_region_names_rh))
+  #colormap
+  colFn_diverging = colorRampPalette(c("blue","lightblue","white","white"));makecmap_options=list('colFn'=colFn_diverging)
+  rglactions=list("snapshot_png"=paste0(output_image_directory,"min_sig_neg_age_betas_for_parcel_",set[1],set[2],"_regions_",pvalue,".png"))
+  vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  pos_sig_age_betas_lh, 
+                               pos_sig_age_betas_rh, makecmap_options = makecmap_options, "inflated", views="t4", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
+}
 ```
 
 ## Non-linear effects across edges
@@ -201,8 +333,8 @@ network_dir=paste0("~/Documents/projects/in_progress/within_between_network_conn
 load(paste0(network_dir,"/CBPD_n90_schaefer400_allruns.Rdata"))
 
 #multi-core apply the exactRLRT test for non-linear model across the matrix of edges, get age non-lin pvals 
-# edgewise_age_nonlin_pvals<- mclapply(1:79800, function(x) {exactRLRT(gamm(n90_all_edges[,x]~s(main_unique$age_scan)+main_unique$male+main_unique$fd_mean_avg, method = "REML")$lme)$p.value}, mc.cores = 4)
-# edgewise_age_nonlin_pvals <- unlist(edgewise_age_nonlin_pvals)
+edgewise_age_nonlin_pvals<- mclapply(1:79800, function(x) {exactRLRT(gamm(n90_all_edges[,x]~s(main_unique$age_scan)+main_unique$male+main_unique$fd_mean_avg+main_unique$avgweight+main_unique$totalSizet, method = "REML")$lme)$p.value}, mc.cores = 4)
+edgewise_age_nonlin_pvals <- unlist(edgewise_age_nonlin_pvals)
 #save for reloading in future
 save(edgewise_age_nonlin_pvals,file= "~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/edgewise_age_nonlin_pvals.Rdata")
 
@@ -213,13 +345,13 @@ load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/ima
 edge_age_pvals_mat <- matrix(nrow = 400, ncol=400)
 edge_age_pvals_mat[lower.tri(edge_age_pvals_mat, diag=FALSE)] <- edgewise_age_nonlin_pvals #take uncorrected p-values for now
 #copy lower triangle to upper triangle
-edge_age_pvals_mat[upper.tri(edge_age_pvals_mat)] <- t(edge_age_pvals_mat)[upper.tri(edge_age_pvals_mat)]
+#edge_age_pvals_mat[upper.tri(edge_age_pvals_mat)] <- t(edge_age_pvals_mat)[upper.tri(edge_age_pvals_mat)]
 
 #Use different pval thresholds and plot parcels that have age-nonlin-sig edges at that threshold
 pvalues=c(0.01,0.001,0.0001,0.00001)
 for (pvalue in pvalues){
 indices <- which(edge_age_pvals_mat<pvalue, arr.ind = T) #indices of edges that have age effects  below a pval
-l <- data.frame(table(indices[1:(dim(indices)[1]/2),])) #for each parcel, how many age-significant edges does it have at a given pval thresh--indices gives duplicates!
+l <- data.frame(table(indices)) #for each parcel, how many age-significant edges does it have at a given pval thresh--indices gives duplicates!
 values <- vector(mode = "double", 400)
 for (i in 1:400){
 values[as.numeric(as.character(l$indices[i]))] <- l$Freq[i]#replace the indices in values with the num of sig edges from that parcel in the table
@@ -238,7 +370,7 @@ sum(edgewise_age_nonlin_pvals<0.05)/length(edgewise_age_nonlin_pvals) #percentag
 which(edgewise_age_nonlin_pvals<0.00001)
 #make a big plot of them
 par(mfrow=c(5,5))
-lapply(which(edgewise_age_nonlin_pvals<0.00001), function(x) {plot(gam(n90_all_edges[,x]~s(main_unique$age_scan, k=3)+main_unique$male+main_unique$fd_mean_avg, method = "REML"), residuals=T);summary(gam(n90_all_edges[,x]~s(main_unique$age_scan, k=3)+main_unique$male+main_unique$fd_mean_avg, method = "REML"))})
+lapply(which(edgewise_age_nonlin_pvals<0.00001), function(x) {plot(gam(n90_all_edges[,x]~s(main_unique$age_scan, k=3)+main_unique$male+main_unique$fd_mean_avg+main_unique$avgweight+main_unique$totalSizet, method = "REML"), residuals=T);summary(gam(n90_all_edges[,x]~s(main_unique$age_scan, k=3)+main_unique$male+main_unique$fd_mean_avg+main_unique$avgweight+main_unique$totalSizet, method = "REML"))})
 ```
 
 ## Are these long or short-distance edges?
@@ -273,7 +405,7 @@ library(lsa) #for cosine similarity
 #read in average matrix
 average_FC_mat <- as.matrix(read.csv("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/n90_average_zscored_FC_matrix.csv"))
 #load back in edge age effects
-load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/edgewise_age_effects.Rdata")
+load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/edgewise_age_effects_all_cov.Rdata")
 #make a matrix
 edge_age_pvals_mat <- matrix(nrow = 400, ncol=400);edge_age_pvals_mat[lower.tri(edge_age_pvals_mat, diag=FALSE)] <- edgewise_age_pvals_fdr[,1] #take uncorrected p-values for now
 edge_age_pvals_mat[upper.tri(edge_age_pvals_mat)] <- t(edge_age_pvals_mat)[upper.tri(edge_age_pvals_mat)]
@@ -324,11 +456,11 @@ save(null_parcel_edges_only_0.001cosine, null_parcel_edges_only_0.0001cosine, nu
 
 #plot the difference
 pvalues=c(0.001,0.0001,0.00001)
-j <- hist(null_parcel_edges_only_0.001cosine)
-l <- hist(sig_parcel_edges_only_0.001cosine)
+j <- hist(null_parcel_edges_only_0.0001cosine)
+l <- hist(sig_parcel_edges_only_0.0001cosine)
 plot(j, col=rgb(0,0,1,1/4), xlim=c(-1,1))  # first histogram
 plot(l, col=rgb(1,0,0,1/4), xlim=c(-1,1), add=T)
-t.test(sig_parcel_0.00001cosine, null_parcel_0.00001cosine)
+t.test(sig_parcel_edges_only_0.00001cosine, null_parcel_edges_only_0.00001cosine)
 ```
 
 # Surface Area Models
@@ -436,6 +568,7 @@ library(RLRsim)
 #apply the exactRLRT test for non-linear model across the parcels, get age non-lin pvals 
 parcelwise_age_sa_nonlin_pvals<- lapply(names(n90_parcel_SA_data[,793:1194]), function(x) {exactRLRT(gamm(as.formula(paste0(x,"~s(age_scan)+male+t1_rating_avg")), data = n90_parcel_SA_data, method = "REML")$lme)$p.value})
 parcelwise_age_sa_nonlin_pvals <- unlist(parcelwise_age_sa_nonlin_pvals)
+parcelwise_age_sa_nonlin_pvals <- data.frame(parcelwise_age_sa_nonlin_pvals,names(n90_parcel_SA_data[,793:1194]));colnames(parcelwise_age_sa_nonlin_pvals) <- c("pvalue", "area")
 #save for reloading in future
 save(parcelwise_age_sa_nonlin_pvals,file= "~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/parcelwise_age_sa_nonlin_pvals.Rdata")
 
@@ -443,7 +576,7 @@ save(parcelwise_age_sa_nonlin_pvals,file= "~/Documents/projects/in_progress/with
 load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/parcelwise_age_sa_nonlin_pvals.Rdata")
 
 #plot parcels that have age-nonlin-sig SA
-parcelwise_age_sa_nonlin_pvals <- ifelse(parcelwise_age_sa_nonlin_pvals<0.05,parcelwise_age_sa_nonlin_pvals,NA)
+parcelwise_age_sa_nonlin_pvals <- ifelse(parcelwise_age_sa_nonlin_pvals$pvalue <0.05,parcelwise_age_sa_nonlin_pvals$pvalue,NA)
 num_of_sig_age_edges_lh=as.list(setNames(c(NA, parcelwise_age_sa_nonlin_pvals[2:201]), schaefer_atlas_region_names_lh))
 num_of_sig_age_edges_rh=as.list(setNames(c(NA, parcelwise_age_sa_nonlin_pvals[203:402]), schaefer_atlas_region_names_rh))
 #colormap
@@ -453,17 +586,18 @@ vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcel
                              num_of_sig_age_edges_rh, makecmap_options = makecmap_options, "inflated", views="t4", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
 
 #What do these edges look like pattern-wise? UNUSED
-# which(parcelwise_age_sa_nonlin_pvals<0.05)
-# #make a big plot of them
-# par(mfrow=c(5,5))
-# lapply(which(edgewise_age_nonlin_pvals<0.00001), function(x) {plot(gam(n90_all_edges[,x]~s(main_unique$age_scan, k=3)+main_unique$male+main_unique$fd_mean_avg, method = "REML"), residuals=T);summary(gam(n90_all_edges[,x]~s(main_unique$age_scan, k=3)+main_unique$male+main_unique$fd_mean_avg, method = "REML"))})
+which(parcelwise_age_sa_nonlin_pvals<0.05)
+#make a big plot of them
+par(mfrow=c(4,5))
+lapply(which(parcelwise_age_sa_nonlin_pvals<0.05), function(x) {visreg(gam(as.formula(paste0(names(n90_parcel_SA_data[,793+x]),"~s(age_scan)+male+t1_rating_avg")), method = "REML", data=n90_parcel_SA_data), "age_scan", partial=T)})
+
 ```
 
 ## Are the edge and SA maps more similar than is expected by chance?
 ```{r similarity of edge and SA age effects}
 library(lsa)
 #load back in edge age effects
-load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/edgewise_age_effects.Rdata")
+load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/edgewise_age_effects_all_cov.Rdata")
 edge_age_pvals_mat <- matrix(nrow = 400, ncol=400)
 edge_age_pvals_mat[lower.tri(edge_age_pvals_mat, diag=FALSE)] <- edgewise_age_pvals_fdr[,1] #take uncorrected p-values for now
 edge_age_pvals_mat <- t(edge_age_pvals_mat)#copy lower triangle to upper triangle
@@ -471,7 +605,7 @@ edge_age_pvals_mat <- t(edge_age_pvals_mat)#copy lower triangle to upper triangl
 load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/parcel_SA_age_n90.Rdata")
 
 #for SA age effect pvalues
-pvalues=c(0.01,0.001,0.0001,0.00001)
+pvalues=c(0.01,0.001,0.0001)
 for (pvalue in pvalues){
 indices <- which(edge_age_pvals_mat<pvalue, arr.ind = T) #indices of edges that have age effects  below a pval
 l <- data.frame(table(indices)) #for each parcel, how many age-significant edges does it have at a given pval thresh
@@ -484,16 +618,16 @@ edge_vector=values
 SA_vector=parcel_SA_pvals_fdr[-c(1,202),1] #take out the medial wall #parcel_SA_pvals, or thresh of either of these
 SA_vector=round(SA_vector,digits = 2)#need to round the pvalues or betas so they are not "singleton", e.g. all different
 #SA_vector[is.na(SA_vector)] <- 0
-similarity_metric<- cosine(edge_vector, SA_vector) #or correlation, cosine similarity, or mahalabonois distance? Other distance metrics?
+similarity_metric<- cor(edge_vector, SA_vector) #or correlation, cosine similarity, or mahalabonois distance? Other distance metrics?
 similarity_metric_perm <- numeric()
 #create a null distribution
 for (x in 1:10000){
   edge_vector_perm=sample(edge_vector, replace = F)
   SA_vector_perm=sample(SA_vector, replace = F)
-  similarity_metric_perm[x] <- cosine(edge_vector_perm, SA_vector_perm)
+  similarity_metric_perm[x] <- cor(edge_vector_perm, SA_vector_perm)
 }
 p<- ecdf(unlist(similarity_metric_perm))(similarity_metric)
-hist(unlist(similarity_metric_perm), main = paste0("Cosine sim between FC edge age effects and SA pvalues, edge p < ",pvalue), 
+hist(unlist(similarity_metric_perm), main = paste0("Correlation between FC edge age effects and SA pvalues, edge p < ",pvalue), 
      xlab = paste0("p=",p))
 abline(v = similarity_metric, col="blue", lwd=3)
 }
@@ -512,7 +646,7 @@ edge_vector=values
 SA_vector=parcel_SA_betas[-c(1,202)] #take out the medial wall #parcel_SA_pvals, or thresh of either of these
 SA_vector=round(SA_vector,digits = 2)#need to round the pvalues or betas so they are not "singleton", e.g. all different
 #SA_vector[is.na(SA_vector)] <- 0
-similarity_metric<- cosine(edge_vector, SA_vector) #or correlation, cosine similarity, or mahalabonois distance? Other distance metrics?
+similarity_metric<- cor(edge_vector, SA_vector) #or correlation, cosine similarity, or mahalabonois distance? Other distance metrics?
 similarity_metric_perm <- numeric()
 #create a null distribution
 for (x in 1:10000){
@@ -541,12 +675,12 @@ lh_centroids <- as.matrix(read.csv("~/Documents/tools/parcellations/lh.Schaefer4
 lh_centroids <- lh_centroids[-1,];rh_centroids <- rh_centroids[-1,];
 
 #load back in edge age effects
-load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/edgewise_age_effects.Rdata")
+load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/edgewise_age_effects_all_cov.Rdata")
 edge_age_pvals_mat <- matrix(nrow = 400, ncol=400)
 edge_age_pvals_mat[lower.tri(edge_age_pvals_mat, diag=FALSE)] <- edgewise_age_pvals_fdr[,1] #take uncorrected p-values for now
 edge_age_pvals_mat <- t(edge_age_pvals_mat)#copy lower triangle to upper triangle
 
-pvalue= 0.01#pvalue for edges to examine
+pvalue= 0.001#pvalue for edges to examine
 indices <- which(edge_age_pvals_mat<pvalue, arr.ind = T) #indices of edges that have age effects  below a pval
 l <- data.frame(table(indices)) #for each parcel, how many age-significant edges does it have at a given pval thresh
 values <- vector(mode = "double", 400)
@@ -557,13 +691,16 @@ values[as.numeric(as.character(l$indices[i]))] <- l$Freq[i]#replace the indices 
 edge_vector=values
 
 #other map of SA or CT
-#parcel_SA_pvals_thresh <- ifelse(parcel_SA_pvals_fdr[,1]<0.05,parcel_SA_pvals_fdr[,1],0)
+parcel_SA_pvals_thresh <- ifelse(parcel_SA_pvals_fdr[,1]<0.05,parcel_SA_pvals_fdr[,1],0)
 SA_vector=parcel_SA_pvals_thresh[-c(1,202)]
 SA_vector=parcel_SA_pvals_fdr[-c(1,202),1] #parcel_SA_pvals uncorrected, or thresholded p-values
 SA_vector=round(SA_vector,2) #need to round?
 
-rotations<- rotate.parcellation(lh_centroids,rh_centroids,100)
+rotations<- rotate.parcellation(lh_centroids,rh_centroids,1000)
 perm.sphere.p(edge_vector,SA_vector, rotations, "pearson")
+
+#save rotations so don't have to do
+save(rotations,file= "~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/rotations_schaefer400_fsaverage6_1000x.Rdata")
 ```
 
 ## CT models with edited brains
