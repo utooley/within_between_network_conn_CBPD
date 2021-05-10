@@ -20,8 +20,7 @@ library(GGally)
 library(stringr)
 library(tidyverse)
 library(data.table)
-library(bigmemory)
-library(biglm)
+library(psych)
 #load the .RDS file
 pipeline='nogsr_spkreg_fd0.5dvars1.75_drpvls'
 pipeline="nogsr_spkreg_fd1.25dvars2_drpvls"
@@ -38,7 +37,7 @@ library(freesurferformats)
 source("~/Documents/tools/fsbrain_fix_t9.R")
 environment(brainview.t9) <- asNamespace('fsbrain')
 assignInNamespace("brainview.t9", brainview.t9, ns = "fsbrain")
-subjects_dir = "/Users/utooley/Documents/tools/CBIG/stable_projects/brain_parcellation/Schaefer2018_LocalGlobal/Parcellations/FreeSurfer5.3/";
+subjects_dir = "/cbica/projects/spatial_topography/tools/CBIG/stable_projects/brain_parcellation/Schaefer2018_LocalGlobal/Parcellations/FreeSurfer5.3/";
 subject_id = 'fsaverage';       # for functions which use one subject only
 atlas='Schaefer2018_400Parcels_7Networks_order'
 
@@ -47,7 +46,7 @@ schaefer_atlas_region_names_lh = get.atlas.region.names(atlas, template_subjects
 schaefer_atlas_region_names_rh = get.atlas.region.names(atlas, template_subjects_dir = subjects_dir,template_subject=subject_id, hemi="rh");
 
 #set output dir for saving images
-output_image_directory="~/Documents/projects/in_progress/within_between_network_conn_CBPD/output/figures/brains/"
+output_image_directory="~/Dropbox/projects/in_progress/within_between_network_conn_CBPD/output/figures/brains/"
   
 #Set RGL defaults, larger window and how to make snapshots!
 rgloptions=list("windowRect"=c(50,50,1000,1000));
@@ -55,76 +54,95 @@ rgloptions=list("windowRect"=c(50,50,1000,1000));
 
 ## Load data
 ```{r load parcel data, include=FALSE, echo=FALSE}
-library(psych)
-timeseries_dir=paste0("/cbica/projects/cbpd_main_data/CBPD_bids_crosssectional/derivatives/xcpEngine_gsr_spkreg_fd0.5dvars1.75_drpvls/sub-CBPD0124/run-01/fcon/schaefer400/sub-CBPD0124_run-01_schaefer400_ts.1D", pipeline,"/")
+sub_parcel_ts <- list()
+timeseries_dir=paste0("/cbica/projects/cbpd_main_data/CBPD_bids_crosssectional/derivatives/xcpEngine_", pipeline,"/")
 #make a huge dataframe of subjects x edges
-subject="sub-CBPD0124" #except should pull only usable runs!! And need to calculate across runs to account for the averaged matrix across runs!
-tsfile=paste0(timeseries_dir,subject,"/run-01/fcon/schaefer400/",subject,"_run-01_schaefer400_ts.1D")
+#except should pull only usable runs!! And need to calculate across runs to account for the averaged matrix across runs!
+list <- main_filt %>% filter(ID %in% main_unique$ID) %>% select(ID,base_ID,run,longitudinal) #pull all runs from only kids who are in the unique main sample (1 timepoint/kid)
+# for (subject in list$ID){
+#   print(subject)
+#   runs <- list[list$ID==subject,"run"]
+#   x <- matrix(ncol = 400)
+#   for (run in runs){
+#     tsfile=paste0(timeseries_dir,subject,"/",run,"/fcon/schaefer400/",subject,"_",run,"_schaefer400_ts.1D")
+#    if(file.exists(tsfile))
+#      x <- rbind(x,as.matrix(read.table(file =tsfile, header = F)))
+#    else
+#     tsfile=paste0(timeseries_dir,subject,"/",run,"/fcon/schaefer400x7/",subject,"_",run,"_schaefer400x7_ts.1D")
+#      x <- rbind(x,as.matrix(read.table(file =tsfile, header = F)))
+#   }
+# sub_parcel_ts[[subject]] <- na.omit(x)
+# }
+#now have a list with each subject functional timeseries across runs saved as x timepoints by 400 parcels.
+#save(sub_parcel_ts,file = "~/Dropbox/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/n90_schaefer400_timeseries_across_runs.Rdata")#save it out
+load("~/Dropbox/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/n90_schaefer400_timeseries_across_runs.Rdata")#load it
+```
 
-x <- read.table(file =tsfile, header = F)
-parcelwisesd <- apply(x,2,sd)
+
+## Estimate a parcelwise variability metric
+```{r calculate a metric, include=FALSE, echo=FALSE}
+name="standard deviation"
+metric= #Change this to examine different metrics
+myfun <- function(x) {  
+  apply(x,2,sd)
+}
+subjectwise_sd <- t(sapply(sub_parcel_ts, myfun))
+#plot mean
+median_sd <- apply(subjectwise_sd,2,median)
+median_lh=as.list(setNames(c(NA,median_sd[1:200]), schaefer_atlas_region_names_lh));median_rh=as.list(setNames(c(NA,median_sd[201:400]), schaefer_atlas_region_names_rh))
+colormap= colorRampPalette(RColorBrewer::brewer.pal(9, name="PuOr"));makecmap_options=list('colFn'=colormap)
+rglactions=list("snapshot_png"=paste0(output_image_directory,"median_parcelwisesd.png"))
+#'trans_fun'=limit_fun(10,1000))) #this limits the range of data displayed to 10-1000
+vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  median_lh, 
+                            median_rh, makecmap_options = makecmap_options, "inflated", views="t4", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
+#look at relationship with age
+#whole-brain average
+subjectwise_sd=data.frame(subjectwise_sd,rowMeans(subjectwise_sd)) %>% rename(.,"mean_sd"="rowMeans.subjectwise_sd.")
+subjectwise_sd$ID <- dimnames(subjectwise_sd)[[1]]
+subjectwise_sd<- left_join(main_unique,subjectwise_sd, by= "ID")
+summary(lm(mean_sd~age_scan+male+fd_mean_avg+avgweight+totalSizet, data=subjectwise_sd))
+visreg(lm(mean_sd~age_scan+male+fd_mean_avg+avgweight+totalSizet, data=subjectwise_sd))
+exactRLRT(gamm(mean_sd~s(age_scan)+male+fd_mean_avg+avgweight+totalSizet, data=subjectwise_sd, method = "REML")$lme)
+visreg(gam(mean_sd~s(age_scan)+male+fd_mean_avg+avgweight+totalSizet, data=subjectwise_sd, method = "REML"))
+#parcelwise
+parcel_sd_pvals<- lapply(names(subjectwise_sd[,793:1192]), function(x) { summary(lm(as.formula(paste0(x,"~age_scan+male+fd_mean_avg+avgweight+totalSizet")), data=subjectwise_sd))$coef[2,4]})
+parcel_sd_pvals <- unlist(parcel_sd_pvals)
+parcel_sd_pvals_fdr <- cbind(parcel_sd_pvals,p.adjust(parcel_sd_pvals,method = "fdr"))
+#get age betas
+parcel_sd_betas<- lapply(names(subjectwise_sd[,793:1192]), function(x) { lm.beta(lm(as.formula(paste0(x,"~age_scan+male+fd_mean_avg+avgweight+totalSizet")), data=subjectwise_sd))$standardized.coefficients[[2]]})
+parcel_sd_betas <- unlist(parcel_sd_betas)
+
+save(subjectwise_sd, parcel_sd_pvals_fdr,parcel_sd_betas, file="~/Dropbox/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/n90_parcel_sd.Rdata")
+```
+
+## Metrics plot
+```{r plot a metric, include=FALSE, echo=FALSE}
+name="parcel_sd_pvals_fdr"
+to_plot=parcel_sd_pvals_fdr[,2] #Change this to plot different things
+to_plot=ifelse(parcel_sd_pvals_fdr[,1] <0.05,parcel_sd_betas,NA)
+
+lh=as.list(setNames(c(NA,to_plot[1:200]), schaefer_atlas_region_names_lh)) #this has the medial wall in it.
+rh=as.list(setNames(c(NA,to_plot[201:400]), schaefer_atlas_region_names_rh))
+#colormap
+colFn_diverging = colorRampPalette(RColorBrewer::brewer.pal(9, name="RdBu"));makecmap_options=list('colFn'=colFn_diverging)
+rglactions=list("snapshot_png"=paste0(output_image_directory,name,".png"))
+vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  lh, 
+                             rh, makecmap_options = makecmap_options, "inflated", views="t4", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
+
+```
+
+
+## Other metrics to try?
+```{}
 parcelwisevar <- apply(x,2,var)
 parcelwiseentropy <- #need count data
 parcelwisemssd <- apply(x,2,mssd)
 range(parcelwisemssd)
 hist(parcelwisemssd)
 parcelwisemssd <- clip.data(parcelwisemssd, upper = 0.95)
-num_of_sig_age_edges_lh=as.list(setNames(c(NA,parcelwisemssd[1:200]), schaefer_atlas_region_names_lh)) #this has the medial wall in it.
-num_of_sig_age_edges_rh=as.list(setNames(c(NA,parcelwisemssd[201:400]), schaefer_atlas_region_names_rh))
-#colormap
-colormap= colorRampPalette(RColorBrewer::brewer.pal(9, name="PuOr"));makecmap_options=list('range'=c(10,1000),'colFn'=colormap)
-rglactions=list("snapshot_png"=paste0(output_image_directory,"one_sub_parcelwisemssd.png")) #'trans_fun'=limit_fun(10,1000))) #this limits the range of data displayed to 10-1000
-vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  num_of_sig_age_edges_lh, 
-                             num_of_sig_age_edges_rh, makecmap_options = makecmap_options, "inflated", views="t4", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
 
-files <- data.frame(list.files(edges_dir)) %>% filter( list.files.edges_dir. %in% paste0(main_unique$ID, "_schaefer400MNI_zavgnetwork.txt")); files$list.files.edges_dir. <- paste0(edges_dir,files$list.files.edges_dir.)
-
-# vect <- matrix(nrow = dim(main_unique)[1], ncol = 79801)
-# for (i in 1:dim(main_unique)[1]){
-# mat <- data.frame(read_csv(file =paste0(edges_dir,main_unique$ID[i], "_schaefer400MNI_zavgnetwork.txt"), col_names = F))
-# vect[i,2:79801]<-mat[lower.tri(mat)] #read out the lower triangle from matrix by row
-# }
-
-#code to read back into a 400 x 400 matrix! This works correctly.
-# vec<- mat[lower.tri(mat)]
-# goback <- matrix(nrow = 400, ncol=400)
-# goback[lower.tri(goback, diag=FALSE)] <- vec
-# goback <- t(goback)
-# goback
-
-#saveRDS(vect,"~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/n90_all_edges.Rdata")
-
-#Read back in the matrix of edges, so you don't create every time.
-n90_all_edges<- readRDS("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/n90_all_edges.Rds");n90_all_edges <- n90_all_edges[,-1]
 ```
 
-## Run edgwise linear models
-Run linear models on edges, controlling for age, sex and average motion.
-```{r edgewise linear models}
-# edgewise_age_pvals<- apply(n90_all_edges,2, function(x) { summary(lm(x~main_unique$age_scan+main_unique$male+main_unique$fd_mean_avg+main_unique$avgweight+main_unique$pctVolsCensored+main_unique$totalSizet))$coef[2,4]}) #without multicore
+## Multiscale entropy?
 
-#multi-core apply the linear model across the matrix of edges, get age pvals 
-# edgewise_age_pvals<- mclapply(1:79800, function(x) { summary(lm(n90_all_edges[,x]~main_unique$age_scan+main_unique$male+main_unique$fd_mean_avg+main_unique$avgweight+main_unique$totalSizet))$coef[2,4]}, mc.cores = 4)
-# edgewise_age_pvals <- unlist(edgewise_age_pvals)
-# edgewise_age_pvals_fdr <- cbind(edgewise_age_pvals,p.adjust(edgewise_age_pvals,method = "fdr"))
-# #get age betas
-# edgewise_age_betas<- mclapply(1:79800, function(x) { lm.beta(lm(n90_all_edges[,x]~main_unique$age_scan+main_unique$male+main_unique$fd_mean_avg+main_unique$avgweight+main_unique$totalSizet))$standardized.coefficients[[2]]}, mc.cores = 4)
-# edgewise_age_betas <- unlist(edgewise_age_betas)
-#save for reloading in future
-save(edgewise_age_pvals_fdr, edgewise_age_betas,file= "~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/edgewise_age_effects_all_cov.Rdata")
-
-#load back in edge age effects
-load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/edgewise_age_effects_all_cov.Rdata")
-
-#code to read back into a 400 x 400 matrix! This works correctly.
-# vec<- mat[lower.tri(mat)]
-edge_age_pvals_mat <- matrix(nrow = 400, ncol=400)
-edge_age_pvals_mat[lower.tri(edge_age_pvals_mat, diag=FALSE)] <- edgewise_age_pvals_fdr[,1] #take uncorrected p-values for now
-#copy lower triangle to upper triangle
-edge_age_pvals_mat[upper.tri(edge_age_pvals_mat)] <- t(edge_age_pvals_mat)[upper.tri(edge_age_pvals_mat)]
-edge_age_betas_mat <- matrix(nrow = 400, ncol=400)
-edge_age_betas_mat[lower.tri(edge_age_betas_mat, diag=FALSE)] <- edgewise_age_betas
-edge_age_betas_mat[upper.tri( edge_age_betas_mat)] <- t(edge_age_betas_mat)[upper.tri( edge_age_betas_mat)]
-```
-
-
+## State analysis?
