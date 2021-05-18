@@ -69,10 +69,13 @@ main$aces3category <- factor(main$aces3category, labels=c("None"," or One", "Two
 main$totalUncensoredVols <- main$totalSizet-main$totalnVolCensored
 
 #Take out people with mean motion over 1, or more than 50% of frames censored (pctSpikesFD), or max motion > 10 mm
-main_filt <- main %>% filter(., pctVolsCensored< 0.5 & relMaxRMSMotion < 10 & fd_mean_avg < 0.5 )
-& fd_perc_2mm_avg < 10) #old threshold
-main_filt <- main %>% filter(., pctVolsCensored< 0.5 & relMaxRMSMotion < 10 & fd_mean_avg < 1 & fd_perc_2mm_avg < 10 & totalSizet > 130)
+main_filt <- main %>% filter(., pctVolsCensored< 0.3 & relMaxRMSMotion < 10 & fd_mean_avg < 1 & totalSizet > 130)
+length(unique(main_filt$ID))
+main_filt <- main %>% filter(., relMaxRMSMotion < 10 & fd_mean_avg < 1 & fd_perc_2mm_avg < 10 & totalSizet > 130)
 main_filt <- main %>% filter(., pctVolsCensored< 0.5 & relMaxRMSMotion < 10 & fd_mean_avg < 1 & fd_perc_2mm_avg < 10 & totalSizet > 130 & totalUncensoredVols > 100)
+
+#criteria allyson suggests, not using different FD thresholds for censoring and for the % of volumes over a threshold that warrants subject exclusion
+main_filt <- main %>% filter(., fd_mean_avg < 1 & pctSpikesFD_avg < 0.3)
 
 #filter out only kids under 8
 main_under9 <- filter(main_filt, age_scan <=9)
@@ -137,6 +140,9 @@ main_replicate_filt <- main_replicate %>% filter(., pctVolsCensored< 0.5 & relMa
 main_replicate_filt <- main_replicate %>% filter(., pctVolsCensored< 0.5 & relMaxRMSMotion < 10 & fd_mean_avg < 1 & fd_perc_2mm_avg < 10 & totalSizet > 130)
 main_replicate_filt <- main_replicate %>% filter(., pctVolsCensored< 0.5 & relMaxRMSMotion < 10 & fd_mean_avg < 1 & fd_perc_2mm_avg < 10 & totalSizet > 130 & totalUncensoredVols > 100)
 
+#criteria allyson suggests, not using different FD thresholds for censoring and for the % of volumes over a threshold that warrants subject exclusion
+main_replicate_filt <- main_replicate %>% filter(., fd_mean_avg < 1 & pctSpikesFD_avg < 0.3)
+
 #filter out only kids under 8
 main_replicate_under9 <- filter(main_replicate_filt, age_scan <=9)
 
@@ -149,7 +155,7 @@ main_replicate_unique <- main_replicate_filt  %>% group_by(base_ID) %>% arrange(
 dim(main_replicate_unique)
 
 # Look at each column and correct for multiple comparisons
-covariates="~ age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet"
+covariates="~ age_scan+male+fd_mean_avg+avgweight+totalSizet"
 
 #make a dataframe with no repeats of net comparisons
 main_unique <- dplyr::select(main_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
@@ -182,7 +188,7 @@ colnames(networks_age_pvals_fdr_replicate) <- c("pvalue", "network")
 print(networks_age_pvals_fdr_replicate)
 
 # Separate Networks and Effects of SES ------------------------------------
-covariates="~ age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet+ses_composite+race2+ethnicity"
+covariates="~ age_scan+male+fd_mean_avg+avgweight+totalSizet+ses_composite+race2+ethnicity"
 #make a dataframe with no repeats of net comparisons
 #main_unique <- dplyr::select(main_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
 #run and compare for multiple comparisons again
@@ -219,8 +225,8 @@ if(run=='run1'){
 } else if (run=='average'){
   outfile=paste0(outdir,"/CBPD_n91_schaefer400_avgruns.Rdata")
   outfile2=paste0(cluster_outdir,"/CBPD_n91_schaefer400_avgruns.Rdata")
-}else {outfile=paste0(outdir,"/CBPD_n90_schaefer400_allruns.Rdata")
-outfile2=paste0(cluster_outdir,"/CBPD_n90_schaefer400_allruns.Rdata")
+}else {outfile=paste0(outdir,"/CBPD_n92_schaefer400_allruns.Rdata")
+outfile2=paste0(cluster_outdir,"/CBPD_n92_schaefer400_allruns.Rdata")
 }
 save(main, main_filt, main_unique,file=outfile)
 save(main, main_filt, main_unique,file=outfile2)
@@ -233,11 +239,11 @@ save(main, main_filt, main_unique, networks_age_pvals_fdr,networks_ses_pvals_fdr
 #Need to control for the amount of good data a participant has, size_t
 
 #look at mean within and between with age
-lm_within_sys_age <- lm(mean_within_sys~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet, data=main_unique)
+lm_within_sys_age <- lm(mean_within_sys~age_scan+male+fd_mean_avg+avgweight+totalSizet, data=main_unique)
 summary(lm_within_sys_age)
 lm.beta(lm_within_sys_age)
 lm.beta(l)
-lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet, data=main_unique)
+lm_between_sys_age <- lm(mean_between_sys~age_scan+male+fd_mean_avg+avgweight+totalSizet, data=main_unique)
 summary(lm_between_sys_age)
 lm.beta(lm_between_sys_age)
 lm_segreg_age<- lm(system_segreg~age_scan+male+fd_mean_avg+avgweight+pctVolsCensored+totalSizet, data=main_unique)
