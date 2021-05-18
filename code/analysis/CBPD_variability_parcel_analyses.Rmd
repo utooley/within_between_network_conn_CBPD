@@ -133,7 +133,6 @@ vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcel
 
 ```
 
-
 ## Entropy
 Not sure if the Hurst exponent can be succesfully applied to our censored data--Dani thinks not since relies on frequency information.
 
@@ -257,20 +256,33 @@ save(rotations,file= "~/Documents/projects/in_progress/within_between_network_co
 
 ## Multiscale entropy?
 ```{multiscale entropy calculation}
-library(NonlinearTseries)
-library(MVMSampEn)
-	sampleEntropy()
+library(CGManalyzer)
+library(viridis)
+#load timeseries across runs
+load("~/Dropbox/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/n90_schaefer400_timeseries_across_runs.Rdata")#load it
+x <- sub_parcel_ts$`sub-CBPD0002`
+l <- MSEbyC.fn(x[,1], rMin = 0.15, rMax = 1)
+#MSEplot.fn(Scale = c(1:10), l, MSE = l, )
+ggplot(data = l, mapping = aes(x=Scale, y=SampleEntropy,group=as.factor(r), color=as.factor(r)))+geom_point()+geom_line()+scale_color_viridis_d()
+
+
+name="sample entropy"
+metric= #Change this to examine different metrics
+myfun <- function(x) {  
+  apply(x,2,sample_entropy, edim=2, r=2, tau=1)
+}
+sampleEntropy()
 	
-	MSMVSampEn()
+MSMVSampEn()
 ```
 
 ## State analysis?
 
 ## Intrinsic timescales of BOLD
-Done in MATLAB, MATLAB scripts called 
-Code below is to write out a subject list for use in MATLAB
+Done in MATLAB, MATLAB scripts called parcel_intrinsic_timescale.
+Code below is to write out a subject list for use in MATLAB. 
 
-```{intrinsic timescales}
+```{intrinsic timescales subject list}
 pipeline='gsr_spkreg_fd0.5dvars1.75_drpvls'
 network_dir=paste0("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/",pipeline)
 load(paste0(network_dir,"/CBPD_n92_schaefer400_allruns.Rdata"))
@@ -278,4 +290,51 @@ load(paste0(network_dir,"/CBPD_n92_schaefer400_allruns.Rdata"))
 list <- main_filt %>% filter(ID %in% main_unique$ID) %>% select(ID,base_ID,run,longitudinal) #pull all runs from only kids who are in the unique main sample (1 timepoint/kid)
 write.csv(list, file ="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/subjectData/n92_subjlist_for_timescales.csv")
 write.csv(list, file ="/cbica/home/tooleyu/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists/n92_subjlist_for_timescales.csv")
+```
+
+```{intrinsic timescale plot + analyse}
+library(R.matlab)#load parcel average
+x <- readMat(paste0(network_dir,"/n92_schaefer400_timescales_censor_block_parcel_group.mat"));parcel_timescale <- x$hwhm
+name="intrinsic_timescale_censor_block"
+#Plot parcelwise mean
+median_sd <- parcel_timescale
+median_lh=as.list(setNames(c(NA,median_sd[1:200]), schaefer_atlas_region_names_lh));median_rh=as.list(setNames(c(NA,median_sd[201:400]), schaefer_atlas_region_names_rh))
+colormap= colorRampPalette(RColorBrewer::brewer.pal(9, name="PuOr"));makecmap_options=list('colFn'=colormap)
+colormap= colorRampPalette(c("#00007F", "blue", "#007FFF", "cyan","#7FFF7F", "yellow", "#FF7F00", "red", "#7F0000"));makecmap_options=list('colFn'=colormap)
+rglactions=list("snapshot_png"=paste0(output_image_directory,"median_",name,".png")) #this limits the range of data displayed to 10-1000
+vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  median_lh, 
+                            median_rh, makecmap_options = makecmap_options, "inflated", views="t4", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
+
+#look at relationship with age
+subjectwise_metric <- read.csv(paste0(network_dir,"/n92_schaefer400_timescales_censor_block_parcel_subjectwise.csv")); colnames(subjectwise_metric) <- c("ID",paste0("V",rep(1:400)))
+subjectwise_metric <- data.frame(subjectwise_metric) %>% mutate(global_mean_metric = select(., -matches("ID")) %>% rowMeans(.))#make whole-brain subjectwise average
+hist(subjectwise_metric$global_mean_metric)
+#load age data
+load(paste0(network_dir,"/CBPD_n92_schaefer400_allruns.Rdata"))
+subjectwise_metric$ID <- trimws(subjectwise_metric$ID) #issues merging because MATLAB added whitespace
+subjectwise_metric<- left_join(main_unique,subjectwise_metric, by= "ID")
+summary(lm(global_mean_metric~age_scan+male+fd_mean_avg+avgweight+totalSizet, data=subjectwise_metric))
+visreg(lm(global_mean_metric~age_scan+male+fd_mean_avg+avgweight+totalSizet, data=subjectwise_metric))
+exactRLRT(gamm(global_mean_metric~s(age_scan)+male+fd_mean_avg+avgweight+totalSizet, data=subjectwise_metric, method = "REML")$lme)
+visreg(gam(global_mean_metric~s(age_scan)+male+fd_mean_avg+avgweight+totalSizet, data=subjectwise_metric, method = "REML"))
+#parcelwise
+parcel_timescale_pvals<- lapply(names(subjectwise_metric[,793:1192]), function(x) { summary(lm(as.formula(paste0(x,"~age_scan+male+fd_mean_avg+avgweight+totalSizet")), data=subjectwise_metric))$coef[2,4]})
+parcel_timescale_pvals <- unlist(parcel_timescale_pvals)
+parcel_timescale_pvals_fdr <- cbind(parcel_timescale_pvals,p.adjust(parcel_timescale_pvals,method = "fdr"))
+#get age betas
+parcel_timescale_betas<- lapply(names(subjectwise_metric[,793:1192]), function(x) { lm.beta(lm(as.formula(paste0(x,"~age_scan+male+fd_mean_avg+avgweight+totalSizet")), data=subjectwise_metric))$standardized.coefficients[[2]]})
+parcel_timescale_betas <- unlist(parcel_timescale_betas)
+
+save(subjectwise_metric, parcel_timescale_pvals_fdr,parcel_timescale_betas, file=paste0("~/Dropbox/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/n92_parcel_",name,".Rdata"))
+name="parcel_timescale_censor_block_pvals_fdr"
+to_plot=parcel_timescale_pvals_fdr[,1] #Change this to plot different things
+to_plot=ifelse(parcel_timescale_pvals_fdr[,1] <0.05,parcel_timescale_betas,NA)
+
+lh=as.list(setNames(c(NA,to_plot[1:200]), schaefer_atlas_region_names_lh)) #this has the medial wall in it.
+rh=as.list(setNames(c(NA,to_plot[201:400]), schaefer_atlas_region_names_rh))
+#colormap
+colFn_diverging = colorRampPalette(rev(RColorBrewer::brewer.pal(9, name="RdBu")));makecmap_options=list('colFn'=colFn_diverging,'symm'=TRUE)
+rglactions=list("snapshot_png"=paste0(output_image_directory,"/",name,",_age_pvals.png"))
+vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  lh, 
+                             rh, makecmap_options = makecmap_options, "inflated", views="t4", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
 ```

@@ -39,9 +39,11 @@ do
       echo 'and no volumes were censored'
       #copy over the timeseries and rename
       if [[ -e ${data_dir}/${sub}/${run}/fcon/schaefer400 ]]; then
-        echo cp ${data_dir}/${sub}/${run}/fcon/schaefer400/${sub}_${run}_schaefer400_ts.1D ${data_dir}/${sub}/${run}/fcon/schaefer400/${sub}_${run}_schaefer400_uncensored_ts.1D
+        echo copying uncensored timeseries
+        cp ${data_dir}/${sub}/${run}/fcon/schaefer400/${sub}_${run}_schaefer400_ts.1D ${data_dir}/${sub}/${run}/fcon/schaefer400/${sub}_${run}_schaefer400_uncensored_ts.1D
       elif [[ -e ${data_dir}/${sub}/${run}/fcon/schaefer400x7 ]]; then
-        echo cp ${data_dir}/${sub}/${run}/fcon/schaefer400x7/${sub}_${run}_schaefer400x7_ts.1D  ${data_dir}/${sub}/${run}/fcon/schaefer400x7/${sub}_${run}_schaefer400x7_uncensored_ts.1D
+        echo copying uncensored timeseri
+        cp ${data_dir}/${sub}/${run}/fcon/schaefer400x7/${sub}_${run}_schaefer400x7_ts.1D  ${data_dir}/${sub}/${run}/fcon/schaefer400x7/${sub}_${run}_schaefer400x7_uncensored_ts.1D
       fi
     fi
 fi
