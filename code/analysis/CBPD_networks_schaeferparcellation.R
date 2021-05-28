@@ -29,7 +29,7 @@ main <- read.csv(paste0(subjdata_dir,"CBPD_data_DMD_2020.05.22_UNOFFICIAL_merged
 withavgweight <- read.csv(paste0(netdata_dir,"/n150_long_inc_within_between_Yeo7_avgruns_",parcellation,pipeline,"_withmodulpartcoef_with_QA.csv"))
 
 #filter out some unneeded variables
-main <- main %>% dplyr::select(., -c(work_life_balance_questionnaire_timestamp:les_c_other_explain, colorado_child_temperament_index_timestamp:ccti_sum, cbcl_18mo_admin:cbcl_total_t))
+#main <- main %>% dplyr::select(., -c(work_life_balance_questionnaire_timestamp:les_c_other_explain, colorado_child_temperament_index_timestamp:ccti_sum, cbcl_18mo_admin:cbcl_total_t))
 
 #filter out extra variables in average weight
 withavgweight$record_id <- as.character(withavgweight$ID)

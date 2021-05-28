@@ -30,7 +30,7 @@ pipeline="nogsr_spkreg_fd1.25dvars2_drpvls"
 pipeline='gsr_spkreg_fd0.5dvars1.75_drpvls'
 network_dir=paste0("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/",pipeline)
 
-load(paste0(network_dir,"/CBPD_n90_schaefer400_allruns.Rdata"))
+load(paste0(network_dir,"/CBPD_n92_schaefer400_allruns.Rdata"))
 ```
 ## Data Descriptives
 
@@ -154,6 +154,71 @@ visreg(lm_sys4to7,"age_scan",  main="DMN to VAN",ylab="", xlab="Age at scan (yea
 # visreg(lm_sys4to7,"age_scan",band=FALSE, gg=TRUE)+geom_smooth()+theme_classic()
 ```
 
+### Plots for within-system connectivity
+To scatter around the Yeo networks.
+```{r lm plots within, echo=FALSE, include=TRUE, results='hide',fig.show='hold', out.width='33.33%', fig.align='default'}
+networks <- dplyr::select(main_unique, sys1to1, sys2to2, sys3to3, sys4to4, sys5to5, sys6to6,sys7to7) %>% ungroup()
+nets <- colnames(networks[-1])
+#look at non-linear interaction between age and envSES 
+for (net in nets){
+  name<-paste0("lm_",net)
+  formula<-formula(paste0(net, '~age_scan+male+fd_mean+avgweight+totalSizet'))
+  assign(name, lm(formula, data=main_unique))
+  #p_val[net] <- summary(name)$coefficients[2,4]
+  summary(get(name))
+  visreg(get(name),'age_scan', xlab = "Age (years)", ylab="")
+} 
+```
+
+## System-level effects to creativity
+
+Allyson asks whether the segregation of def vs. attn nets is associated with reduced pretend play, reduced (CFG-), or coded pretend play in PCIT.
+
+```{r lm plots, echo=FALSE, include=TRUE, results='hide',fig.show='hold', out.width='33.33%', fig.align='default'}
+networks_age_pvals_fdr #FDR-corrected
+
+#Home literacy and numeracy questionnaire
+lm_sys3to7<- lm(sys3to7~age_scan+male+fd_mean_avg+avgweight+totalSizet+litnum_freq_play_avg, data=main_unique)
+lm_sys4to7<- lm(sys4to7~age_scan+male+fd_mean_avg+avgweight+totalSizet+litnum_freq_play_avg, data=main_unique)
+summary(lm(litnum_freq_play_avg~age_scan+male, data=main_unique))
+summary(lm_sys3to7)
+summary(lm_sys4to7)
+visreg(lm_sys3to7,"litnum_freq_play_avg", main="DMN to DAN",ylab="", xlab="litnum_freq_play_avg")
+
+lm_sys3to7<- lm(sys3to7~age_scan+male+fd_mean_avg+avgweight+totalSizet+litnum_freq_pretend_avg, data=main_unique)
+lm_sys4to7<- lm(sys4to7~age_scan+male+fd_mean_avg+avgweight+totalSizet+litnum_freq_pretend_avg, data=main_unique)
+summary(lm(litnum_freq_pretend_avg~age_scan+male, data=main_unique))
+summary(lm_sys3to7)
+summary(lm_sys4to7)#litnum freq play and freq pretend play is associated with 3 to 7
+visreg(lm_sys3to7,"litnum_freq_pretend_avg", main="DMN to DAN",ylab="", xlab="litnum_freq_pretend_avg")
+
+
+#CFG measures
+cfg_measures=main_unique %>% select(total.play.time:max.Δt...min.) %>% names();cfg_measures=cfg_measures[-1] #- baseID
+cfg_measures
+for (measure in cfg_measures){
+  meas=main_unique %>% ungroup %>% select(measure) %>% pull()
+  print(meas)
+  hist(as.numeric(meas), main=measure)
+  print(summary(meas))
+}
+
+#Julia re: PCIT coded pretend play, or start from child_persistence_seconds
+pcit_measures=main_unique %>%ungroup %>% select(kid_a_play_coder1:totalDuration.adult_p_play_avg) %>% names();
+pcit_measures
+for (measure in pcit_measures){
+  meas=main_unique %>% ungroup %>% select(measure) %>% pull()
+  print(meas)
+  hist(as.numeric(meas), main=measure)
+  print(summary(meas))
+}
+
+
+# crPlots(lm_sys4to7)
+# visreg(lm_sys4to7,"age_scan",band=FALSE, gg=TRUE)+geom_smooth()+theme_classic()
+
+#bootstrap or rlm these effects to make sure?
+```
 None of these showed significantly non-linear effects, either. 
 
 ```{r system level FDR-corrected effects}

@@ -28,7 +28,7 @@ pipeline="nogsr_spkreg_fd1.25dvars2_drpvls"
 pipeline='gsr_spkreg_fd0.5dvars1.75_drpvls'
 network_dir=paste0("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/",pipeline)
 
-load(paste0(network_dir,"/CBPD_n90_schaefer400_allruns.Rdata"))
+load(paste0(network_dir,"/CBPD_n92_schaefer400_allruns.Rdata"))
 ```
 
 ```{r brain plotting setup, include=FALSE, echo=FALSE}
@@ -60,34 +60,34 @@ timeseries_dir=paste0("/cbica/projects/cbpd_main_data/CBPD_bids_crosssectional/d
 #make a huge dataframe of subjects x edges
 #except should pull only usable runs!! And need to calculate across runs to account for the averaged matrix across runs!
 list <- main_filt %>% filter(ID %in% main_unique$ID) %>% select(ID,base_ID,run,longitudinal) #pull all runs from only kids who are in the unique main sample (1 timepoint/kid)
-# for (subject in list$ID){
-#   print(subject)
-#   runs <- list[list$ID==subject,"run"]
-#   x <- matrix(NA,nrow=1,ncol = 400)
-#   for (run in runs){
-#     tsfile=paste0(timeseries_dir,subject,"/",run,"/fcon/schaefer400/",subject,"_",run,"_schaefer400_ts.1D")
-#    if(file.exists(tsfile)){
-#     x <- rbind(x,as.matrix(read.table(file =tsfile, header = F))) 
-#    }
-#    else{
-#     tsfile=paste0(timeseries_dir,subject,"/",run,"/fcon/schaefer400x7/",subject,"_",run,"_schaefer400x7_ts.1D")
-#      x <- rbind(x,as.matrix(read.table(file =tsfile, header = F)))
-#    }
-#   }
-# sub_parcel_ts[[subject]] <- na.omit(x)
-# }
-# #now have a list with each subject functional timeseries across runs saved as x timepoints by 400 parcels.
-# save(sub_parcel_ts,file = "~/Dropbox/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/n90_schaefer400_timeseries_across_runs.Rdata")#save it out
-load("~/Dropbox/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/n90_schaefer400_timeseries_across_runs.Rdata")#load it
+for (subject in list$ID){
+  print(subject)
+  runs <- list[list$ID==subject,"run"]
+  x <- matrix(NA,nrow=1,ncol = 400)
+  for (run in runs){
+    tsfile=paste0(timeseries_dir,subject,"/",run,"/fcon/schaefer400/",subject,"_",run,"_schaefer400_ts.1D")
+   if(file.exists(tsfile)){
+    x <- rbind(x,as.matrix(read.table(file =tsfile, header = F)))
+   }
+   else{
+    tsfile=paste0(timeseries_dir,subject,"/",run,"/fcon/schaefer400x7/",subject,"_",run,"_schaefer400x7_ts.1D")
+     x <- rbind(x,as.matrix(read.table(file =tsfile, header = F)))
+   }
+  }
+sub_parcel_ts[[subject]] <- na.omit(x)
+}
+#now have a list with each subject functional timeseries across runs saved as x timepoints by 400 parcels.
+save(sub_parcel_ts,file = "~/Dropbox/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/n92_schaefer400_timeseries_across_runs.Rdata")#save it out
+load("~/Dropbox/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/n92_schaefer400_timeseries_across_runs.Rdata")#load it
 ```
 
 
 ## Estimate a parcelwise variability metric
 ```{r calculate a metric, include=FALSE, echo=FALSE}
-name="sd"
+name="mssd"
 metric= #Change this to examine different metrics
 myfun <- function(x) {  
-  apply(x,2,sd)
+  apply(x,2,mssd)
 }
 subjectwise_sd <- t(sapply(sub_parcel_ts, myfun))
 #plot mean
@@ -107,19 +107,19 @@ visreg(lm(mean_sd~age_scan+male+fd_mean_avg+avgweight+totalSizet, data=subjectwi
 exactRLRT(gamm(mean_sd~s(age_scan)+male+fd_mean_avg+avgweight+totalSizet, data=subjectwise_sd, method = "REML")$lme)
 visreg(gam(mean_sd~s(age_scan)+male+fd_mean_avg+avgweight+totalSizet, data=subjectwise_sd, method = "REML"))
 #parcelwise
-parcel_sd_pvals<- lapply(names(subjectwise_sd[,793:1192]), function(x) { summary(lm(as.formula(paste0(x,"~age_scan+male+fd_mean_avg+avgweight+totalSizet")), data=subjectwise_sd))$coef[2,4]})
+parcel_sd_pvals<- lapply(names(subjectwise_sd[,1646:2045]), function(x) { summary(lm(as.formula(paste0(x,"~age_scan+male+fd_mean_avg+avgweight+totalSizet")), data=subjectwise_sd))$coef[2,4]})
 parcel_sd_pvals <- unlist(parcel_sd_pvals)
 parcel_sd_pvals_fdr <- cbind(parcel_sd_pvals,p.adjust(parcel_sd_pvals,method = "fdr"))
 #get age betas
-parcel_sd_betas<- lapply(names(subjectwise_sd[,793:1192]), function(x) { lm.beta(lm(as.formula(paste0(x,"~age_scan+male+fd_mean_avg+avgweight+totalSizet")), data=subjectwise_sd))$standardized.coefficients[[2]]})
+parcel_sd_betas<- lapply(names(subjectwise_sd[,1646:2045]), function(x) { lm.beta(lm(as.formula(paste0(x,"~age_scan+male+fd_mean_avg+avgweight+totalSizet")), data=subjectwise_sd))$standardized.coefficients[[2]]})
 parcel_sd_betas <- unlist(parcel_sd_betas)
 
-save(subjectwise_sd, parcel_sd_pvals_fdr,parcel_sd_betas, file=paste0("~/Dropbox/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/n90_parcel_",name,".Rdata"))
+save(subjectwise_sd, parcel_sd_pvals_fdr,parcel_sd_betas, file=paste0("~/Dropbox/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/n92_parcel_",name,".Rdata"))
 ```
 
 ## Metrics plot
 ```{r plot a metric, include=FALSE, echo=FALSE}
-name="parcel_mssd_pvals_fdr"
+name="parcel_mssd_pvals"
 to_plot=parcel_sd_pvals_fdr[,2] #Change this to plot different things
 to_plot=ifelse(parcel_sd_pvals_fdr[,1] <0.05,parcel_sd_betas,NA)
 
@@ -150,12 +150,12 @@ myfun <- function(x) {
 # subjectwise_metric <- mclapply(sub_parcel_ts, myfun, mc.cores = 3)
 # subjectwise_metric <- do.call("rbind", subjectwise_metric)
 
-save(subjectwise_metric,file = "~/Dropbox/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/n90_schaefer400_sample_entropy_m2_r2_t1.Rdata")#save it out
+save(subjectwise_metric,file = "~/Dropbox/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/n92_schaefer400_sample_entropy_m2_r2_t1.Rdata")#save it out
 #load it
-load("~/Dropbox/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/n90_schaefer400_sample_entropy_m2_r2_t1.Rdata")
+load("~/Dropbox/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/n92_schaefer400_sample_entropy_m2_r2_t1.Rdata")
 
 #take out the Infs in the dataframe, replace with NA, so that there aren't huge outliers when plotting
-subjectwise_metric[] <- lapply(subjectwise_metric, function(i) if(is.numeric(i)) ifelse(is.infinite(i), NA, i) else i)
+subjectwise_metric[] <- apply(subjectwise_metric, 2, FUN =  function(i) if(is.numeric(i)) ifelse(is.infinite(i), NA, i) else i)
 #Plot parcelwise median
 median_sd <- apply(subjectwise_metric,2,median, na.rm=T);hist(median_sd)
 median_lh=as.list(setNames(c(NA,median_sd[1:200]), schaefer_atlas_region_names_lh));median_rh=as.list(setNames(c(NA,median_sd[201:400]), schaefer_atlas_region_names_rh))
@@ -164,7 +164,8 @@ rglactions=list("snapshot_png"=paste0(output_image_directory,"median_",name,".pn
 vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  median_lh, 
                             median_rh, makecmap_options = makecmap_options, "inflated", views="t4", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
 #look at relationship with age
-subjectwise_metric <- subjectwise_metric %>% mutate(global_mean_metric=rowMedians(as.matrix(.),na.rm=T))#make whole-brain subjectwise average
+#subjectwise_metric <- subjectwise_metric %>% mutate(global_mean_metric=rowMedians(as.matrix(.),na.rm=T))#make whole-brain subjectwise average
+subjectwise_metric <- data.frame(subjectwise_metric,rowMedians(subjectwise_metric, na.rm = T)) %>% rename(global_mean_metric=rowMedians.subjectwise_metric..na.rm...T.)
 hist(subjectwise_metric$global_mean_metric)
 #take out the 2 outliers
 #subjectwise_metric_filt <- subjectwise_metric %>% filter(.,global_mean_metric>1)
@@ -175,30 +176,31 @@ visreg(lm(global_mean_metric~age_scan+male+fd_mean_avg+avgweight+totalSizet, dat
 exactRLRT(gamm(global_mean_metric~s(age_scan)+male+fd_mean_avg+avgweight+totalSizet, data=subjectwise_metric, method = "REML")$lme)
 visreg(gam(global_mean_metric~s(age_scan)+male+fd_mean_avg+avgweight+totalSizet, data=subjectwise_metric, method = "REML"))
 #parcelwise
-parcel_sd_pvals<- lapply(names(subjectwise_metric[,793:1192]), function(x) { summary(lm(as.formula(paste0(x,"~age_scan+male+fd_mean_avg+avgweight+totalSizet")), data=subjectwise_metric))$coef[2,4]})
+parcel_sd_pvals<- lapply(names(subjectwise_metric[,1646:2045]), function(x) { summary(lm(as.formula(paste0(x,"~age_scan+male+fd_mean_avg+avgweight+totalSizet")), data=subjectwise_metric))$coef[2,4]})
 parcel_sd_pvals <- unlist(parcel_sd_pvals)
 parcel_sd_pvals_fdr <- cbind(parcel_sd_pvals,p.adjust(parcel_sd_pvals,method = "fdr"))
 #get age betas
-parcel_sd_betas<- lapply(names(subjectwise_metric[,793:1192]), function(x) { lm.beta(lm(as.formula(paste0(x,"~age_scan+male+fd_mean_avg+avgweight+totalSizet")), data=subjectwise_metric))$standardized.coefficients[[2]]})
+parcel_sd_betas<- lapply(names(subjectwise_metric[,1646:2045]), function(x) { lm.beta(lm(as.formula(paste0(x,"~age_scan+male+fd_mean_avg+avgweight+totalSizet")), data=subjectwise_metric))$standardized.coefficients[[2]]})
 parcel_sd_betas <- unlist(parcel_sd_betas)
 
-save(subjectwise_metric, parcel_sd_pvals_fdr,parcel_sd_betas, file=paste0("~/Dropbox/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/n90_parcel_",name,".Rdata"))
+save(subjectwise_metric, parcel_sd_pvals_fdr,parcel_sd_betas, file=paste0("~/Dropbox/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/n92_parcel_",name,".Rdata"))
 
 ```
 
 ## Entropy plot age pvals
 ```{r plot sample entropy metric, include=FALSE, echo=FALSE}
-name="parcel_sampEn_pvals_fdr"
+name="parcel_sampEn_pvals"
 to_plot=parcel_sd_pvals_fdr[,1] #Change this to plot different things
 to_plot=ifelse(parcel_sd_pvals_fdr[,2] <0.05,parcel_sd_betas,NA)
 
 lh=as.list(setNames(c(NA,to_plot[1:200]), schaefer_atlas_region_names_lh)) #this has the medial wall in it.
 rh=as.list(setNames(c(NA,to_plot[201:400]), schaefer_atlas_region_names_rh))
 #colormap
-colFn_diverging = colorRampPalette(rev(c("white","white","pink","red")));makecmap_options=list('colFn'=colFn_diverging)
-rglactions=list("snapshot_png"=paste0(output_image_directory,"parcel_SampEn_age_pvals.png"))
+#colFn_diverging = colorRampPalette(rev(c("white","white","pink","red")));makecmap_options=list('colFn'=colFn_diverging)
+colFn_diverging = colorRampPalette(rev(RColorBrewer::brewer.pal(9, name="RdBu")));makecmap_options=list('colFn'=colFn_diverging)
+rglactions=list("snapshot_png"=paste0(output_image_directory,name,".png"), 'shift_hemis_apart'=TRUE)
 vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  lh, 
-                             rh, makecmap_options = makecmap_options, "inflated", views="t4", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
+                             rh, makecmap_options = makecmap_options, "inflated", views="t9", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
 
 ```
 
@@ -277,6 +279,8 @@ MSMVSampEn()
 ```
 
 ## State analysis?
+
+Maybe need to winsorize timeseries to 4 SD above mean--ask Max, along with subject inclusion criteria?
 
 ## Intrinsic timescales of BOLD
 Done in MATLAB, MATLAB scripts called parcel_intrinsic_timescale.
