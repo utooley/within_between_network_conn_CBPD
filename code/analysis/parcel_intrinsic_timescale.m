@@ -17,6 +17,7 @@ min_block_durn = (max(lags)+1)*tr;   % min. block duration (in seconds)
 listdir='/cbica/home/tooleyu/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists/'
 subjlist=readtable(fullfile(listdir,'n92_subjlist_for_timescales.csv'),'Delimiter',',','ReadVariableNames', 1)
 uniquesubs=unique(subjlist.ID)
+subjects=uniquesubs;
 
 %% Loop over subjects
 
@@ -37,7 +38,7 @@ for s = 1:numel(uniquesubs)
    %FIRST RUN AND SECOND RUN TO DIVIDE UP CONTINUGUOUS-NESS?
     runs = subjlist(string(subjlist.ID)==sub, 'run') %get runs
     clear subts
-    clear temp_mask
+    clear temp_mask mask
     subts=NaN(1,400);
     mask=[]
     for j=1:height(runs)
@@ -55,12 +56,20 @@ for s = 1:numel(uniquesubs)
             %add a row of 1s between timeseries runs and at end of
             %temporal motion mask, to make sure an ACF block doesn't cross
             %runs.
-            subts=vertcat(subts,repmat(1,1,400))
+            subts=vertcat(subts,repmat(NaN,1,400))
             mask=vertcat(mask,1)
         end
         size(subts)
         size(mask)
-    BOLD = rmmissing(subts);%take out the first row with NaNs from timeseries matrix
+        %take off the last "masked frame" from each 
+        subts(end,:)=[];
+        mask(end,:)=[];
+    subts(1,:) = [];%take out the first row with NaNs from timeseries matrix
+    BOLD=subts;
+    
+    %resample to 135 TRs (the minimum amount of data to be included)
+%     BOLD=BOLD(1:135,:);
+%     mask=mask(1:135,:);
 
     %code to convert temporal mask/motion time series from 1s and 2s as excluded frames to 1s as included
     %frames, 0s as excluded frames
@@ -125,8 +134,8 @@ for s = 1:numel(subjects)
     toc
 end
 %save out hwhm (groupwise at parcel level) and hwhms (at the subject level
-save(fullfile(outdir, strcat('n92_schaefer400_timescales_no_censor_block_parcel_group.mat')), 'uniquesubs','hwhm', 'hwhms')
+save(fullfile(outdir, strcat('n92_schaefer400_timescales_censor_block_parcel_group.mat')), 'uniquesubs','hwhm', 'hwhms')
 
 outfile=dataset(char(uniquesubs), hwhms')
-export(outfile,'File',strcat(outdir,'/n92_schaefer400_timescales_no_censor_block_parcel_subjectwise.csv'),'Delimiter',',')
+export(outfile,'File',strcat(outdir,'/n92_schaefer400_timescales_censor_block_parcel_subjectwise.csv'),'Delimiter',',')
 

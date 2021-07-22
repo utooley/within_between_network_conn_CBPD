@@ -58,7 +58,7 @@ main$ethnicity <- factor(main$ethnicity, labels=c("Not Hispanic or Latino","Hisp
 #main <- main %>% select(.,-c(cbcl_18mo_admin:cbcl_6yr_complete))
 #main <- main %>% select(.,-c(has_diagnoses:letterword_identification_comple))
 
-main$avg_parentedu <- main %>% select(contains("_edu")) %>% rowMeans(., na.rm=T) #average parent education first
+main$avg_parentedu <- main %>% select(c("parent1_edu","parent2_edu")) %>% rowMeans(., na.rm=T) #average parent education first
 main$ses_composite <- main %>% select(income_median, avg_parentedu) %>% scale(.) %>% rowMeans(., na.rm = T)
 
 #make categorical child aces
@@ -125,7 +125,7 @@ main_replicate <- main_replicate %>% dplyr::select(., -c(colorado_child_temperam
 #main_replicate <- main_replicate %>% select(.,-c(cbcl_18mo_admin:cbcl_6yr_complete))
 #main_replicate <- main_replicate %>% select(.,-c(has_diagnoses:letterword_identification_comple))
 
-main_replicate$avg_parentedu <- main_replicate %>% select(contains("_edu")) %>% rowMeans(., na.rm=T) #average parent education first
+main_replicate$avg_parentedu <- main_replicate %>% select(c("parent1_edu","parent2_edu")) %>% rowMeans(., na.rm=T) #average parent education first
 main_replicate$ses_composite <- main_replicate %>% select(income_median, avg_parentedu) %>% scale(.) %>% rowMeans(., na.rm = T)
 
 #make categorical child aces
@@ -193,7 +193,7 @@ covariates="~ age_scan+male+fd_mean_avg+avgweight+totalSizet+ses_composite+race2
 #main_unique <- dplyr::select(main_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
 #run and compare for multiple comparisons again
 m <- mclapply(names((dplyr::select(ungroup(main_unique),sys1to1:sys7to7))), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
-networks_ses_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_unique))$coefficients[8,4]},mc.cores=1)
+networks_ses_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_unique))$coefficients[7,4]},mc.cores=1)
 networks_ses_pvals <- as.data.frame(networks_ses_pvals)
 networks_ses_pvals <- t(networks_ses_pvals)
 networks_ses_pvals <- as.data.frame(networks_ses_pvals)
@@ -207,7 +207,7 @@ networks_ses_pvals_fdr
 #main_replicate_unique <- dplyr::select(main_replicate_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
 #run and compare for multiple comparisons again
 m <- mclapply(names((dplyr::select(ungroup(main_unique),sys1to1:sys7to7))), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
-networks_ses_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_replicate_unique))$coefficients[8,4]},mc.cores=1)
+networks_ses_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_replicate_unique))$coefficients[7,4]},mc.cores=1)
 networks_ses_pvals <- as.data.frame(networks_ses_pvals)
 networks_ses_pvals <- t(networks_ses_pvals)
 networks_ses_pvals <- as.data.frame(networks_ses_pvals)
@@ -302,12 +302,12 @@ l <- gam(modul~s(ageAtScan1cent)+sex+avgweight+envSES, data=master, method = "RE
 #This is in the RMarkdown document.
 
 # Separate Networks and Effects of Age ------------------------------------
-networks <- dplyr::select(main_unique, sys1to1:sys7to7) 
+networks <- dplyr::select(main_unique, sys1to1:sys7to7) %>% ungroup()
 nets <- colnames(networks)
 #look at non-linear interaction between age and envSES 
 for (net in nets){
   name<-paste0("lm_",net)
-  formula<-formula(paste0(net, '~age_scan+male+fd_mean+avgweight+totalSizet'))
+  formula<-formula(paste0(net, '~age_scan+male+fd_mean_avg+avgweight+totalSizet'))
   assign(name, lm(formula, data=main_unique))
   #p_val[net] <- summary(name)$coefficients[2,4]
 }

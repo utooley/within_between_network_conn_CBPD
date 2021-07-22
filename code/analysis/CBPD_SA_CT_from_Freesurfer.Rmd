@@ -1,0 +1,165 @@
+---
+title: "CBPD Results from Freesurfer"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(stats)
+library(parallel)
+library(lm.beta)
+library(packrat)
+library(summarytools)
+library(visreg)
+library(mgcv)
+library(RLRsim)
+library(GGally)
+library(stringr)
+library(tidyverse)
+library(data.table)
+library(bigmemory)
+library(biglm)
+#load the .RDS file
+pipeline='nogsr_spkreg_fd0.5dvars1.75_drpvls'
+pipeline="nogsr_spkreg_fd1.25dvars2_drpvls"
+pipeline='gsr_spkreg_fd0.5dvars1.75_drpvls'
+network_dir=paste0("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/",pipeline)
+
+load(paste0(network_dir,"/CBPD_n92_schaefer400_allruns.Rdata"))
+```
+
+```{r brain plotting setup, include=FALSE, echo=FALSE}
+library(fsbrain) #this may not work if you're editing the script directly on the cluster...
+library(freesurferformats)
+#rearrange the order of the brains in the T9 view of fsbrain
+source("~/Documents/tools/fsbrain_fix_t9.R")
+environment(brainview.t9) <- asNamespace('fsbrain')
+assignInNamespace("brainview.t9", brainview.t9, ns = "fsbrain")
+subjects_dir = "/Users/utooley/Documents/tools/CBIG/stable_projects/brain_parcellation/Schaefer2018_LocalGlobal/Parcellations/FreeSurfer5.3/";
+subject_id = 'fsaverage';       # for functions which use one subject only
+atlas='Schaefer2018_400Parcels_7Networks_order'
+
+#Get the Schaefer atlas region names
+schaefer_atlas_region_names_lh = get.atlas.region.names(atlas, template_subjects_dir = subjects_dir,template_subject=subject_id, hemi="lh");
+schaefer_atlas_region_names_rh = get.atlas.region.names(atlas, template_subjects_dir = subjects_dir,template_subject=subject_id, hemi="rh");
+
+#set output dir for saving images
+output_image_directory="~/Documents/projects/in_progress/within_between_network_conn_CBPD/output/figures/brains/"
+  
+#Set RGL defaults, larger window and how to make snapshots!
+rgloptions=list("windowRect"=c(50,50,1000,1000));
+
+# ## Make subjlist for qdec analyses
+# subid <- n126_parcel_SA_data$ID
+# age_scan <- scale(n126_parcel_SA_data$age_scan, center=T, scale = T)
+# sex <- ifelse(n126_parcel_SA_data$male==0,0,1)
+# t1_rating <- scale(n126_parcel_SA_data$t1_rating_avg, center=T, scale = T)
+# n126_agesex_ursula_data <- cbind(subid,age_scan,sex,t1_rating)
+# colnames(n126_agesex_ursula_data) <- c("fsid","age_scan","sex","t1_rating")
+# #Make the sex column 0-1 to not lose df
+# write.table(n126_agesex_ursula_data, file = paste("~/Downloads/qdec.agesext1rating.n126.table.dat", sep=""), row.names = F, quote=F)
+# 
+# subid <- main_unique$ID
+# age_scan <- scale(main_unique$age_scan, center=T, scale = T)
+# sex <- ifelse(main_unique$male=="Male", 1, 0)
+# t1_rating <- scale(main_unique$t1_rating_avg, center=T, scale = T)
+# n92_agesex_ursula_data <- cbind(subid,age_scan,sex,t1_rating)
+# colnames(n92_agesex_ursula_data) <- c("fsid","age_scan","sex","t1_rating")
+# #Make the sex column 0-1 to not lose df
+# write.table(x, file = paste("~/Downloads/qdec.agesext1rating.n89.table.dat", sep=""), row.names = F, quote=F)
+# x <- read.table("~/Downloads/qdec.agesext1rating.n89.table.dat")
+```
+
+## Load data
+```{r load SA and CT parcel data, include=FALSE, echo=FALSE}
+
+#age on CT
+lh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/lh_thickness_agesext1rating_n89/lh-Avg-thickness-age_scan-Cor/cache.th23.abs.sig.masked.mgh")
+rh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/rh_thickness_agesext1rating_n89/rh-Avg-thickness-age_scan-Cor/cache.th23.abs.sig.masked.mgh")
+
+??freesurfer.formats
+summary(lh);length(lh)
+hist(lh)
+summary(rh);length(rh)
+hist(rh)
+
+rglactions=list("snapshot_png"=paste0(output_image_directory,"age_CT_map.png"), 'shift_hemis_apart'=TRUE)
+colFn_diverging = colorRampPalette(c(rev(RColorBrewer::brewer.pal(9, name="Blues"))));makecmap_options=list('colFn'=colFn_diverging)
+vis.data.on.fsaverage(subjects_dir, 'fsaverage',surface = "inflated",lh, rh, makecmap_options = makecmap_options, draw_colorbar = T, 
+                       views="t9", rgloptions = rgloptions, rglactions = NULL)
+
+vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  lh, 
+                             rh, makecmap_options = makecmap_options, "inflated", views="t9", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
+
+#Age on SA data
+lh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/lh_area_agesext1rating_fwhm10/lh-Avg-area-age_scan-Cor/cache.th23.abs.sig.masked.mgh")
+rh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/rh_area_agesext1rating_fwhm10/rh-Avg-area-age_scan-Cor/cache.th23.abs.sig.masked.mgh")
+
+
+rglactions=list("snapshot_png"=paste0(output_image_directory,"age_SA_map.png"), 'shift_hemis_apart'=TRUE)
+colFn_diverging = colorRampPalette(c(rev(RColorBrewer::brewer.pal(9, name="RdBu"))));makecmap_options=list('colFn'=colFn_diverging)
+vis.data.on.fsaverage(subjects_dir, 'fsaverage',surface = "inflated",lh, rh, makecmap_options = makecmap_options, draw_colorbar = T, 
+                       views="t9", rgloptions = rgloptions, rglactions = rglactions)
+
+vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  lh, 
+                             rh, makecmap_options = makecmap_options, "inflated", views="t9", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
+```
+
+# Load CT data from age-squared in Freesurfer
+
+```{age_squared CT FS}
+lh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/lh_thickness_ageagesqt1ratingsex_fwhm10_n89/lh-Avg-thickness-age_sq-Cor/cache.th23.abs.sig.masked.mgh")
+rh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/rh_thickness_ageagesqt1ratingsex_fwhm10_n89/rh-Avg-thickness-age_sq-Cor/cache.th23.abs.sig.masked.mgh") 
+#Nothing
+```
+
+#Load SA data from Age-squared in Freesurfer
+```{age_squared FS}
+
+lh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/lh_area_agesq_age_sex_t1rating_fwhm10_n89/lh-Avg-area-age_sq-Cor/cache.th23.abs.sig.masked.mgh")
+rh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/rh_area_ageagesqsext1rating_fwhm10_n89/rh-Avg-area-age_sq-Cor/cache.th23.abs.sig.masked.mgh")
+
+rglactions=list("snapshot_png"=paste0(output_image_directory,"age_SAsq_map.png"), 'shift_hemis_apart'=TRUE)
+colFn_diverging = colorRampPalette(c(rev(RColorBrewer::brewer.pal(9, name="RdBu"))));makecmap_options=list('colFn'=colFn_diverging, 'symm'=TRUE)
+vis.data.on.fsaverage(subjects_dir, 'fsaverage',surface = "inflated",lh, rh, makecmap_options = makecmap_options, draw_colorbar = T, 
+                       views="t9", rgloptions = rgloptions, rglactions = rglactions)
+
+#Using the buttons in qdec instead of mri_glmfit
+lh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/lh_area_agesq_age_sex_t1rating_fwhm10_n89/lh-Avg-area-age_sq-Cor/mc-z.abs.th23.sig.cluster.mgh")
+rh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/rh_area_ageagesqsext1rating_fwhm10_n89/rh-Avg-area-age_sq-Cor/mc-z.abs.th23.sig.cluster.mgh")
+rglactions=list("snapshot_png"=paste0(output_image_directory,"age_SAsq_qdecmc_map.png"), 'shift_hemis_apart'=TRUE)
+colFn_diverging = colorRampPalette(c(rev(RColorBrewer::brewer.pal(9, name="RdBu"))));makecmap_options=list('colFn'=colFn_diverging, 'symm'=TRUE)
+vis.data.on.fsaverage(subjects_dir, 'fsaverage',surface = "inflated",lh, rh, makecmap_options = makecmap_options, draw_colorbar = T, 
+                       views="t9", rgloptions = rgloptions, rglactions = rglactions)
+
+```
+
+## Examine shape of plot from age-squared on SA in Freesurfer
+
+```{age-squared SA in FS}
+lh <- read.table("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/lh_area_agesq_age_sex_t1rating_fwhm10_n89/lh-Avg-area-age_sq-Cor/cache.th23.abs.y.ocn.dat")
+rh <- read.table("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/rh_area_ageagesqsext1rating_fwhm10_n89/rh-Avg-area-age_sq-Cor/mc-z.abs.th23.pdf.dat")
+subs <- read.table("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/qdec.agesext1rating.n89.table.dat", header = T) %>% select(fsid)
+avg_agesq_parcel_sa <- cbind(subs,lh);colnames(avg_agesq_parcel_sa) <- c("ID", "Lcluster1")
+# avg_age_parcel_ct <- avg_agesq_parcel_sa %>% mutate(avgct_med_vis_clust=(Lcluster1+Rcluster1)/2, avgct_total_vis_clust=(Lcluster1+Lcluster2+Lcluster3+Rcluster1+Rcluster2)/5)
+main_unique <- left_join(main_unique,avg_agesq_parcel_sa, by="ID")
+
+lm_sasq<- gam(Lcluster1~s(age_scan)+male+t1_rating_avg, data=main_unique)
+summary(lm_sasq)
+visreg(lm_sasq)
+```
+
+#Load SA data from n=126 in Freesurfer
+```{age_squared FS}
+
+lh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/lh_area_agesq_age_sex_t1rating_fwhm10_n89/lh-Avg-area-age_sq-Cor/mc-z.abs.th23.sig.cluster.mgh",drop_empty_dims = T);lh <- lh[,1]
+rh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/rh_area_agesqagesext1rating_fwhm10_n89/rh-Avg-area-age_sq-Cor/mc-z.abs.th23.sig.cluster.mgh",drop_empty_dims = T);rh <- rh[,1]
+
+rglactions=list('shift_hemis_apart'=TRUE)
+colFn_diverging = colorRampPalette(c(rev(RColorBrewer::brewer.pal(9, name="Blues")),"white"));makecmap_options=list('colFn'=colFn_diverging, range=c(-4,0))
+vis.data.on.fsaverage(subjects_dir, 'fsaverage',surface = "inflated",lh, rh, makecmap_options = makecmap_options, draw_colorbar = T, 
+                       views="t9", rgloptions = rgloptions, rglactions = rglactions)
+```

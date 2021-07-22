@@ -70,6 +70,8 @@ lm_modul_avg_age <- lm(modul_avg~age_scan+male+fd_mean_avg+avgweight+totalSizet,
 summary(lm_modul_avg_age)
 lm_part_coef_age <- lm(part_coef~age_scan+male+fd_mean_avg+avgweight+totalSizet, data=main_unique)
 summary(lm_part_coef_age)
+lm_clust_co_age <- lm(avgclustco_both~age_scan+male+fd_mean_avg+avgweight+totalSizet, data=main_unique)
+summary(lm_clust_co_age)
 lm_num_comms_age <- lm(num_comms_modul_avg~age_scan+male+fd_mean_avg+avgweight+totalSizet, data=main_unique)
 summary(lm_num_comms_age)
 
@@ -79,9 +81,10 @@ summary(lm_num_comms_age)
 par(mfrow=c(2,3))
 visreg(lm_between_sys_age,"age_scan", main="Mean between-system connectivity", ylab="", xlab="Age at scan (years)")
 visreg(lm_within_sys_age,"age_scan", main= "Mean within-system connectivity", ylab="", xlab="Age at scan (years)")
-visreg(lm_segreg_age,"age_scan", main="Average segregation", ylab="", xlab="Age at scan (years)")
-visreg(lm_modul_avg_age,"age_scan", main="Modularity quality index Q", ylab="", xlab="Age at scan (years)")
+visreg(lm_segreg_age,"age_scan", main="System segregation", ylab="", xlab="Age at scan (years)")
+visreg(lm_modul_avg_age,"age_scan", main="Modularity quality index (Q)", ylab="", xlab="Age at scan (years)")
 visreg(lm_part_coef_age,"age_scan", main="Average participation coefficient", ylab="", xlab="Age at scan (years)")
+visreg(lm_clust_co_age,"age_scan", main="Average clustering coefficient", ylab="", xlab="Age at scan (years)")
 visreg(lm_num_comms_age,"age_scan")
 ```
 
@@ -130,9 +133,20 @@ We fit the same model, controlling for sex, mean framewise displacement, the num
 We find the strongest effects are in the default mode system, between default and attentional networks.
 ```{r lm plots, echo=FALSE, include=TRUE, results='hide',fig.show='hold', out.width='33.33%', fig.align='default'}
 networks_age_pvals_fdr #FDR-corrected
-lm_sys1to3<- lm(sys1to3~age_scan+male+fd_mean_avg+avgweight+totalSizet, data=main_unique)
-lm_sys3to7<- lm(sys3to7~age_scan+male+fd_mean_avg+avgweight+totalSizet, data=main_unique)
-lm_sys4to7<- lm(sys4to7~age_scan+male+fd_mean_avg+avgweight+totalSizet, data=main_unique)
+main_unique_high <- main_unique %>% filter(ses_composite>0)
+main_unique_low <- main_unique %>% filter(ses_composite<0)
+lm_sys1to3_low<- lm(sys4to7~age_scan+male+fd_mean_avg+avgweight+totalSizet+ses_composite, data=main_unique_low)
+lm_sys1to3_high<- lm(sys4to7~age_scan+male+fd_mean_avg+avgweight+totalSizet+ses_composite, data=main_unique_high)
+lm_sys1to3<- lm(sys4to7~age_scan+male+fd_mean_avg+avgweight+totalSizet+age_scan*ses_composite, data=main_unique)
+lm_sys3to7<- lm(sys3to7~age_scan+male+fd_mean_avg+avgweight+totalSizet+ses_composite, data=main_unique)
+lm_sys4to7<- lm(sys4to7~age_scan+male+fd_mean_avg+avgweight+totalSizet+ses_composite, data=main_unique)
+visreg(lm_sys1to3_low, "age_scan")
+visreg(lm_sys1to3_high, "age_scan")
+
+summary(lm_sys1to3);visreg(lm_sys1to3,"age_scan", by = "ses_composite", breaks=2)
+summary(lm_sys3to7);visreg(lm_sys3to7,"age_scan", by = "ses_composite", overlay=T, breaks=2)
+summary(lm_sys4to7);visreg(lm_sys4to7)
+
 # ############## investigating plotting options #############
 # crPlots(lm_sys4to7, "age_scan")
 # plot(main_unique$age_scan, (lm_sys4to7$fitted.values))
@@ -178,20 +192,14 @@ Allyson asks whether the segregation of def vs. attn nets is associated with red
 networks_age_pvals_fdr #FDR-corrected
 
 #Home literacy and numeracy questionnaire
-lm_sys3to7<- lm(sys3to7~age_scan+male+fd_mean_avg+avgweight+totalSizet+litnum_freq_play_avg, data=main_unique)
-lm_sys4to7<- lm(sys4to7~age_scan+male+fd_mean_avg+avgweight+totalSizet+litnum_freq_play_avg, data=main_unique)
-summary(lm(litnum_freq_play_avg~age_scan+male, data=main_unique))
+lm_sys3to7<- lm(sys1to3~age_scan+male+fd_mean_avg+avgweight+totalSizet+litnum_freq_play_avg, data=main_unique)
+lm_sys4to7<- lm(sys4to7~age_scan+male+fd_mean_avg+avgweight+totalSizet+litnum_freq_play_avg+ses_composite, data=main_unique)
+summary(lm(litnum_freq_play_avg~age_behav.x+male+ses_composite, data=main_unique));visreg(lm(litnum_freq_play_avg~age_behav.x+male+ses_composite, data=main_unique))
 summary(lm_sys3to7)
 summary(lm_sys4to7)
-visreg(lm_sys3to7,"litnum_freq_play_avg", main="DMN to DAN",ylab="", xlab="litnum_freq_play_avg")
-
-lm_sys3to7<- lm(sys3to7~age_scan+male+fd_mean_avg+avgweight+totalSizet+litnum_freq_pretend_avg, data=main_unique)
-lm_sys4to7<- lm(sys4to7~age_scan+male+fd_mean_avg+avgweight+totalSizet+litnum_freq_pretend_avg, data=main_unique)
-summary(lm(litnum_freq_pretend_avg~age_scan+male, data=main_unique))
-summary(lm_sys3to7)
-summary(lm_sys4to7)#litnum freq play and freq pretend play is associated with 3 to 7
-visreg(lm_sys3to7,"litnum_freq_pretend_avg", main="DMN to DAN",ylab="", xlab="litnum_freq_pretend_avg")
-
+visreg(lm_sys3to7)
+visreg(lm_sys4to7)
+       "litnum_freq_play_avg", main="DMN to VAN",ylab="", xlab="litnum_freq_play_avg")
 
 #CFG measures
 cfg_measures=main_unique %>% select(total.play.time:max.Δt...min.) %>% names();cfg_measures=cfg_measures[-1] #- baseID
@@ -203,7 +211,24 @@ for (measure in cfg_measures){
   print(summary(meas))
 }
 
+#unique shapes
+#u_united
+#Home literacy and numeracy questionnaire
+library()
+lm_sys3to7<- rlm(unique.shapes~age_scan+male+fd_mean_avg+avgweight+totalSizet+sys4to7, data=main_unique)
+lm_sys3to7<- lm(sys3to7~age_scan+male+fd_mean_avg+avgweight+totalSizet+U_united, data=main_unique)
+summary(lm_sys3to7)
+visreg(lm_sys3to7)
+lm_sys3to7<- lm(sys4to7~age_scan+male+fd_mean_avg+avgweight+totalSizet+U__united, data=main_unique)
+summary(lm_sys3to7)
+visreg(lm_sys3to7)
+
+lm_sys4to7<- lm(sys4to7~age_scan+male+fd_mean_avg+avgweight+totalSizet+u_united, data=main_unique)
+summary(lm(litnum_freq_play_avg~age_scan+male, data=main_unique))
+summary(lm_sys4to7)
+
 #Julia re: PCIT coded pretend play, or start from child_persistence_seconds
+#duration vs. instances
 pcit_measures=main_unique %>%ungroup %>% select(kid_a_play_coder1:totalDuration.adult_p_play_avg) %>% names();
 pcit_measures
 for (measure in pcit_measures){
@@ -213,11 +238,227 @@ for (measure in pcit_measures){
   print(summary(meas))
 }
 
+#Coded play during PCIT
+summary(lm(kid_p_play_coder1~litnum_freq_play_avg+totalDuration.kid_p_play_avg, data=main_unique_play))
+visreg(lm(kid_p_play_coder1~litnum_freq_play_avg+totalDuration.kid_p_play_avg, data=main_unique_play))
+main_unique_play <- main_unique %>% filter(kid_p_play_coder1 <8)
+#outlier over 8
+lm_sys1to3<- lm(sys1to3~age_scan+male+fd_mean_avg+avgweight+totalSizet+kid_p_play_coder1+totalDuration.kid_p_play_avg, data=main_unique)
+lm_sys3to7<- lm(sys3to7~age_scan+male+fd_mean_avg+avgweight+totalSizet+kid_p_play_coder1+totalDuration.kid_p_play_avg, data=main_unique)
+lm_sys4to7<- lm(sys4to7~age_scan+male+fd_mean_avg+avgweight+totalSizet+kid_p_play_coder1+totalDuration.kid_p_play_avg, data=main_unique)
+summary(lm(litnum_freq_play_avg~age_behav.x+male+ses_composite, data=main_unique));visreg(lm(litnum_freq_play_avg~age_behav.x+male+ses_composite, data=main_unique))
+summary(lm_sys1to3)
+summary(lm_sys3to7)
+summary(lm_sys4to7)
+visreg(lm_sys1to3)
+visreg(lm_sys4to7)
+
+#Question-asking 
+qa <- read.csv("~/Box/Mackey_Lab/CBPD (825656)/Data/PCIT_Questionasking_Ursula/question_asking_three_coders_parent_qs_and_longitudinal_082020.csv", skip = 1) %>% rename(.,ID=record_id) %>% mutate(.,ID=paste0("sub-", ID))
+main_qa <- left_join(main_unique,qa,by="ID")
+main_qa$Total_q_kid_allpcit_average #only n=55
 
 # crPlots(lm_sys4to7)
 # visreg(lm_sys4to7,"age_scan",band=FALSE, gg=TRUE)+geom_smooth()+theme_classic()
 
 #bootstrap or rlm these effects to make sure?
+```
+
+## VIS-DAN system-level effects to verbal
+
+
+```{r lm plots, echo=FALSE, include=TRUE, results='hide',fig.show='hold', out.width='33.33%', fig.align='default'}
+networks_age_pvals_fdr #FDR-corrected
+
+main_unique$litnum_bed_read_freq
+main_unique$wasi_vocab_raw
+str(main_unique$wj_letterword_correct)
+#WJ letterword age-regressed
+main_unique$resid <- resid(lm(wj_letterword_correct~age_behav.x, data=main_unique, na.action=na.exclude))
+lm_sys1to3<- lm(sys1to3~age_scan+male+fd_mean_avg+avgweight+totalSizet+resid, data=main_unique)
+summary(lm_sys1to3)
+visreg(lm_sys1to3)
+
+lm_sys1to3<- lm(sys1to3~age_scan+male+fd_mean_avg+avgweight+totalSizet+wj_letterword_correct, data=main_unique)
+summary(lm_sys1to3)
+visreg(lm_sys1to3)
+
+#WPPSI-WISC Info/Vocab--verbal comprehension
+main_unique$info_vocab_both <- ifelse(is.na(main_unique$wppsi_info_scaled), ifelse(main_unique$wisc_vocab_valid==1, main_unique$wisc_vocab_scaled,NA),main_unique$wppsi_info_scaled) 
+main_unique$info_vocab_raw <- ifelse(is.na(main_unique$wppsi_info_scaled), ifelse(main_unique$wisc_vocab_valid==1, main_unique$wisc_vocab_raw,NA),main_unique$wppsi_info_raw) 
+
+main_unique$wppsi_info_valid;main_unique$wisc_vocab_valid
+lm_sys1to3<- lm(info_vocab_both~age_scan+male+fd_mean_avg+avgweight+totalSizet+sys1to3+ses_composite, data=main_unique)
+summary(lm_sys1to3)
+visreg(lm_sys1to3,"sys1to3",main= "Information / Vocabulary \n (scaled score)",ylab="", xlab="VIS to DA connectivity")
+lm_sys1to3<- lm(info_vocab_both~age_scan+male+fd_mean_avg+avgweight+totalSizet+sys1to3+ses_composite, data=main_unique)
+summary(lm_sys1to3)
+
+```
+
+## All 3 systems to reasoning
+- Add other measures of visuo-spatial integration to all 3 sets of networks
+- Test reasoning (picture concepts and matrix reasoning) and working memory (picture memory, though Allyson says she's less confident about the wppsi/wisc combo there)
+```{r lm plots, echo=FALSE, include=TRUE, results='hide',fig.show='hold', out.width='33.33%', fig.align='default'}
+#Test all 3 systems with Info/Vocab
+main_unique$wppsi_info_valid;main_unique$wisc_vocab_valid
+lm_sys1to3<- lm(sys1to3~age_scan+male+fd_mean_avg+avgweight+totalSizet+info_vocab_both+ses_composite, data=main_unique)
+lm_sys3to7<- lm(sys3to7~age_scan+male+fd_mean_avg+avgweight+totalSizet+info_vocab_both+ses_composite, data=main_unique)
+lm_sys4to7<- lm(sys4to7~age_scan+male+fd_mean_avg+avgweight+totalSizet+info_vocab_both+ses_composite, data=main_unique)
+summary(lm_sys1to3)
+summary(lm_sys3to7)
+summary(lm_sys4to7)
+visreg(lm_sys3to7)
+visreg(lm_sys1to3,"sys1to3",main= "Information / Vocabulary \n (scaled score)",ylab="", xlab="VIS to DA connectivity")
+
+#Test all 3 systems with Reasoning-Picture Concepts & Matrix Reasoning
+#Matrix Reasoning
+n92_parcel_CT_data$matrix_reasoning_both <- ifelse(is.na(main_unique$wppsi_matrix_valid),main_unique$wisc_matrix_scaled,ifelse(main_unique$wppsi_matrix_valid==0,NA,main_unique$wppsi_matrix_scaled))
+main_unique$matrix_reasoning_both_raw <- ifelse(is.na(main_unique$wppsi_matrix_valid),main_unique$wisc_matrix_raw,ifelse(main_unique$wppsi_matrix_valid==0,NA,main_unique$wppsi_matrix_raw))
+main_unique$matrix_reasoning_both;main_unique$matrix_reasoning_both_raw
+#Plot raw score
+mr <- lm(matrix_reasoning_both~age_behav.x+male+ses_composite, data=main_unique)
+summary(mr)
+visreg(mr, "age_behav.x", main="Matrix Reasoning (raw)")
+lm.beta(mr)
+mr <- lm(wisc_matrix_raw~age_behav.x+male, data=main_unique)
+summary(mr)
+visreg(mr,"age_behav.x", main="Matrix Reasoning (raw), WISC")
+lm.beta(mr)
+mr <- lm(wppsi_matrix_raw~age_behav.x+male, data=main_unique)
+summary(mr)
+visreg(mr,"age_behav.x", main="Matrix Reasoning (raw)", ylab="Raw score", xlab="Age (years)")
+lm.beta(mr)
+
+matrix_reasoning_both_raw
+main_unique$wppsi_matrix_valid;main_unique$wisc_matrix_valid
+lm_sys1to3<- lm(matrix_reasoning_both~age_scan+male+fd_mean_avg+avgweight+totalSizet+sys1to3+as.factor(wppsi_admin)+ses_composite, data=main_unique)
+lm_sys3to7<- lm(matrix_reasoning_both~age_scan+male+fd_mean_avg+avgweight+totalSizet+sys3to7+as.factor(wppsi_admin), data=main_unique)
+lm_sys4to7<- lm(matrix_reasoning_both~age_scan+male+fd_mean_avg+avgweight+totalSizet+sys4to7+ses_composite, data=main_unique)
+summary(lm_sys1to3)
+summary(lm_sys3to7)
+summary(lm_sys4to7)
+visreg(lm_sys1to3, "sys1to3", main= "Matrix Reasoning (scaled score)", ylab="Scaled score", xlab="VIS to DA connectivity")
+visreg(lm_sys3to7, "sys3to7", main= "Matrix Reasoning (scaled score)", ylab="Scaled score", xlab="DM to DA connectivity")
+visreg(lm_sys4to7)
+
+#main_unique$wppsi_picconc_raw;main_unique$wisc_picconcept_scaled
+
+#Test all 3 systems with Working Memory-picture memory?
+main_unique$working_mem_both <- ifelse(is.na(main_unique$wppsi_picmem_valid),main_unique$wisc_digit_scaled,ifelse(main_unique$wppsi_picmem_valid==0, NA, main_unique$wppsi_picmem_scaled))
+main_unique$working_mem_raw <- ifelse(is.na(main_unique$wppsi_picmem_valid),main_unique$wisc_digit_raw,ifelse(main_unique$wppsi_picmem_valid==0, NA, main_unique$wppsi_picmem_raw))
+main_unique$wisc_digit_scaled
+main_unique$wppsi_picmem_scaled
+main_unique$wisc_digit_scaled
+main_unique$wisc_digit_valid;main_unique$wppsi_picmem_valid
+
+lm_sys1to3<- lm(working_mem_both~age_scan+male+fd_mean_avg+avgweight+totalSizet+as.factor(wppsi_admin)+sys1to3+ses_composite, data=main_unique)
+lm_sys3to7<- lm(working_mem_both~age_scan+male+fd_mean_avg+avgweight+totalSizet+as.factor(wppsi_admin)+sys3to7+ses_composite, data=main_unique)
+lm_sys4to7<- lm(working_mem_both~age_scan+male+fd_mean_avg+avgweight+totalSizet+as.factor(wppsi_admin)+sys4to7+ses_composite, data=main_unique)
+summary(lm_sys1to3)
+summary(lm_sys3to7)
+summary(lm_sys4to7)
+visreg(lm_sys1to3, "sys1to3", main="Working Memory (scaled score)")
+
+#Correct across
+covariates="matrix_reasoning_both~ age_scan+male+fd_mean_avg+avgweight+totalSizet+"
+#make a dataframe with no repeats of net comparisons
+nets <- dplyr::select(main_unique, sys1to3,sys3to7,sys4to7) %>% ungroup %>% names();nets <- nets[-1]
+#run and compare for multiple comparisons again
+m <- mclapply(nets, function(sys) {as.formula(paste(covariates, sys,sep=""))},mc.cores=2)
+networks_ses_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_unique))$coefficients[7,4]},mc.cores=1)
+networks_ses_pvals <- as.data.frame(networks_ses_pvals)
+networks_ses_pvals <- t(networks_ses_pvals)
+networks_ses_pvals <- as.data.frame(networks_ses_pvals)
+covariates="working_mem_both~ age_scan+male+fd_mean_avg+avgweight+totalSizet+"
+m <- mclapply(nets, function(sys) {as.formula(paste(covariates, sys,sep=""))},mc.cores=2)
+networks_ses_pvals_2 <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_unique))$coefficients[7,4]},mc.cores=1)
+pvals <- data.frame(unlist(c(networks_ses_pvals$V1,networks_ses_pvals_2)))
+#bonferroni correct
+networks_ses_pvals_fdr <- p.adjust(pvals$unlist.c.networks_ses_pvals.V1..networks_ses_pvals_2.., method="fdr")
+networks_ses_pvals_fdr <- data.frame(networks_ses_pvals_fdr,rep(nets,2))
+colnames(networks_ses_pvals_fdr) <- c("pvalue", "network")
+networks_ses_pvals_fdr #Corrected for 6 tests!
+
+```
+
+# VIS-DA reasoning and working memory to average subject CT
+
+L hemi clusters 1=V1, cluster 2=lingual/below pericalcarine, 3=posterior parietal
+R hemi clusters 1=V1/pericalcarine area, 2= lateral occipital 3=superior frontal
+```{r VIS-DA to CT, echo=FALSE, include=TRUE, results='hide',fig.show='hold', out.width='33.33%', fig.align='default'}
+lh <- read.table("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/lh_thickness_agesext1rating_n89/lh-Avg-thickness-age_scan-Cor/cache.th23.abs.y.ocn.dat")
+rh <- read.table("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/rh_thickness_agesext1rating_n89/rh-Avg-thickness-age_scan-Cor/cache.th23.abs.y.ocn.dat")
+subs <- read.table("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/qdec.agesext1rating.n89.table.dat", header = T) %>% select(fsid)
+avg_age_parcel_ct <- cbind(subs,lh,rh);colnames(avg_age_parcel_ct) <- c("ID", "Lcluster1","Lcluster2","Lcluster3","Rcluster1","Rcluster2","Rcluster3")
+avg_age_parcel_ct <- avg_age_parcel_ct %>% mutate(avgct_med_vis_clust=(Lcluster1+Rcluster1)/2, avgct_total_vis_clust=(Lcluster1+Lcluster2+Lcluster3+Rcluster1+Rcluster2)/5)
+main_unique <- left_join(main_unique,avg_age_parcel_ct, by="ID")
+
+#Matrix Reasoning
+main_unique$matrix_reasoning_both <- ifelse(is.na(main_unique$wppsi_matrix_valid),main_unique$wisc_matrix_scaled,ifelse(main_unique$wppsi_matrix_valid==0,NA,main_unique$wppsi_matrix_scaled))
+main_unique$matrix_reasoning_both_raw <- ifelse(is.na(main_unique$wppsi_matrix_valid),main_unique$wisc_matrix_raw,ifelse(main_unique$wppsi_matrix_valid==0,NA,main_unique$wppsi_matrix_raw))
+main_unique$matrix_reasoning_both;main_unique$matrix_reasoning_both_raw
+
+main_unique$wppsi_matrix_valid;main_unique$wisc_matrix_valid
+lm_sys1to3<- lm(sys1to3~age_scan+male+fd_mean_avg+avgweight+totalSizet+avgct_total_vis_clust, data=main_unique)
+summary(lm_sys1to3) #Matrix reasoning scaled score is not related to avgCT within the age-significant visual clusters
+
+visreg(lm_sys1to3, "avgct_total_vis_clust", main= "VIS-DA Connectivity", ylab="Scaled score", xlab="VIS age cluster CT")
+
+#Test CT with Working Memory
+main_unique$working_mem_both <- ifelse(is.na(main_unique$wppsi_picmem_valid),main_unique$wisc_digit_scaled,ifelse(main_unique$wppsi_picmem_valid==0, NA, main_unique$wppsi_picmem_scaled))
+
+lm_sys1to3<- lm(sys1to3~age_scan+male+fd_mean_avg+avgweight+totalSizet+Lcluster2, data=main_unique)
+summary(lm_sys1to3) #Matrix reasoning scaled score is not related to avgCT within the age-significant visual clusters
+```
+
+### CT within the Yeo7 Visual Mask
+
+```{r VIS-DA to CT, echo=FALSE, include=TRUE, results='hide',fig.show='hold', out.width='33.33%', fig.align='default'}
+#t1 data
+lh <- read.delim("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/schaefer400_lh_thickness_stats.txt") %>% rename(.,ID=Measure.mean) %>% select(-Background.FreeSurfer_Defined_Medial_Wall);rh <- read.delim("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/schaefer400_rh_thickness_stats.txt") %>% rename(.,ID=Measure.mean) %>% select(-Background.FreeSurfer_Defined_Medial_Wall);
+#t2
+lh2 <- read.delim("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t2/schaefer400_lh_thickness_stats.txt") %>% rename(.,ID=Measure.mean) %>% select(-Background.FreeSurfer_Defined_Medial_Wall)%>% mutate(ID=paste0(ID,"2"));rh2 <- read.delim("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t2/schaefer400_rh_thickness_stats.txt") %>% rename(.,ID=Measure.mean) %>% select(-Background.FreeSurfer_Defined_Medial_Wall)%>% mutate(ID=paste0(ID,"2"));
+#t2
+lh3 <- read.delim("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t3/schaefer400_lh_thickness_stats.txt") %>% rename(.,ID=Measure.mean) %>% select(-Background.FreeSurfer_Defined_Medial_Wall)%>% mutate(ID=paste0(ID,"3"));rh3 <- read.delim("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t3/schaefer400_rh_thickness_stats.txt") %>% rename(.,ID=Measure.mean) %>% select(-Background.FreeSurfer_Defined_Medial_Wall)%>% mutate(ID=paste0(ID,"3"));
+lh <- rbind(lh,lh2,lh3)
+rh <- rbind(rh,rh2,rh3)
+#meanCT
+n92_parcel_CT_data <- left_join(main_unique,lh, by= "ID")
+n92_parcel_CT_data <- left_join(n92_parcel_CT_data,rh, by= "ID")
+
+names(n92_parcel_CT_data[,1661:2060])
+n92_parcel_CT_data$mean_vis_CT_left <- n92_parcel_CT_data[,1661:2060] %>% select(contains("LH_Vis_")) %>% rowMeans()
+n92_parcel_CT_data$mean_vis_CT_right <- n92_parcel_CT_data[,1661:2060] %>% select(contains("RH_Vis_")) %>% rowMeans()
+n92_parcel_CT_data$mean_vis_CT<- n92_parcel_CT_data[,1661:2060] %>% select(contains("_Vis_")) %>% rowMeans()
+#Matrix Reasoning
+n92_parcel_CT_data$matrix_reasoning_both <- ifelse(is.na(n92_parcel_CT_data$wppsi_matrix_valid),n92_parcel_CT_data$wisc_matrix_scaled,ifelse(n92_parcel_CT_data$wppsi_matrix_valid==0,NA,n92_parcel_CT_data$wppsi_matrix_scaled))
+n92_parcel_CT_data$matrix_reasoning_both_raw <- ifelse(is.na(n92_parcel_CT_data$wppsi_matrix_valid),n92_parcel_CT_data$wisc_matrix_raw,ifelse(n92_parcel_CT_data$wppsi_matrix_valid==0,NA,n92_parcel_CT_data$wppsi_matrix_raw))
+n92_parcel_CT_data$matrix_reasoning_both;n92_parcel_CT_data$matrix_reasoning_both_raw
+
+n92_parcel_CT_data$wppsi_matrix_valid;n92_parcel_CT_data$wisc_matrix_valid
+lm_sys1to3<- lm(matrix_reasoning_both~male+mean_vis_CT+sys1to3+ses_composite, data=n92_parcel_CT_data)
+summary(lm_sys1to3) #Matrix reasoning scaled score is not related to avgCT within the age-significant visual clusters
+visreg(lm_sys1to3, "mean_vis_CT", main= "VIS community CT", ylab="MR Scaled score", xlab="VIS community CT")
+
+#Test CT with Working Memory
+n92_parcel_CT_data$working_mem_both <- ifelse(is.na(n92_parcel_CT_data$wppsi_picmem_valid),n92_parcel_CT_data$wisc_digit_scaled,ifelse(n92_parcel_CT_data$wppsi_picmem_valid==0, NA, n92_parcel_CT_data$wppsi_picmem_scaled))
+
+lm_sys1to3<- lm(working_mem_both~age_scan+male+fd_mean_avg+avgweight+totalSizet+mean_vis_CT+sys1to3, data=n92_parcel_CT_data)
+summary(lm_sys1to3) #Matrix reasoning scaled score is not related to avgCT within the age-significant visual clusters
+
+
+#Do it with the age significant areas only
+load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/parcel_CT_age_n92.Rdata")
+parcel_CT <- n92_parcel_CT_data[,1646:2045]
+n92_parcel_CT_data$avg_age_sig_parcel_CT <- parcel_CT[,parcel_CT_pvals_fdr[,2]<0.05] %>% rowMeans()
+ 
+lm_sys1to3<- lm(matrix_reasoning_both~male+t1_rating_avg+avg_age_sig_parcel_CT, data=n92_parcel_CT_data)
+summary(lm_sys1to3) #Matrix reasoning scaled score is not related to avgCT within the age-significant visual clusters
+visreg(lm_sys1to3, "mean_vis_CT", main= "VIS community CT", ylab="MR Scaled score", xlab="VIS community CT")
+
+lm_sys1to3<- lm(working_mem_both~male+t1_rating_avg+avg_age_sig_parcel_CT, data=n92_parcel_CT_data)
+summary(lm_sys1to3) #Matrix reasoning scaled score is not related to avgCT within the age-significant visual clusters
 ```
 None of these showed significantly non-linear effects, either. 
 
