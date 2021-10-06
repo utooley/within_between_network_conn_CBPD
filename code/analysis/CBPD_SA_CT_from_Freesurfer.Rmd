@@ -77,8 +77,8 @@ rgloptions=list("windowRect"=c(50,50,1000,1000));
 ```{r load SA and CT parcel data, include=FALSE, echo=FALSE}
 
 #age on CT
-lh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/lh_thickness_agesext1rating_n89/lh-Avg-thickness-age_scan-Cor/cache.th23.abs.sig.masked.mgh")
-rh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/rh_thickness_agesext1rating_n89/rh-Avg-thickness-age_scan-Cor/cache.th23.abs.sig.masked.mgh")
+lh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/lh_thickness_agesext1rating_n89/lh-Avg-thickness-age_scan-Cor/cache.th23.abs.sig.voxel.mgh")
+rh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/rh_thickness_agesext1rating_n89/rh-Avg-thickness-age_scan-Cor/cache.th23.abs.sig.voxel.mgh")
 
 ??freesurfer.formats
 summary(lh);length(lh)
@@ -108,6 +108,60 @@ vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcel
                              rh, makecmap_options = makecmap_options, "inflated", views="t9", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
 ```
 
+## Examine shape of plot from age linear on CT in Freesurfer
+```{plot ocn CT linear age effect}
+lh <- read.table("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/lh_thickness_agesext1rating_n89/lh-Avg-thickness-age_scan-Cor/cache.th23.abs.y.ocn.dat")
+rh <- read.table("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/rh_thickness_agesext1rating_n89/rh-Avg-thickness-age_scan-Cor/cache.th23.abs.y.ocn.dat")
+subs <- read.table("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/qdec.agesext1rating.n89.table.dat", header = T) %>% select(fsid)
+avg_agesq_parcel_sa <- cbind(subs,lh,rh);colnames(avg_agesq_parcel_sa) <- c("ID", "Lcluster1","Lcluster2","Lcluster3", "Rcluster1", "Rcluster2","Rcluster3")
+avg_age_parcel_ct <- avg_agesq_parcel_sa %>% mutate(avgct_med_vis_clust=(Lcluster1+Rcluster1)/2, avgct_total_vis_clust=(Lcluster1+Lcluster2+Lcluster3+Rcluster1+Rcluster2+Rcluster3)/5)
+main_unique <- left_join(main_unique,avg_age_parcel_ct, by="ID")
+
+lm_sasq<- lm(avgct_total_vis_clust~age_scan+male+t1_rating_avg, data=main_unique)
+summary(lm_sasq)
+visreg(lm_sasq)
+```
+
+## CT linear age effect by network, plot and statistical test
+
+```{CT linear age effect by community}
+source("~/Documents/tools/raincloud.R")
+#age on CT
+lh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/lh_thickness_agesext1rating_n89/lh-Avg-thickness-age_scan-Cor/cache.th23.abs.sig.masked.mgh")
+rh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/rh_thickness_agesext1rating_n89/rh-Avg-thickness-age_scan-Cor/cache.th23.abs.sig.masked.mgh")
+#load schaefer parcellation at fsaverage res and remap parcel edge data to vertices?
+schaefer_lh <-subject.annot(subjects_dir = subjects_dir,subject_id =subject_id, hemi="lh", atlas = atlas)
+schaefer_rh <-subject.annot(subjects_dir = subjects_dir,subject_id =subject_id, hemi="rh", atlas = atlas)
+communities_lh <- str_remove_all(schaefer_lh$label_names, "7Networks_.H_");communities_lh <- sub("_.*", "", communities_lh)
+communities_rh <- str_remove_all(schaefer_rh$label_names, "7Networks_.H_");communities_rh <- sub("_.*", "", communities_rh)
+longdata <- data.frame(c(lh,rh),c(communities_lh,communities_rh));colnames(longdata) <- c("value","community")
+longdata$community <- factor(longdata$community, levels=c("Background+FreeSurfer","Vis","SomMot","DorsAttn","SalVentAttn", "Limbic","Cont","Default"))
+#stats
+kruskal.test(value~community, data = longdata)
+pairwise.wilcox.test(longdata$value, longdata$community,
+                     p.adjust.method = "bonferroni")
+summary(lm(value~Var2,data=longdata))
+longdata$value[longdata$value==0] <- NA
+
+#Plot it
+g <- ggplot(data = longdata, aes(y = value, x = community, fill=community)) +
+  geom_flat_violin(position = position_nudge(x = .2, y = 0), alpha = .5) +
+  geom_point(aes(y = value, color = community), position = position_jitter(width = .15), size = .3, alpha = 0.1) +
+  geom_boxplot(width = .2, guides = FALSE, outlier.shape = NA, alpha = 0.8) +
+  #ylim(c(-7,0)) +
+  guides(fill = FALSE) +
+  guides(color = FALSE) +
+  # scale_color_manual(values=c("#4669dc","pink","purple")) +
+  #scale_color_distiller(palette="Blues", direction = 1) +
+  #scale_fill_distiller(palette="Blues", direction = 1) +
+  scale_color_manual(values=c("gray","#7B287E", "#5CA1C8", "#0A9045","#C33AF8", "#B6C988", "#EF9C23", "#E34A53")) +
+  scale_fill_manual(values= c("gray","#7B287E", "#5CA1C8", "#0A9045","#C33AF8", "#B6C988", "#EF9C23", "#E34A53")) +
+  #scale_color_gradient2(low="#FFFFFF",mid= "#FB6A4A", high="#67000D", midpoint= 0.475, aesthetics = c("color", "fill")) +
+  theme_bw() +
+  raincloud_theme
+print(g)
+```
+
 # Load CT data from age-squared in Freesurfer
 
 ```{age_squared CT FS}
@@ -123,7 +177,7 @@ lh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurf
 rh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/rh_area_ageagesqsext1rating_fwhm10_n89/rh-Avg-area-age_sq-Cor/cache.th23.abs.sig.masked.mgh")
 
 rglactions=list("snapshot_png"=paste0(output_image_directory,"age_SAsq_map.png"), 'shift_hemis_apart'=TRUE)
-colFn_diverging = colorRampPalette(c(rev(RColorBrewer::brewer.pal(9, name="RdBu"))));makecmap_options=list('colFn'=colFn_diverging, 'symm'=TRUE)
+colFn_diverging = colorRampPalette(c(rev(RColorBrewer::brewer.pal(9, name="Blues"))));makecmap_options=list('colFn'=colFn_diverging)
 vis.data.on.fsaverage(subjects_dir, 'fsaverage',surface = "inflated",lh, rh, makecmap_options = makecmap_options, draw_colorbar = T, 
                        views="t9", rgloptions = rgloptions, rglactions = rglactions)
 
@@ -147,11 +201,50 @@ avg_agesq_parcel_sa <- cbind(subs,lh);colnames(avg_agesq_parcel_sa) <- c("ID", "
 # avg_age_parcel_ct <- avg_agesq_parcel_sa %>% mutate(avgct_med_vis_clust=(Lcluster1+Rcluster1)/2, avgct_total_vis_clust=(Lcluster1+Lcluster2+Lcluster3+Rcluster1+Rcluster2)/5)
 main_unique <- left_join(main_unique,avg_agesq_parcel_sa, by="ID")
 
-lm_sasq<- gam(Lcluster1~s(age_scan)+male+t1_rating_avg, data=main_unique)
+lm_sasq<- gam(Lcluster1~s(age_scan, k=4)+male+t1_rating_avg, data=main_unique)
 summary(lm_sasq)
 visreg(lm_sasq)
+
 ```
 
+## SA age-sq effect by network, plot and statistical test
+
+```{CT linear age effect by community}
+#age on CT
+lh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/lh_area_agesq_age_sex_t1rating_fwhm10_n89/lh-Avg-area-age_sq-Cor/cache.th23.abs.sig.masked.mgh")
+rh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/rh_area_ageagesqsext1rating_fwhm10_n89/rh-Avg-area-age_sq-Cor/cache.th23.abs.sig.masked.mgh")
+#load schaefer parcellation at fsaverage res and remap parcel edge data to vertices?
+schaefer_lh <-subject.annot(subjects_dir = subjects_dir,subject_id =subject_id, hemi="lh", atlas = atlas)
+schaefer_rh <-subject.annot(subjects_dir = subjects_dir,subject_id =subject_id, hemi="rh", atlas = atlas)
+communities_lh <- str_remove_all(schaefer_lh$label_names, "7Networks_.H_");communities_lh <- sub("_.*", "", communities_lh)
+communities_rh <- str_remove_all(schaefer_rh$label_names, "7Networks_.H_");communities_rh <- sub("_.*", "", communities_rh)
+longdata <- data.frame(c(lh,rh),c(communities_lh,communities_rh));colnames(longdata) <- c("value","community")
+longdata$community <- factor(longdata$community, levels=c("Background+FreeSurfer","Vis","SomMot","DorsAttn","SalVentAttn", "Limbic","Cont","Default"))
+#stats
+kruskal.test(value~community, data = longdata)
+pairwise.wilcox.test(longdata$value, longdata$community,
+                     p.adjust.method = "bonferroni")
+summary(lm(value~Var2,data=longdata))
+longdata$value[longdata$value==0] <- NA
+
+#Plot it
+g <- ggplot(data = longdata, aes(y = value, x = community, fill=community)) +
+  geom_flat_violin(position = position_nudge(x = .2, y = 0), alpha = .5) +
+  geom_point(aes(y = value, color = community), position = position_jitter(width = .15), size = .3, alpha = 0.1) +
+  geom_boxplot(width = .2, guides = FALSE, outlier.shape = NA, alpha = 0.8) +
+  ylim(c(-7,0)) +
+  guides(fill = FALSE) +
+  guides(color = FALSE) +
+  # scale_color_manual(values=c("#4669dc","pink","purple")) +
+  #scale_color_distiller(palette="Blues", direction = 1) +
+  #scale_fill_distiller(palette="Blues", direction = 1) +
+  scale_color_manual(values=c("gray","#7B287E", "#5CA1C8", "#0A9045","#C33AF8", "#B6C988", "#EF9C23", "#E34A53")) +
+  scale_fill_manual(values= c("gray","#7B287E", "#5CA1C8", "#0A9045","#C33AF8", "#B6C988", "#EF9C23", "#E34A53")) +
+  #scale_color_gradient2(low="#FFFFFF",mid= "#FB6A4A", high="#67000D", midpoint= 0.475, aesthetics = c("color", "fill")) +
+  theme_bw() +
+  raincloud_theme
+print(g)
+```
 #Load SA data from n=126 in Freesurfer
 ```{age_squared FS}
 
@@ -162,4 +255,211 @@ rglactions=list('shift_hemis_apart'=TRUE)
 colFn_diverging = colorRampPalette(c(rev(RColorBrewer::brewer.pal(9, name="Blues")),"white"));makecmap_options=list('colFn'=colFn_diverging, range=c(-4,0))
 vis.data.on.fsaverage(subjects_dir, 'fsaverage',surface = "inflated",lh, rh, makecmap_options = makecmap_options, draw_colorbar = T, 
                        views="t9", rgloptions = rgloptions, rglactions = rglactions)
+```
+
+# Spin tests
+
+## Age on CT from Freesurfer--masked significant clusters, by parcel
+```{age on CT linear}
+source("~/Documents/tools/rotate_parcellation/R/rotate.parcellation.R")
+source("~/Documents/tools/rotate_parcellation/R/perm.sphere.p.R")
+library(matrixStats) #otherwise get rowMins error
+#read in centroids of the Schaefer400 parcels
+lh_centroids <- as.matrix(read.csv("~/Documents/tools/parcellations/lh.Schaefer400_7Nets_fsaverage6.centroids.csv", header = F));rh_centroids <- as.matrix(read.csv("~/Documents/tools/parcellations/rh.Schaefer400_7Nets_fsaverage6.centroids.csv", header = F))
+load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/rotations_schaefer400_fsaverage6_10000x.Rdata")
+#SHOULD BE MASKING OUT MEDIAL WALL? Assuming that is first centroid for each
+lh_centroids <- lh_centroids[-1,];rh_centroids <- rh_centroids[-1,];
+#load age on CT from FS
+lh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/lh_thickness_agesext1rating_n89/lh-Avg-thickness-age_scan-Cor/cache.th23.abs.sig.masked.mgh") #voxel-wise corrected?
+#load schaefer parcellation at fsaverage res and average by parcel
+detach("package:plyr", unload=TRUE)
+schaefer_lh <-subject.annot(subjects_dir = subjects_dir,subject_id =subject_id, hemi="lh", atlas = atlas)
+d <- data.frame(lh, schaefer_lh$label_names) %>% rename(schaefer_atlas_region_names_lh=schaefer_lh.label_names) %>% group_by(schaefer_atlas_region_names_lh) %>% summarise(mean=mean(lh));
+lh_parcels_CT <- left_join(data.frame(schaefer_atlas_region_names_lh),d, by= "schaefer_atlas_region_names_lh")
+schaefer_rh <-subject.annot(subjects_dir = subjects_dir,subject_id =subject_id, hemi="rh", atlas = atlas)
+rh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/rh_thickness_agesext1rating_n89/rh-Avg-thickness-age_scan-Cor/cache.th23.abs.sig.masked.mgh")
+d <- data.frame(rh, schaefer_rh$label_names) %>% rename(schaefer_atlas_region_names_rh=schaefer_rh.label_names) %>% group_by(schaefer_atlas_region_names_rh) %>% summarise(mean=mean(rh));rh_parcels_CT <- left_join(data.frame(schaefer_atlas_region_names_rh),d, by= "schaefer_atlas_region_names_rh")
+
+#load back in edge age effects
+load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/edgewise_age_effects_all_cov_n92.Rdata")
+edge_age_pvals_mat <- matrix(nrow = 400, ncol=400)
+edge_age_pvals_mat[lower.tri(edge_age_pvals_mat, diag=FALSE)] <- edgewise_age_pvals_fdr[,1] #take uncorrected p-values for now
+edge_age_pvals_mat <- t(edge_age_pvals_mat)#copy lower triangle to upper triangle
+pos_edges <- edge_age_pvals_mat;pos_edges[edge_age_betas_mat<0] <- NA
+neg_edges <- edge_age_pvals_mat;neg_edges[edge_age_betas_mat>0] <- NA
+
+pvalues=c(0.05,0.01,0.001,0.0001)
+for (pvalue in pvalues){
+  print(pvalue)
+indices <- which(edge_age_pvals_mat<pvalue, arr.ind = T) #indices of edges that have age effects  below a pval
+l <- data.frame(table(indices)) #for each parcel, how many age-significant edges does it have at a given pval thresh
+values <- vector(mode = "double", 400)
+for (i in 1:400){
+values[as.numeric(as.character(l$indices[i]))] <- l$Freq[i]#replace the indices in values with the num of sig edges from that parcel in the table
+}
+#maps to compare
+edge_vector=values
+
+#other map of CT
+#parcel_CT_pvals_thresh <- ifelse(parcel_CT_pvals_fdr[,1]<0.05,parcel_CT_pvals_fdr[,1],0)
+#CT_betas_vector=ifelse(parcel_CT_pvals_fdr[,1]<0.05, parcel_CT_betas,0)
+#CT_vector=1-parcel_CT_pvals_fdr[,1] #parcel_SA_pvals uncorrected, or thresholded p-values
+CT_vector= -c(lh_parcels_CT$mean, rh_parcels_CT$mean)[-c(1,202)]
+
+#rotations<- rotate.parcellation(lh_centroids,rh_centroids,1000)
+print(perm.sphere.p(edge_vector,CT_vector, rotations, "pearson"))
+#print(perm.sphere.p(edge_vector,parcel_CT_pvals_thresh, rotations, "pearson"))
+#print(perm.sphere.p(edge_vector,parcel_CT_betas, rotations, "pearson"))
+#print(perm.sphere.p(edge_vector,CT_betas_vector, rotations, "pearson"))
+}
+
+#Plot the two
+num_of_sig_age_edges_lh=as.list(setNames(c(NA, c(lh_parcels_SA$mean, lh_parcels_SA$mean)[-c(1,202)][1:200]), schaefer_atlas_region_names_lh))
+num_of_sig_age_edges_rh=as.list(setNames(c(NA, c(lh_parcels_CT$mean, rh_parcels_CT$mean)[-c(1,202)][201:400]), schaefer_atlas_region_names_rh))
+num_of_sig_age_edges_lh=as.list(setNames(c(NA,edge_vector[1:200]), schaefer_atlas_region_names_lh))
+num_of_sig_age_edges_rh=as.list(setNames(c(NA, edge_vector[201:400]), schaefer_atlas_region_names_rh))
+#colormap
+colFn_diverging = colorRampPalette((c("white","lightblue", "blue")));makecmap_options=list('colFn'=colFn_diverging)
+vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  num_of_sig_age_edges_lh, 
+                             num_of_sig_age_edges_rh, makecmap_options = makecmap_options, "inflated", views="t4", draw_colorbar = T, rgloptions = rgloptions, rglactions = NULL)
+
+```
+
+## Age on CT from Freesurfer--masked significant clusters, by vertex
+```{age on CT linear by vertex}
+source("~/Documents/tools/rotate_parcellation/R/rotate.parcellation.R")
+source("~/Documents/tools/rotate_parcellation/R/perm.sphere.p.R")
+library(matrixStats) #otherwise get rowMins error
+#read in centroids of the Schaefer400 parcels
+lh_centroids <- as.matrix(read.csv("~/Documents/tools/parcellations/lh.Schaefer400_7Nets_fsaverage6.centroids.csv", header = F));rh_centroids <- as.matrix(read.csv("~/Documents/tools/parcellations/rh.Schaefer400_7Nets_fsaverage6.centroids.csv", header = F))
+load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/rotations_schaefer400_fsaverage6_10000x.Rdata")
+#SHOULD BE MASKING OUT MEDIAL WALL? Assuming that is first centroid for each
+lh_centroids <- lh_centroids[-1,];rh_centroids <- rh_centroids[-1,];
+#load age on CT from FS
+lh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/lh_thickness_agesext1rating_n89/lh-Avg-thickness-age_scan-Cor/cache.th23.abs.sig.masked.mgh") #voxel-wise corrected?
+rh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/rh_thickness_agesext1rating_n89/rh-Avg-thickness-age_scan-Cor/cache.th23.abs.sig.masked.mgh")
+#write to csv for matlab
+write.csv(lh,"~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/spin_tests/lh_age_linear_on_CT_from_FS.csv");write.csv(rh,"~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/spin_tests/rh_age_linear_on_CT_from_FS.csv")
+
+#load schaefer parcellation at fsaverage res and remap parcel edge data to vertices?
+schaefer_lh <-subject.annot(subjects_dir = subjects_dir,subject_id =subject_id, hemi="lh", atlas = atlas)
+schaefer_rh <-subject.annot(subjects_dir = subjects_dir,subject_id =subject_id, hemi="rh", atlas = atlas)
+
+#load back in edge age effects
+load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/edgewise_age_effects_all_cov_n92.Rdata")
+edge_age_pvals_mat <- matrix(nrow = 400, ncol=400)
+edge_age_pvals_mat[lower.tri(edge_age_pvals_mat, diag=FALSE)] <- edgewise_age_pvals_fdr[,1] #take uncorrected p-values for now
+edge_age_pvals_mat <- t(edge_age_pvals_mat)#copy lower triangle to upper triangle
+pos_edges <- edge_age_pvals_mat;pos_edges[edge_age_betas_mat<0] <- NA
+neg_edges <- edge_age_pvals_mat;neg_edges[edge_age_betas_mat>0] <- NA
+
+pvalues=c(0.05,0.01,0.001,0.0001)
+for (pvalue in pvalues){
+  print(pvalue)
+indices <- which(neg_edges<pvalue, arr.ind = T) #indices of edges that have age effects  below a pval
+l <- data.frame(table(indices)) #for each parcel, how many age-significant edges does it have at a given pval thresh
+values <- vector(mode = "double", 400)
+for (i in 1:400){
+values[as.numeric(as.character(l$indices[i]))] <- l$Freq[i]#replace the indices in values with the num of sig edges from that parcel in the table
+}
+#maps to compare
+edge_vector=values
+#map this vector to vertices using schaefer parcellation in fsaverage space
+lh_edge_vector=vector(length = length(schaefer_lh$label_names))
+rh_edge_vector=vector(length = length(schaefer_rh$label_names))
+for (i in 2:201){
+  lh_edge_vector <- ifelse(schaefer_lh$label_names==schaefer_lh$colortable$struct_names[i], edge_vector[i-1], lh_edge_vector)
+}
+for (i in 2:201){
+  rh_edge_vector <- ifelse(schaefer_rh$label_names==schaefer_rh$colortable$struct_names[i], edge_vector[i+199], rh_edge_vector)
+}
+lh_edge_vector;rh_edge_vector
+#write out
+write.csv(x = -lh_edge_vector, file =paste0("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/spin_tests/lh_age_neg_sig_edges_",pvalue,"_rev.csv"))
+write.csv(x = -rh_edge_vector, file =paste0("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/spin_tests/rh_age_neg_sig_edges_",pvalue,"_rev.csv"))
+}
+#Plot to be sure
+rh <- read.csv("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/spin_tests/rh_age_linear_on_CT_from_FS.csv") %>% pull(x);lh <- read.csv("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/spin_tests/lh_age_linear_on_CT_from_FS.csv") %>% pull(x)
+rglactions=list('shift_hemis_apart'=TRUE)
+colFn_diverging = colorRampPalette(c(rev(RColorBrewer::brewer.pal(9, name="Blues")),"white"));makecmap_options=list('colFn'=colFn_diverging)
+vis.data.on.fsaverage(subjects_dir, 'fsaverage',surface = "inflated",lh, rh, makecmap_options = makecmap_options, draw_colorbar = T, 
+                       views="t9", rgloptions = rgloptions, rglactions = rglactions)
+
+#Then run the code spin_test_vertex_wise.m!
+```
+
+## Age-sq on SA from Freesurfer to negative (and positive) edges--masked significant clusters, by parcel
+
+```{Age-sq on SA from Freesurfer}
+source("~/Documents/tools/rotate_parcellation/R/rotate.parcellation.R")
+source("~/Documents/tools/rotate_parcellation/R/perm.sphere.p.R")
+library(matrixStats) #otherwise get rowMins error
+#read in centroids of the Schaefer400 parcels
+lh_centroids <- as.matrix(read.csv("~/Documents/tools/parcellations/lh.Schaefer400_7Nets_fsaverage6.centroids.csv", header = F));rh_centroids <- as.matrix(read.csv("~/Documents/tools/parcellations/rh.Schaefer400_7Nets_fsaverage6.centroids.csv", header = F))
+load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/rotations_schaefer400_fsaverage6_10000x.Rdata")
+#SHOULD BE MASKING OUT MEDIAL WALL? Assuming that is first centroid for each
+lh_centroids <- lh_centroids[-1,];rh_centroids <- rh_centroids[-1,];
+#load age on CT from FS
+lh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/lh_area_agesq_age_sex_t1rating_fwhm10_n89/lh-Avg-area-age_sq-Cor/cache.th23.abs.sig.masked.mgh") #voxel-wise corrected?
+#load schaefer parcellation at fsaverage res and average by parcel
+schaefer_lh <-subject.annot(subjects_dir = subjects_dir,subject_id =subject_id, hemi="lh", atlas = atlas)
+d <- data.frame(lh, schaefer_lh$label_names) %>% rename(schaefer_atlas_region_names_lh=schaefer_lh.label_names) %>% group_by(schaefer_atlas_region_names_lh) %>% summarise(mean=mean(lh));lh_parcels_SA <- left_join(data.frame(schaefer_atlas_region_names_lh),d, by= "schaefer_atlas_region_names_lh")
+schaefer_rh <-subject.annot(subjects_dir = subjects_dir,subject_id =subject_id, hemi="rh", atlas = atlas)
+rh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/rh_area_ageagesqsext1rating_fwhm10_n89/rh-Avg-area-age_sq-Cor/cache.th23.abs.sig.masked.mgh")
+d <- data.frame(rh, schaefer_rh$label_names) %>% rename(schaefer_atlas_region_names_rh=schaefer_rh.label_names) %>% group_by(schaefer_atlas_region_names_rh) %>% summarise(mean=mean(rh));rh_parcels_SA <- left_join(data.frame(schaefer_atlas_region_names_rh),d, by= "schaefer_atlas_region_names_rh")
+
+#load back in edge age effects
+load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/edgewise_age_effects_all_cov_n92.Rdata")
+edge_age_pvals_mat <- matrix(nrow = 400, ncol=400)
+edge_age_pvals_mat[lower.tri(edge_age_pvals_mat, diag=FALSE)] <- edgewise_age_pvals_fdr[,1] #take uncorrected p-values for now
+edge_age_pvals_mat <- t(edge_age_pvals_mat)#copy lower triangle to upper triangle
+pos_edges <- edge_age_pvals_mat;pos_edges[edge_age_betas_mat<0] <- NA
+neg_edges <- edge_age_pvals_mat;neg_edges[edge_age_betas_mat>0] <- NA
+
+pvalues=c(0.05,0.01,0.001,0.0001)
+for (pvalue in pvalues){
+  print(pvalue)
+indices <- which(edge_age_pvals_mat<pvalue, arr.ind = T) #indices of edges that have age effects  below a pval
+l <- data.frame(table(indices)) #for each parcel, how many age-significant edges does it have at a given pval thresh
+values <- vector(mode = "double", 400)
+for (i in 1:400){
+values[as.numeric(as.character(l$indices[i]))] <- l$Freq[i]#replace the indices in values with the num of sig edges from that parcel in the table
+}
+#maps to compare
+edge_vector=values
+
+#other map of CT
+#parcel_CT_pvals_thresh <- ifelse(parcel_CT_pvals_fdr[,1]<0.05,parcel_CT_pvals_fdr[,1],0)
+#CT_betas_vector=ifelse(parcel_CT_pvals_fdr[,1]<0.05, parcel_CT_betas,0)
+#CT_vector=1-parcel_CT_pvals_fdr[,1] #parcel_SA_pvals uncorrected, or thresholded p-values
+CT_vector= -c(lh_parcels_SA$mean, rh_parcels_SA$mean)[-c(1,202)]
+
+#rotations<- rotate.parcellation(lh_centroids,rh_centroids,1000)
+print(perm.sphere.p(edge_vector,CT_vector, rotations, "pearson"))
+#print(perm.sphere.p(edge_vector,parcel_CT_pvals_thresh, rotations, "pearson"))
+#print(perm.sphere.p(edge_vector,parcel_CT_betas, rotations, "pearson"))
+#print(perm.sphere.p(edge_vector,CT_betas_vector, rotations, "pearson"))
+}
+
+#Plot the two
+num_of_sig_age_edges_lh=as.list(setNames(c(NA, c(lh_parcels_SA$mean, rh_parcels_SA$mean)[-c(1,202)][1:200]), schaefer_atlas_region_names_lh))
+num_of_sig_age_edges_rh=as.list(setNames(c(NA, c(lh_parcels_SA$mean, rh_parcels_SA$mean)[-c(1,202)][201:400]), schaefer_atlas_region_names_rh))
+num_of_sig_age_edges_lh=as.list(setNames(c(NA,edge_vector[1:200]), schaefer_atlas_region_names_lh))
+num_of_sig_age_edges_rh=as.list(setNames(c(NA, edge_vector[201:400]), schaefer_atlas_region_names_rh))
+#colormap
+colFn_diverging = colorRampPalette(rev(c("white","orange", "red")));makecmap_options=list('colFn'=colFn_diverging)
+vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  num_of_sig_age_edges_lh, 
+                             num_of_sig_age_edges_rh, makecmap_options = makecmap_options, "inflated", views="t4", draw_colorbar = T, rgloptions = rgloptions, rglactions = NULL)
+```
+
+
+## Age-squared on SA from Freesurfer--masked significant clusters, by vertex
+```{age on SA quadratic by vertex}
+#load age on CT from FS
+lh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/lh_area_agesq_age_sex_t1rating_fwhm10_n89/lh-Avg-area-age_sq-Cor/cache.th23.abs.sig.masked.mgh") #voxel-wise corrected?
+rh <- read.fs.mgh("/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/freesurfer_edits_t1/qdec/rh_area_ageagesqsext1rating_fwhm10_n89/rh-Avg-area-age_sq-Cor/cache.th23.abs.sig.masked.mgh")
+#write to csv for matlab
+write.csv(lh,"~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/spin_tests/lh_age_sq_on_SA_from_FS.csv");write.csv(rh,"~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/spin_tests/rh_age_sq_on_SA_from_FS.csv")
+
+#Then run the script spin_test_vertex_wise.m!
 ```

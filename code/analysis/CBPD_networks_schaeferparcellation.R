@@ -40,7 +40,7 @@ main$ID <- sub("_","",main$ID)
 main <- merge(withavgweight,main, by="ID")
 
 #take out the participant with the glitter in her hair and artifact in rest?
-main <- main %>% filter(.,ID!="sub-CBPD0020")
+#main <- main %>% filter(.,ID!="sub-CBPD0020")
 
 #Take out anyone with a 1 in the exclude column
 main <- main %>% filter(.,exclude!=1)
@@ -75,7 +75,7 @@ main_filt <- main %>% filter(., relMaxRMSMotion < 10 & fd_mean_avg < 1 & fd_perc
 main_filt <- main %>% filter(., pctVolsCensored< 0.5 & relMaxRMSMotion < 10 & fd_mean_avg < 1 & fd_perc_2mm_avg < 10 & totalSizet > 130 & totalUncensoredVols > 100)
 
 #criteria allyson suggests, not using different FD thresholds for censoring and for the % of volumes over a threshold that warrants subject exclusion
-main_filt <- main %>% filter(., fd_mean_avg < 1 & pctSpikesFD_avg < 0.3)
+main_filt <- main %>% filter(., fd_mean_avg < 1  & pctSpikesFD_avg < 0.3)
 
 #filter out only kids under 8
 main_under9 <- filter(main_filt, age_scan <=9)
@@ -88,6 +88,29 @@ main_filt$longitudinal_visit_num[is.na(main_filt$longitudinal_visit_num)] <- 1
 main_unique <- main_filt  %>% group_by(base_ID) %>% arrange(longitudinal) %>% filter(row_number() == 1)
 dim(main_unique)
 
+#Check differences between sample included and excluded 
+#remember to keep this person in the exclude sample, the participant with the glitter in her hair and artifact in rest
+main <- main %>% filter(.,ID!="sub-CBPD0020") 
+#criteria allyson suggests, not using different FD thresholds for censoring and for the % of volumes over a threshold that warrants subject exclusion
+main_excluded <- main %>% filter(., fd_mean_avg > 1  | pctSpikesFD_avg > 0.3)
+
+#take only the first data we have from a subject
+main_excluded$base_ID <- stri_split(main_excluded$record_id.y,fixed="_", simplify=T)[,1]
+main_excluded$longitudinal_visit_num[is.na(main_excluded$longitudinal_visit_num)] <- 1
+
+#only take one set of brain data from each participant, no matter the timepoint.
+main_exclude <- main_excluded  %>% group_by(base_ID) %>% arrange(longitudinal) %>% filter(row_number() == 1)
+dim(main_exclude)
+t.test(main_exclude$age_scan, main_unique$age_scanh); wilcox.test(main_exclude$age_scan, main_unique$age_scan)
+
+main_unique$matrix_reasoning_both <- ifelse(is.na(main_unique$wppsi_matrix_valid),main_unique$wisc_matrix_scaled,ifelse(main_unique$wppsi_matrix_valid==0,NA,main_unique$wppsi_matrix_scaled))
+main_unique$matrix_reasoning_both_raw <- ifelse(is.na(main_unique$wppsi_matrix_valid),main_unique$wisc_matrix_raw,ifelse(main_unique$wppsi_matrix_valid==0,NA,main_unique$wppsi_matrix_raw))
+main_unique$matrix_reasoning_both;main_unique$matrix_reasoning_both_raw
+main_exclude$matrix_reasoning_both <- ifelse(is.na(main_exclude$wppsi_matrix_valid),main_exclude$wisc_matrix_scaled,ifelse(main_exclude$wppsi_matrix_valid==0,NA,main_exclude$wppsi_matrix_scaled))
+main_exclude$matrix_reasoning_both_raw <- ifelse(is.na(main_exclude$wppsi_matrix_valid),main_exclude$wisc_matrix_raw,ifelse(main_exclude$wppsi_matrix_valid==0,NA,main_exclude$wppsi_matrix_raw))
+main_exclude$matrix_reasoning_both;main_exclude$matrix_reasoning_both_raw
+
+t.test(main_exclude$matrix_reasoning_both, main_unique$matrix_reasoning_both); wilcox.test(main_exclude$matrix_reasoning_both, main_unique$matrix_reasoning_both)
 # Load Replicate in Schaefer200 Data ---------------------------------------------------------------
 parcellation="schaefer200_"
 subjdata_dir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/subjectData/"

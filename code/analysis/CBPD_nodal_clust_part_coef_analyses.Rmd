@@ -1,0 +1,64 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(stats)
+library(parallel)
+library(lm.beta)
+library(packrat)
+library(summarytools)
+library(visreg)
+library(mgcv)
+library(RLRsim)
+library(GGally)
+#load the .RDS file
+pipeline='nogsr_spkreg_fd0.5dvars1.75_drpvls'
+pipeline="nogsr_spkreg_fd1.25dvars2_drpvls"
+pipeline='gsr_spkreg_fd0.5dvars1.75_drpvls'
+network_dir=paste0("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/",pipeline)
+
+load(paste0(network_dir,"/CBPD_n92_schaefer400_allruns.Rdata"))
+```
+
+```{r brain plotting setup, include=FALSE, echo=FALSE}
+library(fsbrain) #this may not work if you're editing the script directly on the cluster...
+library(freesurferformats)
+#rearrange the order of the brains in the T9 view of fsbrain
+source("~/Documents/tools/fsbrain_fix_t9.R")
+environment(brainview.t9) <- asNamespace('fsbrain')
+assignInNamespace("brainview.t9", brainview.t9, ns = "fsbrain")
+subjects_dir = "/Users/utooley/Documents/tools/CBIG/stable_projects/brain_parcellation/Schaefer2018_LocalGlobal/Parcellations/FreeSurfer5.3/";
+subject_id = 'fsaverage';       # for functions which use one subject only
+atlas='Schaefer2018_400Parcels_7Networks_order'
+
+#Get the Schaefer atlas region names
+schaefer_atlas_region_names_lh = get.atlas.region.names(atlas, template_subjects_dir = subjects_dir,template_subject=subject_id, hemi="lh");
+schaefer_atlas_region_names_rh = get.atlas.region.names(atlas, template_subjects_dir = subjects_dir,template_subject=subject_id, hemi="rh");
+
+#set output dir for saving images
+output_image_directory="~/Documents/projects/in_progress/within_between_network_conn_CBPD/output/figures/brains/"
+  
+#Set RGL defaults, larger window and how to make snapshots!
+rgloptions=list("windowRect"=c(50,50,1000,1000));
+```
+
+
+```{r import nodal data,include=FALSE, echo=FALSE}
+clust_co <- read.csv(paste0(network_dir,"/n150_long_inc_clust_co_avg_nodewise_avgrunsschaefer400.csv")) %>% rename(ID=Var1)
+part_co <- read.csv(paste0(network_dir,"/n150_long_inc_part_coef_avg_nodewise_avgrunsschaefer400.csv")) %>% rename(ID=Var1)
+
+main_unique_nodal <- left_join(main_unique,clust_co, by= "ID")
+main_unique_nodal <- left_join(main_unique_nodal,part_co, by= "ID")
+
+```
+
+```{r summarize metrics by system,include=FALSE, echo=FALSE}
+#summarize metrics by system
+
+
+```
