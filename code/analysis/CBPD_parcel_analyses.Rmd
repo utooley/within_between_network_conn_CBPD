@@ -483,6 +483,118 @@ rglactions=list("snapshot_png"=paste0(output_image_directory,"reasoning_associat
 vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  num_of_sig_age_edges_lh, 
                              num_of_sig_age_edges_rh, makecmap_options = makecmap_options, "inflated", views="t9", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
 ```
+
+## How many are within and how many are between edges that show age effects?
+```{r proportion of pos and negative edges within and between}
+load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/edgewise_age_effects_all_cov_n92.Rdata")
+#reload edges pvals mat--only upper triangle
+edge_age_pvals_mat <- matrix(nrow = 400, ncol=400)
+edge_age_pvals_mat[lower.tri(edge_age_pvals_mat, diag=FALSE)] <- edgewise_age_pvals_fdr[,1] #take uncorrected p-values for now
+edge_age_pvals_mat <- t(edge_age_pvals_mat)
+edge_age_betas_mat <- matrix(nrow = 400, ncol=400);edge_age_betas_mat[lower.tri(edge_age_betas_mat, diag=FALSE)] <- edgewise_age_betas; edge_age_betas_mat<- t(edge_age_betas_mat)
+
+#threshold at p< 0.001
+#for the proportion within community
+betas <- list()
+edge_age_betas_mat_thresh <- edge_age_betas_mat
+links_to_show=edge_age_pvals_mat<0.001;edge_age_betas_mat_thresh[links_to_show==FALSE] <- 0
+rownames(edge_age_betas_mat_thresh) <- communities;colnames(edge_age_betas_mat_thresh) <- communities
+for (j in 1:7){
+  set=unique(communities)[j]
+  #take the rows from vis and the columns from SM (and vice-versa?)
+  betas[[set]] <- na.omit(c(edge_age_betas_mat_thresh[rownames(edge_age_betas_mat_thresh)==set,colnames(edge_age_betas_mat_thresh)==set]))
+}
+betas <- unlist(betas)
+sum(betas<0)/sum(betas!=0);sum(betas>0)/sum(betas!=0);
+
+#for the proportion between communities
+betas <- list()
+edge_age_betas_mat_thresh <- edge_age_betas_mat
+links_to_show=edge_age_pvals_mat<0.001;edge_age_betas_mat_thresh[links_to_show==FALSE] <- 0
+rownames(edge_age_betas_mat_thresh) <- communities;colnames(edge_age_betas_mat_thresh) <- communities
+for (j in 1:7){
+  set=unique(communities)[j]
+  #take the rows from vis and the columns from SM (and vice-versa?)
+  betas[[set]] <- na.omit(c(edge_age_betas_mat_thresh[rownames(edge_age_betas_mat_thresh)==set,colnames(edge_age_betas_mat_thresh)!=set]))
+}
+betas <- unlist(betas)
+sum(betas<0)/sum(betas!=0);sum(betas>0)/sum(betas!=0);
+
+rownames(edge_age_betas_mat) <- communities;colnames(edge_age_betas_mat) <- communities
+#for all possible combinations of communities
+combinations=combn(unique(communities),2)
+set=combinations[,1]#take vis and sm community
+#reload edges pvals mat
+edge_age_pvals_mat <- matrix(nrow = 400, ncol=400);edge_age_pvals_mat[lower.tri(edge_age_pvals_mat, diag=FALSE)] <- edgewise_age_pvals_fdr[,1] #take uncorrected p-values for now
+edge_age_pvals_mat <- t(edge_age_pvals_mat)
+#for positive, take only the edge pvals that have positive betas associated with them 
+links_to_show=edge_age_betas_mat>= 0;edge_age_pvals_mat[links_to_show==FALSE] <- NA
+
+for (j in 1:dim(combinations)[2]){
+  set=combinations[,j]
+  #take the rows from vis and the columns from SM (and vice-versa?)
+  #View(edge_age_betas_mat[rownames(edge_age_betas_mat)==set[1],colnames(edge_age_betas_mat)==set[2]])
+  #rows <- which(rownames(edge_age_betas_mat)==set[1], arr.ind = T);cols <- which(colnames(edge_age_betas_mat)==set[2], arr.ind = T)
+  colmax=rep(0,400)
+  rowmax=rep(0,400)
+  indices=which(rownames(edge_age_betas_mat)==set[1])
+  for (x in indices){
+      rowmax[x] <- sum(edge_age_pvals_mat[x,which(colnames(edge_age_betas_mat)==set[2])]<=pvalue, na.rm = T)
+  }
+  indices=which(colnames(edge_age_betas_mat)==set[2])
+  for (x in indices){
+      colmax[x] <- sum(edge_age_pvals_mat[rownames(edge_age_betas_mat)==set[1],x]<=pvalue, na.rm = T)
+  }
+  #Plot only in one community at a time
+  for (community in set){
+    values=rowSums(cbind(colmax,rowmax), na.rm = T)  #these two vectors should be non-overlapping, for the combinations of communities, so can add them together
+    print(community)
+  values=ifelse(communities==community,values,0)
+  pos_sig_age_betas_lh=as.list(setNames(c(0, values[1:200]), schaefer_atlas_region_names_lh))
+  pos_sig_age_betas_rh=as.list(setNames(c(0, values[201:400]), schaefer_atlas_region_names_rh))
+  #colormap
+  colFn_diverging = colorRampPalette(c("white","orange","red"));makecmap_options=list('colFn'=colFn_diverging,'range'=c(0,10))
+  rglactions=list("snapshot_png"=paste0(output_image_directory,"/pairwise_comm_age_connectivity/num_sig_edges_pos_age_for_parcel_",set[1],set[2],"_regions_in_",community,"_",pvalue,".png"), 'shift_hemis_apart'=TRUE)
+  vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  pos_sig_age_betas_lh, 
+                               pos_sig_age_betas_rh, makecmap_options = makecmap_options, "inflated", views="t9", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
+  }
+}
+#do the negative edges
+#reload pvals mat
+edge_age_pvals_mat <- matrix(nrow = 400, ncol=400);edge_age_pvals_mat[lower.tri(edge_age_pvals_mat, diag=FALSE)] <- edgewise_age_pvals_fdr[,1] #take uncorrected p-values for now
+edge_age_pvals_mat <- t(edge_age_pvals_mat)
+links_to_show=edge_age_betas_mat<= 0;edge_age_pvals_mat[links_to_show==FALSE] <- NA
+for (j in 1:dim(combinations)[2]){
+  set=combinations[,j]
+  #take the rows from vis and the columns from SM (and vice-versa?)
+  #View(edge_age_betas_mat[rownames(edge_age_betas_mat)==set[1],colnames(edge_age_betas_mat)==set[2]])
+  #rows <- which(rownames(edge_age_betas_mat)==set[1], arr.ind = T);cols <- which(colnames(edge_age_betas_mat)==set[2], arr.ind = T)
+  colmax=rep(0,400)
+  rowmax=rep(0,400)
+  indices=which(rownames(edge_age_betas_mat)==set[1])
+  for (x in indices){
+      rowmax[x] <- sum(edge_age_pvals_mat[x,which(colnames(edge_age_betas_mat)==set[2])]<=pvalue, na.rm = T)
+  }
+  indices=which(colnames(edge_age_betas_mat)==set[2])
+  for (x in indices){
+      colmax[x] <- sum(edge_age_pvals_mat[rownames(edge_age_betas_mat)==set[1],x]<=pvalue, na.rm = T)
+  }
+  #Plot only in one community at a time
+  for (community in set){
+    values=rowSums(cbind(colmax,rowmax), na.rm = T)   #these two vectors should be non-overlapping, for the combinations of communities, so can add them together
+    print(community)
+  values=ifelse(communities==community,values,0)
+  pos_sig_age_betas_lh=as.list(setNames(c(0, values[1:200]), schaefer_atlas_region_names_lh))
+  pos_sig_age_betas_rh=as.list(setNames(c(0, values[201:400]), schaefer_atlas_region_names_rh))
+  #colormap
+  colFn_diverging = colorRampPalette(c("white","lightblue","blue"));makecmap_options=list('colFn'=colFn_diverging,'range'=c(0,10))
+  rglactions=list("snapshot_png"=paste0(output_image_directory,"/pairwise_comm_age_connectivity/num_sig_edges_neg_age_for_parcel_",set[1],set[2],"_regions_in",community,"_",pvalue,".png"),'shift_hemis_apart'=TRUE)
+  vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  pos_sig_age_betas_lh, 
+                               pos_sig_age_betas_rh, makecmap_options = makecmap_options, "inflated", views="t9", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
+  }
+}
+```
+
 ## Plot specific communities age-significant edges number of edges
 
 ```{r brain plotting pvals threshold, include=FALSE, echo=FALSE}

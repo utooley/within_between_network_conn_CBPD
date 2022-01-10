@@ -16,6 +16,9 @@ library(visreg)
 library(mgcv)
 library(RLRsim)
 library(GGally)
+library(stringr)
+library(papaja)
+library(car)
 #load the .RDS file
 pipeline='nogsr_spkreg_fd0.5dvars1.75_drpvls'
 pipeline="nogsr_spkreg_fd1.25dvars2_drpvls"
@@ -49,16 +52,202 @@ rgloptions=list("windowRect"=c(50,50,1000,1000));
 
 
 ```{r import nodal data,include=FALSE, echo=FALSE}
-clust_co <- read.csv(paste0(network_dir,"/n150_long_inc_clust_co_avg_nodewise_avgrunsschaefer400.csv")) %>% rename(ID=Var1)
-part_co <- read.csv(paste0(network_dir,"/n150_long_inc_part_coef_avg_nodewise_avgrunsschaefer400.csv")) %>% rename(ID=Var1)
+#Colnames can't start with a number!
+clust_co <- read.csv(paste0(network_dir,"/n150_long_inc_clust_co_avg_nodewise_avgrunsschaefer400.csv"))
+colnames(clust_co) <- c("ID",paste0("Yeo",schaefer_atlas_region_names_lh[-1]),paste0("Yeo",schaefer_atlas_region_names_rh[-1]));clust_co$ID <- str_trim(clust_co$ID)
+part_co <- read.csv(paste0(network_dir,"/n150_long_inc_part_coef_avg_nodewise_avgrunsschaefer400.csv")) 
+colnames(part_co) <- c("ID",paste0("Yeo",schaefer_atlas_region_names_lh[-1]),paste0("Yeo",schaefer_atlas_region_names_rh[-1]));part_co$ID <- str_trim(part_co$ID)
 
-main_unique_nodal <- left_join(main_unique,clust_co, by= "ID")
-main_unique_nodal <- left_join(main_unique_nodal,part_co, by= "ID")
+main_unique_nodal_clust <- left_join(main_unique,clust_co, by= "ID")
+main_unique_nodal_part <- left_join(main_unique,part_co, by= "ID")
 
 ```
 
-```{r summarize metrics by system,include=FALSE, echo=FALSE}
+```{r summarize metrics by system-clust co,include=FALSE, echo=FALSE}
 #summarize metrics by system
+community_assign <- read.delim("~/Documents/tools/parcellations/schaefer400x7CommunityAffiliation.1D", header = F)
+communities <- paste0("comm",community_assign$V1) %>% car::recode(.,"'comm1'='Visual'; 'comm2'='Somatomotor' ; 'comm3'='Dorsal Attention';'comm4'='Ventral Attention';'comm5'='Limbic';'comm6'='Frontoparietal';'comm7'='Default'") %>% factor(levels=c("Visual","Somatomotor","Dorsal Attention", "Ventral Attention", "Limbic", "Frontoparietal", "Default")) 
+
+main_unique_nodal_clust$vis_avg_clust_co <- main_unique_nodal_clust %>% ungroup() %>% select(contains("_Vis_")) %>% rowMeans()
+main_unique_nodal_clust$sm_avg_clust_co <- main_unique_nodal_clust %>% ungroup() %>% select(contains("_SomMot_")) %>% rowMeans()
+main_unique_nodal_clust$da_avg_clust_co <- main_unique_nodal_clust %>% ungroup() %>% select(contains("_DorsAttn_")) %>% rowMeans()
+main_unique_nodal_clust$va_avg_clust_co <- main_unique_nodal_clust %>% ungroup() %>% select(contains("_SalVentAttn_")) %>% rowMeans()
+main_unique_nodal_clust$lim_avg_clust_co <- main_unique_nodal_clust %>% ungroup() %>% select(contains("_Limbic_")) %>% rowMeans()
+main_unique_nodal_clust$fp_avg_clust_co <- main_unique_nodal_clust %>% ungroup() %>% select(contains("_Cont_")) %>% rowMeans()
+main_unique_nodal_clust$dm_avg_clust_co <- main_unique_nodal_clust %>% ungroup() %>% select(contains("_Default_")) %>% rowMeans()
+
+outcomes <- main_unique_nodal_clust %>% ungroup() %>% dplyr::select(contains("_avg_clust_co")) %>% names()
+pvalues=list()
+par(mfrow=c(2,3))
+for (outcome in outcomes){
+  model<-paste0("lm_",outcome,"_age")
+  formula<-formula(paste0(outcome, '~age_scan+male+fd_mean_avg+avgweight+totalSizet'))
+  assign(model, lm(formula, data=main_unique_nodal_clust))
+  output <- paste0("summary_",model)
+  assign(output, apa_print(Anova(get(model)), es="pes",mse=FALSE))
+  print(summary(get(model)))
+  visreg(get(model), "age_scan", main= outcome)
+  pvalues[outcome] <- summary(get(model))$coefficients[2,4]
+}
+pvalues<- unlist(pvalues)
+pvalues <- t(t(pvalues))
+pvalues <- cbind(pvalues,p.adjust(pvalues[,1],method = "fdr"));colnames(pvalues) <- c("pvalues", "fdr_pvalue")
+
+#Plot average by system
+source("~/Documents/tools/raincloud.R")
+x <- main_unique_nodal_clust %>% ungroup() %>% select(contains("_avg_clust_co")) %>% as.data.frame()
+longdata <- melt(x);colnames(longdata) <- c("community", "value")
+g <- ggplot(data = longdata, aes(y = value, x = community, fill=community)) +
+  geom_flat_violin(position = position_nudge(x = .2, y = 0), alpha = .5) +
+  geom_point(aes(y = value, color = community), position = position_jitter(width = .15), size = .3, alpha = 0.8) +
+  #geom_boxplot(width = .2, guides = FALSE, outlier.shape = NA, alpha = 0.3) +
+  #ylim(c(0,15)) +
+  guides(fill = FALSE) +
+  guides(color = FALSE) +
+  # scale_color_manual(values=c("#4669dc","pink","purple")) +
+  #scale_color_distiller(palette="Blues", direction = 1) +
+  #scale_fill_distiller(palette="Blues", direction = 1) +
+  scale_color_manual(values=c("#7B287E", "#5CA1C8", "#0A9045","#C33AF8", "#B6C988", "#EF9C23", "#E34A53")) +
+  scale_fill_manual(values= c("#7B287E", "#5CA1C8", "#0A9045","#C33AF8", "#B6C988", "#EF9C23", "#E34A53")) +
+  #scale_color_gradient2(low="#FFFFFF",mid= "#FB6A4A", high="#67000D", midpoint= 0.475, aesthetics = c("color", "fill")) +
+  theme_bw() +
+  #geom_hline(yintercept=0)+
+  raincloud_theme
+g
+```
+
+```{r look at age effects by node-clust co,include=FALSE, echo=FALSE}
+
+columns <- main_unique_nodal_clust %>% ungroup() %>% select(contains("Yeo7Networks_"))
+
+#plot mean whole-brain with age
+parcel_CC_pvals<- lapply(names(columns), function(x) { summary(lm(as.formula(paste0(x,"~age_scan+male+fd_mean_avg+avgweight+totalSizet")), data=main_unique_nodal_clust))$coef[2,4]})
+parcel_CC_pvals <- unlist(parcel_CC_pvals)
+parcel_CC_pvals_fdr <- cbind(parcel_CC_pvals,p.adjust(parcel_CC_pvals,method = "fdr"))
+#get age betas
+parcel_CC_betas<- lapply(names(columns), function(x) { lm.beta(lm(as.formula(paste0(x,"~age_scan+male+fd_mean_avg+avgweight+totalSizet")), data=main_unique_nodal_clust))$standardized.coefficients[[2]]})
+parcel_CC_betas <- unlist(parcel_CC_betas)
+
+to_plot=ifelse(parcel_CC_pvals_fdr[,1] <0.01,parcel_CC_betas,NA)
+
+lh=as.list(setNames(c(NA,to_plot[1:200]), schaefer_atlas_region_names_lh)) #this has the medial wall in it.
+rh=as.list(setNames(c(NA,to_plot[201:400]), schaefer_atlas_region_names_rh))
+#colormap
+colFn_diverging = colorRampPalette(rev(RColorBrewer::brewer.pal(9, name="RdBu")));makecmap_options=list('colFn'=colFn_diverging, 'symm'=T)
+rglactions=list("snapshot_png"=paste0(output_image_directory,"clust_co_parcel_age_effect.png"))
+vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  lh, 
+                             rh, makecmap_options = makecmap_options, "inflated", views="t4", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
 
 
+longdata<-data.frame(communities,parcel_CC_betas)
+colnames(longdata) <- c("community", "value")
+g <- ggplot(data = longdata, aes(y = value, x = community, fill=community)) +
+  geom_flat_violin(position = position_nudge(x = .2, y = 0), alpha = .5) +
+  geom_point(aes(y = value, color = community), position = position_jitter(width = .15), size = .3, alpha = 0.8) +
+  #geom_boxplot(width = .2, guides = FALSE, outlier.shape = NA, alpha = 0.3) +
+  #ylim(c(0,15)) +
+  guides(fill = FALSE) +
+  guides(color = FALSE) +
+  scale_color_manual(values=c("#7B287E", "#5CA1C8", "#0A9045","#C33AF8", "#B6C988", "#EF9C23", "#E34A53")) +
+  scale_fill_manual(values= c("#7B287E", "#5CA1C8", "#0A9045","#C33AF8", "#B6C988", "#EF9C23", "#E34A53")) +
+  #scale_color_gradient2(low="#FFFFFF",mid= "#FB6A4A", high="#67000D", midpoint= 0.475, aesthetics = c("color", "fill")) +
+  theme_bw() +
+  #geom_hline(yintercept=0)+
+  raincloud_theme
+g
+```
+
+
+```{r summarize metrics by system-part co,include=FALSE, echo=FALSE}
+#summarize metrics by system
+community_assign <- read.delim("~/Documents/tools/parcellations/schaefer400x7CommunityAffiliation.1D", header = F)
+communities <- paste0("comm",community_assign$V1) %>% car::recode(.,"'comm1'='Visual'; 'comm2'='Somatomotor' ; 'comm3'='Dorsal Attention';'comm4'='Ventral Attention';'comm5'='Limbic';'comm6'='Frontoparietal';'comm7'='Default'") %>% factor(levels=c("Visual","Somatomotor","Dorsal Attention", "Ventral Attention", "Limbic", "Frontoparietal", "Default")) 
+
+main_unique_nodal_part$vis_avg_part_co <- main_unique_nodal_part %>% ungroup() %>% select(contains("_Vis_")) %>% rowMeans()
+main_unique_nodal_part$sm_avg_part_co <- main_unique_nodal_part %>% ungroup() %>% select(contains("_SomMot_")) %>% rowMeans()
+main_unique_nodal_part$da_avg_part_co <- main_unique_nodal_part %>% ungroup() %>% select(contains("_DorsAttn_")) %>% rowMeans()
+main_unique_nodal_part$va_avg_part_co <- main_unique_nodal_part %>% ungroup() %>% select(contains("_SalVentAttn_")) %>% rowMeans()
+main_unique_nodal_part$lim_avg_part_co <- main_unique_nodal_part %>% ungroup() %>% select(contains("_Limbic_")) %>% rowMeans()
+main_unique_nodal_part$fp_avg_part_co <- main_unique_nodal_part %>% ungroup() %>% select(contains("_Cont_")) %>% rowMeans()
+main_unique_nodal_part$dm_avg_part_co <- main_unique_nodal_part %>% ungroup() %>% select(contains("_Default_")) %>% rowMeans()
+
+outcomes <- main_unique_nodal_part %>% ungroup() %>% dplyr::select(contains("_avg_part_co")) %>% names()
+pvalues=list()
+par(mfrow=c(2,3))
+for (outcome in outcomes){
+  model<-paste0("lm_",outcome,"_age")
+  formula<-formula(paste0(outcome, '~age_scan+male+fd_mean_avg+avgweight+totalSizet'))
+  assign(model, lm(formula, data=main_unique_nodal_part))
+  output <- paste0("summary_",model)
+  assign(output, apa_print(Anova(get(model)), es="pes",mse=FALSE))
+  print(summary(get(model)))
+  visreg(get(model), "age_scan", main= outcome)
+  pvalues[outcome] <- summary(get(model))$coefficients[2,4]
+}
+pvalues<- unlist(pvalues)
+pvalues <- t(t(pvalues))
+pvalues <- cbind(pvalues,p.adjust(pvalues[,1],method = "fdr"));colnames(pvalues) <- c("pvalues", "fdr_pvalue")
+pvalues
+
+#Plot average by system
+source("~/Documents/tools/raincloud.R")
+x <- main_unique_nodal_part %>% ungroup() %>% select(contains("_avg_part_co")) %>% as.data.frame()
+longdata <- melt(x);colnames(longdata) <- c("community", "value")
+g <- ggplot(data = longdata, aes(y = value, x = community, fill=community)) +
+  geom_flat_violin(position = position_nudge(x = .2, y = 0), alpha = .5) +
+  geom_point(aes(y = value, color = community), position = position_jitter(width = .15), size = .3, alpha = 0.8) +
+  #geom_boxplot(width = .2, guides = FALSE, outlier.shape = NA, alpha = 0.3) +
+  #ylim(c(0,15)) +
+  guides(fill = FALSE) +
+  guides(color = FALSE) +
+  # scale_color_manual(values=c("#4669dc","pink","purple")) +
+  #scale_color_distiller(palette="Blues", direction = 1) +
+  #scale_fill_distiller(palette="Blues", direction = 1) +
+  scale_color_manual(values=c("#7B287E", "#5CA1C8", "#0A9045","#C33AF8", "#B6C988", "#EF9C23", "#E34A53")) +
+  scale_fill_manual(values= c("#7B287E", "#5CA1C8", "#0A9045","#C33AF8", "#B6C988", "#EF9C23", "#E34A53")) +
+  #scale_color_gradient2(low="#FFFFFF",mid= "#FB6A4A", high="#67000D", midpoint= 0.475, aesthetics = c("color", "fill")) +
+  theme_bw() +
+  #geom_hline(yintercept=0)+
+  raincloud_theme
+g
+```
+
+```{r look at age effects by node-part co,include=FALSE, echo=FALSE}
+
+columns <- main_unique_nodal_part %>% ungroup() %>% select(contains("Yeo7Networks_"))
+
+#plot mean whole-brain with age
+parcel_PC_pvals<- lapply(names(columns), function(x) { summary(lm(as.formula(paste0(x,"~age_scan+male+fd_mean_avg+avgweight+totalSizet")), data=main_unique_nodal_part))$coef[2,4]})
+parcel_PC_pvals <- unlist(parcel_PC_pvals)
+parcel_PC_pvals_fdr <- cbind(parcel_PC_pvals,p.adjust(parcel_PC_pvals,method = "fdr"))
+#get age betas
+parcel_PC_betas<- lapply(names(columns), function(x) { lm.beta(lm(as.formula(paste0(x,"~age_scan+male+fd_mean_avg+avgweight+totalSizet")), data=main_unique_nodal_part))$standardized.coefficients[[2]]})
+parcel_PC_betas <- unlist(parcel_PC_betas)
+
+to_plot=ifelse(parcel_PC_pvals_fdr[,1] <0.01,parcel_PC_betas,NA)
+
+lh=as.list(setNames(c(NA,to_plot[1:200]), schaefer_atlas_region_names_lh)) #this has the medial wall in it.
+rh=as.list(setNames(c(NA,to_plot[201:400]), schaefer_atlas_region_names_rh))
+#colormap
+colFn_diverging = colorRampPalette(rev(RColorBrewer::brewer.pal(9, name="RdBu")));makecmap_options=list('colFn'=colFn_diverging, 'symm'=T)
+rglactions=list("snapshot_png"=paste0(output_image_directory,"part_co_parcel_age_effect.png"))
+vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  lh, 
+                             rh, makecmap_options = makecmap_options, "inflated", views="t4", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
+
+longdata<-data.frame(communities,parcel_PC_betas)
+colnames(longdata) <- c("community", "value")
+g <- ggplot(data = longdata, aes(y = value, x = community, fill=community)) +
+  geom_flat_violin(position = position_nudge(x = .2, y = 0), alpha = .5) +
+  geom_point(aes(y = value, color = community), position = position_jitter(width = .15), size = .3, alpha = 0.8) +
+  #geom_boxplot(width = .2, guides = FALSE, outlier.shape = NA, alpha = 0.3) +
+  #ylim(c(0,15)) +
+  guides(fill = FALSE) +
+  guides(color = FALSE) +
+  scale_color_manual(values=c("#7B287E", "#5CA1C8", "#0A9045","#C33AF8", "#B6C988", "#EF9C23", "#E34A53")) +
+  scale_fill_manual(values= c("#7B287E", "#5CA1C8", "#0A9045","#C33AF8", "#B6C988", "#EF9C23", "#E34A53")) +
+  #scale_color_gradient2(low="#FFFFFF",mid= "#FB6A4A", high="#67000D", midpoint= 0.475, aesthetics = c("color", "fill")) +
+  theme_bw() +
+  #geom_hline(yintercept=0)+
+  raincloud_theme
+g
 ```
