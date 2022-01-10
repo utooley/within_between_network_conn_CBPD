@@ -40,7 +40,7 @@ main$ID <- sub("_","",main$ID)
 main <- merge(withavgweight,main, by="ID")
 
 #take out the participant with the glitter in her hair and artifact in rest?
-main <- main %>% filter(.,ID!="sub-CBPD0020")
+#main <- main %>% filter(.,ID!="sub-CBPD0020")
 
 #Take out anyone with a 1 in the exclude column
 main <- main %>% filter(.,exclude!=1)
@@ -58,7 +58,7 @@ main$ethnicity <- factor(main$ethnicity, labels=c("Not Hispanic or Latino","Hisp
 #main <- main %>% select(.,-c(cbcl_18mo_admin:cbcl_6yr_complete))
 #main <- main %>% select(.,-c(has_diagnoses:letterword_identification_comple))
 
-main$avg_parentedu <- main %>% select(contains("_edu")) %>% rowMeans(., na.rm=T) #average parent education first
+main$avg_parentedu <- main %>% select(c("parent1_edu","parent2_edu")) %>% rowMeans(., na.rm=T) #average parent education first
 main$ses_composite <- main %>% select(income_median, avg_parentedu) %>% scale(.) %>% rowMeans(., na.rm = T)
 
 #make categorical child aces
@@ -75,7 +75,7 @@ main_filt <- main %>% filter(., relMaxRMSMotion < 10 & fd_mean_avg < 1 & fd_perc
 main_filt <- main %>% filter(., pctVolsCensored< 0.5 & relMaxRMSMotion < 10 & fd_mean_avg < 1 & fd_perc_2mm_avg < 10 & totalSizet > 130 & totalUncensoredVols > 100)
 
 #criteria allyson suggests, not using different FD thresholds for censoring and for the % of volumes over a threshold that warrants subject exclusion
-main_filt <- main %>% filter(., fd_mean_avg < 1 & pctSpikesFD_avg < 0.3)
+main_filt <- main %>% filter(., fd_mean_avg < 1  & pctSpikesFD_avg < 0.3)
 
 #filter out only kids under 8
 main_under9 <- filter(main_filt, age_scan <=9)
@@ -88,6 +88,29 @@ main_filt$longitudinal_visit_num[is.na(main_filt$longitudinal_visit_num)] <- 1
 main_unique <- main_filt  %>% group_by(base_ID) %>% arrange(longitudinal) %>% filter(row_number() == 1)
 dim(main_unique)
 
+#Check differences between sample included and excluded 
+#remember to keep this person in the exclude sample, the participant with the glitter in her hair and artifact in rest
+main <- main %>% filter(.,ID!="sub-CBPD0020") 
+#criteria allyson suggests, not using different FD thresholds for censoring and for the % of volumes over a threshold that warrants subject exclusion
+main_excluded <- main %>% filter(., fd_mean_avg > 1  | pctSpikesFD_avg > 0.3)
+
+#take only the first data we have from a subject
+main_excluded$base_ID <- stri_split(main_excluded$record_id.y,fixed="_", simplify=T)[,1]
+main_excluded$longitudinal_visit_num[is.na(main_excluded$longitudinal_visit_num)] <- 1
+
+#only take one set of brain data from each participant, no matter the timepoint.
+main_exclude <- main_excluded  %>% group_by(base_ID) %>% arrange(longitudinal) %>% filter(row_number() == 1)
+dim(main_exclude)
+t.test(main_exclude$age_scan, main_unique$age_scanh); wilcox.test(main_exclude$age_scan, main_unique$age_scan)
+
+main_unique$matrix_reasoning_both <- ifelse(is.na(main_unique$wppsi_matrix_valid),main_unique$wisc_matrix_scaled,ifelse(main_unique$wppsi_matrix_valid==0,NA,main_unique$wppsi_matrix_scaled))
+main_unique$matrix_reasoning_both_raw <- ifelse(is.na(main_unique$wppsi_matrix_valid),main_unique$wisc_matrix_raw,ifelse(main_unique$wppsi_matrix_valid==0,NA,main_unique$wppsi_matrix_raw))
+main_unique$matrix_reasoning_both;main_unique$matrix_reasoning_both_raw
+main_exclude$matrix_reasoning_both <- ifelse(is.na(main_exclude$wppsi_matrix_valid),main_exclude$wisc_matrix_scaled,ifelse(main_exclude$wppsi_matrix_valid==0,NA,main_exclude$wppsi_matrix_scaled))
+main_exclude$matrix_reasoning_both_raw <- ifelse(is.na(main_exclude$wppsi_matrix_valid),main_exclude$wisc_matrix_raw,ifelse(main_exclude$wppsi_matrix_valid==0,NA,main_exclude$wppsi_matrix_raw))
+main_exclude$matrix_reasoning_both;main_exclude$matrix_reasoning_both_raw
+
+t.test(main_exclude$matrix_reasoning_both, main_unique$matrix_reasoning_both); wilcox.test(main_exclude$matrix_reasoning_both, main_unique$matrix_reasoning_both)
 # Load Replicate in Schaefer200 Data ---------------------------------------------------------------
 parcellation="schaefer200_"
 subjdata_dir="~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/subjectData/"
@@ -125,7 +148,7 @@ main_replicate <- main_replicate %>% dplyr::select(., -c(colorado_child_temperam
 #main_replicate <- main_replicate %>% select(.,-c(cbcl_18mo_admin:cbcl_6yr_complete))
 #main_replicate <- main_replicate %>% select(.,-c(has_diagnoses:letterword_identification_comple))
 
-main_replicate$avg_parentedu <- main_replicate %>% select(contains("_edu")) %>% rowMeans(., na.rm=T) #average parent education first
+main_replicate$avg_parentedu <- main_replicate %>% select(c("parent1_edu","parent2_edu")) %>% rowMeans(., na.rm=T) #average parent education first
 main_replicate$ses_composite <- main_replicate %>% select(income_median, avg_parentedu) %>% scale(.) %>% rowMeans(., na.rm = T)
 
 #make categorical child aces
@@ -193,7 +216,7 @@ covariates="~ age_scan+male+fd_mean_avg+avgweight+totalSizet+ses_composite+race2
 #main_unique <- dplyr::select(main_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
 #run and compare for multiple comparisons again
 m <- mclapply(names((dplyr::select(ungroup(main_unique),sys1to1:sys7to7))), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
-networks_ses_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_unique))$coefficients[8,4]},mc.cores=1)
+networks_ses_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_unique))$coefficients[7,4]},mc.cores=1)
 networks_ses_pvals <- as.data.frame(networks_ses_pvals)
 networks_ses_pvals <- t(networks_ses_pvals)
 networks_ses_pvals <- as.data.frame(networks_ses_pvals)
@@ -207,7 +230,7 @@ networks_ses_pvals_fdr
 #main_replicate_unique <- dplyr::select(main_replicate_unique, -c(sys2to1,sys3to1,sys3to2,sys4to1,sys4to2,sys4to3,sys5to1,sys5to2,sys5to3,sys5to4,sys6to1,sys6to2,sys6to3,sys6to4,sys6to5,sys7to1,sys7to2,sys7to3,sys7to4,sys7to5,sys7to6))
 #run and compare for multiple comparisons again
 m <- mclapply(names((dplyr::select(ungroup(main_unique),sys1to1:sys7to7))), function(sys) {as.formula(paste(sys, covariates, sep=""))},mc.cores=2)
-networks_ses_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_replicate_unique))$coefficients[8,4]},mc.cores=1)
+networks_ses_pvals <- mclapply(m, function(sys) { summary(lm(formula = sys,data=main_replicate_unique))$coefficients[7,4]},mc.cores=1)
 networks_ses_pvals <- as.data.frame(networks_ses_pvals)
 networks_ses_pvals <- t(networks_ses_pvals)
 networks_ses_pvals <- as.data.frame(networks_ses_pvals)
@@ -302,12 +325,12 @@ l <- gam(modul~s(ageAtScan1cent)+sex+avgweight+envSES, data=master, method = "RE
 #This is in the RMarkdown document.
 
 # Separate Networks and Effects of Age ------------------------------------
-networks <- dplyr::select(main_unique, sys1to1:sys7to7) 
+networks <- dplyr::select(main_unique, sys1to1:sys7to7) %>% ungroup()
 nets <- colnames(networks)
 #look at non-linear interaction between age and envSES 
 for (net in nets){
   name<-paste0("lm_",net)
-  formula<-formula(paste0(net, '~age_scan+male+fd_mean+avgweight+totalSizet'))
+  formula<-formula(paste0(net, '~age_scan+male+fd_mean_avg+avgweight+totalSizet'))
   assign(name, lm(formula, data=main_unique))
   #p_val[net] <- summary(name)$coefficients[2,4]
 }
