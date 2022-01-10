@@ -21,9 +21,13 @@ do
   #get thickness and surface area
   mri_segstats --annot ${subjid} ${hemi} ${annot_file} --i $SUBJECTS_DIR/${subjid}/surf/${hemi}.thickness --snr --sum ${SUBJECTS_DIR}/${subjid}/stats/${hemi}.schaefer400_7nets.thickness.stats
   mri_segstats --annot ${subjid} ${hemi} ${annot_file} --i $SUBJECTS_DIR/${subjid}/surf/${hemi}.area --accumulate --snr --sum ${SUBJECTS_DIR}/${subjid}/stats/${hemi}.schaefer400_7nets.surfarea.stats
-
   #when doing area or volume, use --accumulate flag to mri_segstats to get the total area or volume. Don't do with CT to get mean.
+
+  #without --accumulate for mean
+  #mri_segstats --annot ${subjid} ${hemi} ${annot_file} --i $SUBJECTS_DIR/${subjid}/surf/${hemi}.area --snr --sum ${SUBJECTS_DIR}/${subjid}/stats/${hemi}.schaefer400_7nets.surfarea.noaccumulate.stats
+
   done
+
 #else
   # echo it doesnt exist
   # echo ${subjid}
@@ -41,4 +45,8 @@ do
 aparcstats2table --subjects ${subjlist} --hemi ${hemi} --parc schaefer400_7nets.surfarea --meas area --tablefile ${SUBJECTS_DIR}/schaefer400_${hemi}_surfarea_stats.txt --skip
 asegstats2table --subjects ${subjlist} --statsfile ${hemi}.schaefer400_7nets.thickness.stats --meas mean --tablefile ${SUBJECTS_DIR}/schaefer400_${hemi}_thickness_stats.txt --skip
 #for some reason aparcstats2table didn't work for thickness, so use asegstats2table
+
+#no --accumulate flag
+#asegstats2table --subjects ${subjlist} --statsfile ${hemi}.schaefer400_7nets.surfarea.noaccumulate.stats --meas mean --tablefile ${SUBJECTS_DIR}/schaefer400_${hemi}_surfarea_noaccumulate_stats.txt --skip
+
 done
