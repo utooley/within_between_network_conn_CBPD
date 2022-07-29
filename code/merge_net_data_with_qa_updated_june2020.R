@@ -9,21 +9,21 @@ library(R.matlab)
 run="both"
 parcellations=c("schaefer400_","schaefer200_")
 for (parcellation in parcellations){
-  #parcellation="schaefer200_"
+  parcellation="schaefer400_"
   
 # Loop through each pipeline ----------------------------------------------
 #pipelines=c('nogsr_spkreg_fd0.5dvars1.75_drpvls','gsr_spkreg_fd0.5dvars1.75_drpvls', "gsr_censor_5contig_fd0.5dvars1.75_drpvls", "gsr_censor_5contig_fd1.25dvars2_drpvls", "nogsr_spkreg_fd1.25dvars2_drpvls")
 pipelines=c('gsr_spkreg_fd0.5dvars1.75_drpvls', 'nogsr_spkreg_fd0.5dvars1.75_drpvls', "nogsr_spkreg_fd1.25dvars2_drpvls")
 for (pipeline in pipelines){
-#pipeline= "nogsr_spkreg_fd1.25dvars2_drpvls"
+pipeline= "gsr_spkreg_fd0.25dvars1.75_drpvls"
 
 # SETUP -------------------------------------------------------------------
 #Cluster mounted locally on personal computer
-netdatadir=paste0("/data/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/", pipeline)
+netdatadir=paste0("~/cbica/home/tooleyu//projects/in_progress/within_between_network_conn_CBPD/data/imageData/", pipeline)
 localnetdatadir=paste0("/Users/utooley/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/", pipeline)
-sublistdir="/data/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists/"
-qadir="/data/picsl/mackey_group/BPD/CBPD_bids/derivatives/mriqc_fd_2_mm/"
-xcpdir=paste0("/data/picsl/mackey_group/BPD/CBPD_bids/derivatives/xcpEngine_", pipeline)
+sublistdir="~/cbica/home/tooleyu//projects/in_progress/within_between_network_conn_CBPD/data/subjectLists/"
+qadir="~/cbica/projects/cbpd_main_data/CBPD_bids_crosssectional//derivatives/mriqc_fd_2_mm/"
+xcpdir=paste0("~/cbica/projects/cbpd_main_data/CBPD_bids_crosssectional//derivatives/xcpEngine_", pipeline)
 analysis_dir="~/Documents/bassett_lab/tooleyEnviNetworks/analyses/"
 
 # Read in files -----------------------------------------------------------
@@ -36,8 +36,8 @@ file1 <- read.csv(paste0(netdatadir,"/n125_long_inc_within_between_Yeo7_avgruns_
 # }
 #MRIQC Data
 #file2<-read.table(paste0(qadir, "group_bold.tsv"), sep = '\t', header = TRUE)
-qafile<- read.csv(paste0(netdatadir, "/n125_within_between_Yeo7_", parcellation, pipeline, "_QA.csv"))
-qa1mm <- read.table("/data/picsl/mackey_group/CBPD_OLD/CBPD_bids/derivatives/mriqc_fd_1_mm/group_bold.tsv", header=TRUE)
+qafile<- read.csv(paste0(netdatadir, "/n125_within_between_Yeo7_", parcellation, pipeline, "_QA_revisions.csv"))
+qa1mm <- read.table("~/cbica/projects/cbpd_main_data/CBPD_bids/derivatives/mriqc_fd_1_mm/group_bold.tsv", header=TRUE)
 #subject list
 subjlist <- read.csv(paste0(sublistdir, "n125_cross_sect_one_or_more_nonsleep_rest_10mm_max_RMS_perrun_at_least_130_vols.csv"), header = TRUE)
 #xcp quality data, if it's the older fixed one or in a newer folder.
@@ -123,24 +123,24 @@ write.csv(master,paste0(localnetdatadir,"/n125_long_inc_within_between_Yeo7_avgr
 # Just QA data for MATLAB, do this first -------------------------------------------------
 parcellations=c("schaefer400_","schaefer200_")
 for (parcellation in parcellations){
-  pipeline="nogsr_spkreg_fd1.25dvars2_drpvls"
+  pipeline="gsr_spkreg_fd0.25dvars1.75_drpvls"
   #pipelines=c('nogsr_spkreg_fd0.5dvars1.75_drpvls','gsr_spkreg_fd0.5dvars1.75_drpvls', "gsr_censor_5contig_fd0.5dvars1.75_drpvls", "gsr_censor_5contig_fd1.25dvars2_drpvls", "nogsr_spkreg_fd1.25dvars2_drpvls")
-  pipelines=c("nogsr_spkreg_fd1.25dvars2_drpvls",'gsr_spkreg_fd0.5dvars1.75_drpvls','nogsr_spkreg_fd0.5dvars1.75_drpvls')
-  for (pipeline in pipelines){
-    netdatadir=paste0("/data/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/imageData/", pipeline)
+  #pipelines=c("nogsr_spkreg_fd1.25dvars2_drpvls",'gsr_spkreg_fd0.5dvars1.75_drpvls','nogsr_spkreg_fd0.5dvars1.75_drpvls')
+  #for (pipeline in pipelines){
+    netdatadir=paste0("~/cbica/home/tooleyu//projects/in_progress/within_between_network_conn_CBPD/data/imageData/", pipeline)
     localnetdatadir=paste0("/Users/utooley/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/", pipeline)
-    sublistdir="/data/jux/mackey_group/Ursula/projects/in_progress/within_between_network_conn_CBPD/data/subjectLists/"
-    qadir="/data/picsl/mackey_group/BPD/CBPD_bids/derivatives/mriqc_fd_2_mm/"
-    xcpdir=paste0("/data/picsl/mackey_group/BPD/CBPD_bids/derivatives/xcpEngine_", pipeline)
+    sublistdir="~/cbica/home/tooleyu//projects/in_progress/within_between_network_conn_CBPD/data/subjectLists/"
+    qadir="~/cbica/projects/cbpd_main_data/CBPD_bids_crosssectional//derivatives/mriqc_fd_2_mm/"
+    xcpdir=paste0("~/cbica/projects/cbpd_main_data/CBPD_bids_crosssectional//derivatives/xcpEngine_", pipeline)
     #MRIQC Data
     file2<-read.table(paste0(qadir, "group_bold.tsv"), sep = '\t', header = TRUE)
     #subject list
-    subjlist <- read.csv(paste0(sublistdir, "n150_cross_sect_one_or_more_nonsleep_rest_at_least_130_vols.csv"), header = TRUE)
+    subjlist <- read.csv(paste0(sublistdir, "n125_fd0.25_pipeline_reprocess_revisions_for_xcpEngine.csv"), header = TRUE)
     #xcp quality data, if it's the older fixed one or in a newer folder.
-    if (file.exists(paste0(xcpdir, "/XCP_QAVARS_fixed.csv"))) {
-      qa2 <- read.csv(paste0(xcpdir, "/XCP_QAVARS_fixed.csv")) 
+    if (file.exists(paste0(xcpdir, "/XCP_QAVARS_xcpEngine_", pipeline, "_fixed.csv"))) {
+      qa2 <- read.csv(paste0(xcpdir, "/XCP_QAVARS_xcpEngine_",pipeline, "_fixed.csv")) 
     } else {
-      qa2 <- read.csv(paste0(xcpdir, "/XCP_QAVARS.csv")) 
+      qa2 <- read.csv(paste0(xcpdir, "/XCP_QAVARS_xcpEngine_", pipeline, ".csv")) 
     }
     #subjlist<-dplyr::rename(subjlist, run=id1)
     #subjlist<-dplyr::rename(subjlist, ID=id0)
@@ -149,7 +149,8 @@ for (parcellation in parcellations){
     #subjlist <- dplyr::select(subjlist, -img)
     file2<-dplyr::rename(file2, fd_num_2mm=fd_num)
     #make ID a character vector
-    subjlist$ID <- as.character(subjlist$ID)
+    subjlist$ID <- as.character(subjlist$id0)
+    subjlist$run <- as.character(subjlist$id1)
     #split QA file ID name on underscores and extract run number
     file2$ID <-  stri_split_fixed(file2$bids_name,"_", simplify = TRUE)[,1]
     file2$scan_type <-stri_split_fixed(file2$bids_name,"_", simplify = TRUE)[,2] 
@@ -176,8 +177,8 @@ for (parcellation in parcellations){
     #create directory if it doesn't already exist
     dir.create(localnetdatadir)
     dir.create(netdatadir)
-    write.csv(master,paste0(netdatadir,"/n125_within_between_Yeo7_",parcellation,pipeline,"_QA.csv"))
-    write.csv(master,paste0(localnetdatadir,"/n125_within_between_Yeo7_",parcellation,pipeline,"_QA.csv"))
+    write.csv(master,paste0(netdatadir,"/n125_within_between_Yeo7_",parcellation,pipeline,"_QA_revisions.csv"))
+    write.csv(master,paste0(localnetdatadir,"/n125_within_between_Yeo7_",parcellation,pipeline,"_QA_revisions.csv"))
   }
 }
 

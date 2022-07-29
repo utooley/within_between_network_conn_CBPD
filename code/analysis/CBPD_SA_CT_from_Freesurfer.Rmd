@@ -259,6 +259,9 @@ vis.data.on.fsaverage(subjects_dir, 'fsaverage',surface = "inflated",lh, rh, mak
 
 # Spin tests
 
+If you want to do vertex-wise spin tests, look at https://github.com/spin-test/spin-test
+For parcel-wise spin tests i used the Vasa code, from here: https://github.com/frantisekvasa/rotate_parcellation
+
 ## Age on CT from Freesurfer--masked significant clusters, by parcel
 ```{age on CT linear}
 source("~/Documents/tools/rotate_parcellation/R/rotate.parcellation.R")

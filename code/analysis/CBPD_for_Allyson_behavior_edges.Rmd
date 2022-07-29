@@ -1,0 +1,376 @@
+---
+title: "CBPD Parcel-Level Restuls"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(stats)
+library(parallel)
+library(lm.beta)
+library(packrat)
+library(summarytools)
+library(visreg)
+library(mgcv)
+library(RLRsim)
+library(GGally)
+library(stringr)
+library(tidyverse)
+library(data.table)
+library(bigmemory)
+library(biglm)
+#load the .RDS file
+pipeline='nogsr_spkreg_fd0.5dvars1.75_drpvls'
+pipeline="nogsr_spkreg_fd1.25dvars2_drpvls"
+pipeline='gsr_spkreg_fd0.5dvars1.75_drpvls'
+network_dir=paste0("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/",pipeline)
+
+load(paste0(network_dir,"/CBPD_n92_schaefer400_allruns.Rdata"))
+```
+
+```{r brain plotting setup, include=FALSE, echo=FALSE}
+library(fsbrain) #this may not work if you're editing the script directly on the cluster...
+library(freesurferformats)
+#rearrange the order of the brains in the T9 view of fsbrain
+source("~/Documents/tools/fsbrain_fix_t9.R")
+environment(brainview.t9) <- asNamespace('fsbrain')
+assignInNamespace("brainview.t9", brainview.t9, ns = "fsbrain")
+subjects_dir = "/Users/utooley/Documents/tools/CBIG/stable_projects/brain_parcellation/Schaefer2018_LocalGlobal/Parcellations/FreeSurfer5.3/";
+subject_id = 'fsaverage';       # for functions which use one subject only
+atlas='Schaefer2018_400Parcels_7Networks_order'
+
+#Get the Schaefer atlas region names
+schaefer_atlas_region_names_lh = get.atlas.region.names(atlas, template_subjects_dir = subjects_dir,template_subject=subject_id, hemi="lh");
+schaefer_atlas_region_names_rh = get.atlas.region.names(atlas, template_subjects_dir = subjects_dir,template_subject=subject_id, hemi="rh");
+
+output_image_directory="~/Documents/projects/in_progress/within_between_network_conn_CBPD/output/figures/brains/"
+rgloptions=list("windowRect"=c(50,50,1000,1000));
+```
+
+## Load data
+```{r load parcel data, include=FALSE, echo=FALSE}
+pipeline='gsr_spkreg_fd0.5dvars1.75_drpvls'
+edges_dir=paste0("/cbica/home/tooleyu/projects/in_progress/within_between_network_conn_CBPD/data/imageData/",pipeline,"/schaefer400zNetworks_avg/")
+#make a huge dataframe of subjects x edges
+
+# files <- data.frame(list.files(edges_dir)) %>% filter( list.files.edges_dir. %in% paste0(main_unique$ID, "_schaefer400MNI_zavgnetwork.txt")); files$list.files.edges_dir. <- paste0(edges_dir,files$list.files.edges_dir.)
+# vect <- matrix(nrow = dim(main_unique)[1], ncol = 79801)
+# for (i in 1:dim(main_unique)[1]){
+# mat <- data.frame(read_csv(file =paste0(edges_dir,main_unique$ID[i], "_schaefer400MNI_zavgnetwork.txt"), col_names = F))
+# vect[i,2:79801]<-mat[lower.tri(mat)] #read out the lower triangle from matrix by row
+# }
+# 
+# #code to read back into a 400 x 400 matrix! This works correctly.
+# vec<- mat[lower.tri(mat)]
+# goback <- matrix(nrow = 400, ncol=400)
+# goback[lower.tri(goback, diag=FALSE)] <- vec
+# goback <- t(goback)
+# goback
+# 
+# saveRDS(vect,"~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/n92_all_edges.Rdata")
+
+#Read back in the matrix of edges, so you don't create every time.
+#n90_all_edges<- readRDS("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/n90_all_edges.Rds");n90_all_edges <- n90_all_edges[,-1]
+n92_all_edges<- readRDS("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/n92_all_edges.RData");n92_all_edges <- n92_all_edges[,-1]
+```
+
+## Run edgwise linear models for SES
+Run linear models on edges, controlling for age, sex and average motion.
+```{r edgewise linear models}
+#multi-core apply the linear model across the matrix of edges, get age pvals 
+edgewise_ses_pvals<- mclapply(1:79800, function(x) { summary(lm(n92_all_edges[,x]~main_unique$ses_composite+main_unique$age_scan+main_unique$male+main_unique$fd_mean_avg+main_unique$avgweight+main_unique$totalSizet))$coef[2,4]}, mc.cores = 4)
+edgewise_ses_pvals <- unlist(edgewise_ses_pvals)
+edgewise_ses_pvals_fdr <- cbind(edgewise_ses_pvals,p.adjust(edgewise_ses_pvals,method = "fdr"))
+
+#get age betas
+edgewise_ses_betas<- mclapply(1:79800, function(x) { lm.beta(lm(n92_all_edges[,x]~main_unique$ses_composite+main_unique$age_scan+main_unique$male+main_unique$fd_mean_avg+main_unique$avgweight+main_unique$totalSizet))$standardized.coefficients[[2]]}, mc.cores = 4)
+edgewise_ses_betas <- unlist(edgewise_ses_betas)
+#save for reloading in future
+save(edgewise_ses_pvals_fdr, edgewise_ses_betas,file= "~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/edgewise_ses_effects_all_cov_n92.Rdata")
+
+#load back in edge effects
+load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/edgewise_ses_effects_all_cov_n92.Rdata")
+
+#code to read back into a 400 x 400 matrix! This works correctly.
+# vec<- mat[lower.tri(mat)]
+edge_ses_pvals_mat <- matrix(nrow = 400, ncol=400)
+edge_ses_pvals_mat[lower.tri(edge_ses_pvals_mat, diag=FALSE)] <- edgewise_ses_pvals_fdr[,1] #take uncorrected p-values for now
+#copy lower triangle to upper triangle
+edge_ses_pvals_mat[upper.tri(edge_ses_pvals_mat)] <- t(edge_ses_pvals_mat)[upper.tri(edge_ses_pvals_mat)]
+edge_ses_betas_mat <- matrix(nrow = 400, ncol=400)
+edge_ses_betas_mat[lower.tri(edge_ses_betas_mat, diag=FALSE)] <- edgewise_ses_betas
+edge_ses_betas_mat[upper.tri( edge_ses_betas_mat)] <- t(edge_ses_betas_mat)[upper.tri( edge_ses_betas_mat)]
+```
+
+## Plot pvals on brain.
+
+```{r brain plotting initial, include=FALSE, echo=FALSE}
+#Use different pval thresholds and plot parcels that have age-sig edges at that threshold
+pvalues=c(0.01,0.001,0.0001,0.00001)
+pvalue=0.001
+#Use different pval thresholds and plot parcels that have age-nonlin-sig edges at that threshold
+pos_edges <- edge_ses_pvals_mat;pos_edges[edge_ses_betas_mat<0] <- NA
+neg_edges <- edge_ses_pvals_mat;neg_edges[edge_ses_betas_mat>0] <- NA
+for (pvalue in pvalues){
+indices <- which(neg_edges<pvalue, arr.ind = T) #indices of edges that have age effects  below a pval
+l <- data.frame(table(indices)) #for each parcel, how many age-significant edges does it have at a given pval thresh
+values <- vector(mode = "double", 400)
+for (i in 1:400){
+values[as.numeric(as.character(l$indices[i]))] <- l$Freq[i]#replace the indices in values with the num of sig edges from that parcel in the table
+}
+print(max(values))
+values <- values/2 #because we indexed the full matrix, there are duplicates for each edge
+#values <- ifelse(values>num_edges,1,0)
+#which(values>num_edges)
+num_of_sig_age_edges_lh=as.list(setNames(c(0, values[1:200]), schaefer_atlas_region_names_lh))
+num_of_sig_age_edges_rh=as.list(setNames(c(0, values[201:400]), schaefer_atlas_region_names_rh))
+#colormap
+colFn_diverging = colorRampPalette(c("white","#3602D9"));makecmap_options=list('colFn'=colFn_diverging) 
+rglactions=list("snapshot_png"=paste0(output_image_directory,"ses_neg_pvals_", pvalue,"regions.png"),'shift_hemis_apart'=T) #purple="#7502E3", red=#E0011C, blue=#3602D9
+vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  num_of_sig_age_edges_lh, 
+                             num_of_sig_age_edges_rh, makecmap_options = makecmap_options, "inflated", views="t9", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
+}
+
+```
+
+## Run edgwise linear models for CFG: U_united
+Run linear models on edges, controlling for age, sex and average motion.
+Look at two measures on the CFG - unique.shapes and U_united?
+```{r edgewise linear models CFG}
+#multi-core apply the linear model across the matrix of edges, get age pvals 
+edgewise_cfg_uunited_pvals<- mclapply(1:79800, function(x) { summary(lm(n92_all_edges[,x]~main_unique$U_united+main_unique$age_scan+main_unique$male+main_unique$fd_mean_avg+main_unique$avgweight+main_unique$totalSizet))$coef[2,4]}, mc.cores = 4)
+edgewise_cfg_uunited_pvals <- unlist(edgewise_cfg_uunited_pvals)
+edgewise_cfg_uunited_pvals_fdr <- cbind(edgewise_cfg_uunited_pvals,p.adjust(edgewise_cfg_uunited_pvals,method = "fdr"))
+#get age betas
+edgewise_cfg_uunited_betas<- mclapply(1:79800, function(x) { lm.beta(lm(n92_all_edges[,x]~main_unique$U_united+main_unique$age_scan+main_unique$male+main_unique$fd_mean_avg+main_unique$avgweight+main_unique$totalSizet))$standardized.coefficients[[2]]}, mc.cores = 4)
+edgewise_cfg_uunited_betas <- unlist(edgewise_cfg_uunited_betas)
+#save for reloading in future
+save(edgewise_cfg_uunited_pvals_fdr, edgewise_cfg_uunited_betas,file= "~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/edgewise_cfg_uunited_effects_all_cov_n92.Rdata")
+
+#load back in edge cfg effects
+load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/edgewise_cfg_uunited_effects_all_cov_n92.Rdata")
+
+#code to read back into a 400 x 400 matrix! This works correctly.
+# vec<- mat[lower.tri(mat)]
+edge_cfg_uunited_pvals_mat <- matrix(nrow = 400, ncol=400)
+edge_cfg_uunited_pvals_mat[lower.tri(edge_cfg_uunited_pvals_mat, diag=FALSE)] <- edgewise_cfg_uunited_pvals_fdr[,1] #take uncorrected p-values for now
+#copy lower triangle to upper triangle
+edge_cfg_uunited_pvals_mat[upper.tri(edge_cfg_uunited_pvals_mat)] <- t(edge_cfg_uunited_pvals_mat)[upper.tri(edge_cfg_uunited_pvals_mat)]
+edge_cfg_uunited_betas_mat <- matrix(nrow = 400, ncol=400)
+edge_cfg_uunited_betas_mat[lower.tri(edge_cfg_uunited_betas_mat, diag=FALSE)] <- edgewise_cfg_uunited_betas
+edge_cfg_uunited_betas_mat[upper.tri( edge_cfg_uunited_betas_mat)] <- t(edge_cfg_uunited_betas_mat)[upper.tri( edge_cfg_uunited_betas_mat)]
+```
+
+## Plot pvals on brain.
+
+```{r brain plotting initial, include=FALSE, echo=FALSE}
+#Use different pval thresholds and plot parcels that have age-sig edges at that threshold
+pvalues=c(0.01,0.001,0.0001)
+pvalue=0.001
+#Use different pval thresholds and plot parcels that have age-nonlin-sig edges at that threshold
+pos_edges <- edge_cfg_uunited_pvals_mat;pos_edges[edge_cfg_uunited_betas_mat<0] <- NA
+neg_edges <- edge_cfg_uunited_pvals_mat;neg_edges[edge_cfg_uunited_betas_mat>0] <- NA
+for (pvalue in pvalues){
+indices <- which(pos_edges<pvalue, arr.ind = T) #indices of edges that have age effects  below a pval
+l <- data.frame(table(indices)) #for each parcel, how many age-significant edges does it have at a given pval thresh
+values <- vector(mode = "double", 400)
+for (i in 1:400){
+values[as.numeric(as.character(l$indices[i]))] <- l$Freq[i]#replace the indices in values with the num of sig edges from that parcel in the table
+}
+print(max(values))
+values <- values/2 #because we indexed the full matrix, there are duplicates for each edge
+#values <- ifelse(values>num_edges,1,0)
+#which(values>num_edges)
+num_of_sig_age_edges_lh=as.list(setNames(c(0, values[1:200]), schaefer_atlas_region_names_lh))
+num_of_sig_age_edges_rh=as.list(setNames(c(0, values[201:400]), schaefer_atlas_region_names_rh))
+#colormap
+colFn_diverging = colorRampPalette(c("white","#E0011C"));makecmap_options=list('colFn'=colFn_diverging) 
+rglactions=list("snapshot_png"=paste0(output_image_directory,"cfg_uunited_pos_pvals_", pvalue,"regions.png"),'shift_hemis_apart'=T) #purple="#7502E3", red=#E0011C, blue=#3602D9
+vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  num_of_sig_age_edges_lh, 
+                             num_of_sig_age_edges_rh, makecmap_options = makecmap_options, "inflated", views="t9", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
+}
+```
+
+## Run edgwise linear models for CFG: unique.shapes
+Run linear models on edges, controlling for age, sex and average motion.
+```{r edgewise linear models CFG}
+#multi-core apply the linear model across the matrix of edges, get age pvals 
+edgewise_cfg_uniqshps_pvals<- mclapply(1:79800, function(x) { summary(lm(n92_all_edges[,x]~main_unique$unique.shapes+main_unique$age_scan+main_unique$male+main_unique$fd_mean_avg+main_unique$avgweight+main_unique$totalSizet))$coef[2,4]}, mc.cores = 4)
+edgewise_cfg_uniqshps_pvals <- unlist(edgewise_cfg_uniqshps_pvals)
+edgewise_cfg_uniqshps_pvals_fdr <- cbind(edgewise_cfg_uniqshps_pvals,p.adjust(edgewise_cfg_uniqshps_pvals,method = "fdr"))
+#get age betas
+edgewise_cfg_uniqshps_betas<- mclapply(1:79800, function(x) { lm.beta(lm(n92_all_edges[,x]~main_unique$unique.shapes+main_unique$age_scan+main_unique$male+main_unique$fd_mean_avg+main_unique$avgweight+main_unique$totalSizet))$standardized.coefficients[[2]]}, mc.cores = 4)
+edgewise_cfg_uniqshps_betas <- unlist(edgewise_cfg_uniqshps_betas)
+#save for reloading in future
+save(edgewise_cfg_uniqshps_pvals_fdr, edgewise_cfg_uniqshps_betas,file= "~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/edgewise_cfg_uniqshps_effects_all_cov_n92.Rdata")
+
+#load back in edge cfg effects
+load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/edgewise_cfg_uniqshps_effects_all_cov_n92.Rdata")
+
+#code to read back into a 400 x 400 matrix! This works correctly.
+# vec<- mat[lower.tri(mat)]
+edge_cfg_uniqshps_pvals_mat <- matrix(nrow = 400, ncol=400)
+edge_cfg_uniqshps_pvals_mat[lower.tri(edge_cfg_uniqshps_pvals_mat, diag=FALSE)] <- edgewise_cfg_uniqshps_pvals_fdr[,1] #take uncorrected p-values for now
+#copy lower triangle to upper triangle
+edge_cfg_uniqshps_pvals_mat[upper.tri(edge_cfg_uniqshps_pvals_mat)] <- t(edge_cfg_uniqshps_pvals_mat)[upper.tri(edge_cfg_uniqshps_pvals_mat)]
+edge_cfg_uniqshps_betas_mat <- matrix(nrow = 400, ncol=400)
+edge_cfg_uniqshps_betas_mat[lower.tri(edge_cfg_uniqshps_betas_mat, diag=FALSE)] <- edgewise_cfg_uniqshps_betas
+edge_cfg_uniqshps_betas_mat[upper.tri( edge_cfg_uniqshps_betas_mat)] <- t(edge_cfg_uniqshps_betas_mat)[upper.tri( edge_cfg_uniqshps_betas_mat)]
+```
+
+## Plot pvals on brain.
+
+```{r brain plotting initial, include=FALSE, echo=FALSE}
+#Use different pval thresholds and plot parcels that have age-sig edges at that threshold
+pvalues=c(0.01,0.001,0.0001)
+pvalue=0.001
+#Use different pval thresholds and plot parcels that have age-nonlin-sig edges at that threshold
+pos_edges <- edge_cfg_uniqshps_pvals_mat;pos_edges[edge_cfg_uniqshps_betas_mat<0] <- NA
+neg_edges <- edge_cfg_uniqshps_pvals_mat;neg_edges[edge_cfg_uniqshps_betas_mat>0] <- NA
+for (pvalue in pvalues){
+indices <- which(neg_edges<pvalue, arr.ind = T) #indices of edges that have age effects  below a pval
+l <- data.frame(table(indices)) #for each parcel, how many age-significant edges does it have at a given pval thresh
+values <- vector(mode = "double", 400)
+for (i in 1:400){
+values[as.numeric(as.character(l$indices[i]))] <- l$Freq[i]#replace the indices in values with the num of sig edges from that parcel in the table
+}
+print(max(values))
+values <- values/2 #because we indexed the full matrix, there are duplicates for each edge
+#values <- ifelse(values>num_edges,1,0)
+#which(values>num_edges)
+num_of_sig_age_edges_lh=as.list(setNames(c(0, values[1:200]), schaefer_atlas_region_names_lh))
+num_of_sig_age_edges_rh=as.list(setNames(c(0, values[201:400]), schaefer_atlas_region_names_rh))
+#colormap
+colFn_diverging = colorRampPalette(c("white","#3602D9"));makecmap_options=list('colFn'=colFn_diverging) 
+rglactions=list("snapshot_png"=paste0(output_image_directory,"cfg_uniqshps_neg_pvals_", pvalue,"regions.png"),'shift_hemis_apart'=T) #purple="#7502E3", red=#E0011C, blue=#3602D9
+vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  num_of_sig_age_edges_lh, 
+                             num_of_sig_age_edges_rh, makecmap_options = makecmap_options, "inflated", views="t9", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
+}
+```
+
+#What do these edges CFG unique.shapes look like pattern-wise?
+```{r CFG unique.shapes plots}
+library(ggplot2)
+library(gridExtra)
+sum(edgewise_cfg_uniqshps_pvals_fdr[,1]<0.0001)/length(edgewise_cfg_uniqshps_pvals_fdr[,1]) #percentage
+#make a big plot of them
+par(mfrow=c(4,4))
+myplots <- lapply(which(edgewise_cfg_uniqshps_pvals_fdr[,1]<0.0001), function(x) {ggplot(data=cbind(n92_all_edges[,x],main_unique), aes(x = unique.shapes,y = ...1)) +theme_bw() +labs(x = "CFG Unique.shapes", y = "Edge connectivity")+ geom_point(size = .9) +geom_smooth(method = "lm")+ theme(legend.position = "none")})
+#arrange in a grid because par doesn't work with ggplot2
+gridExtra::grid.arrange( grobs = myplots, nrow = 4)
+
+#make sure these are sig edges
+lapply(which(edgewise_cfg_uniqshps_pvals_fdr[,1]<0.0001), function(x) {summary(lm(n92_all_edges[,x]~main_unique$age_scan+main_unique$male+main_unique$fd_mean_avg+main_unique$avgweight+main_unique$totalSizet+main_unique$unique.shapes))})
+
+#which systems are these?
+#read in node identity and order
+community_assign <- read.delim("~/Documents/tools/parcellations/schaefer400x7CommunityAffiliation.1D", header = F)
+#communities <- paste0("comm",community_assign$V1) %>% car::recode(.,"'comm1'='Visual'; 'comm2'='Somatomotor' ; 'comm3'='Dorsal Attention';'comm4'='Ventral Attention';'comm5'='Limbic';'comm6'='Frontoparietal';'comm7'='Default'")
+communities <- paste0("comm",community_assign$V1) %>% car::recode(.,"'comm1'='VIS'; 'comm2'='SM' ; 'comm3'='DA';'comm4'='VA';'comm5'='LIM';'comm6'='FP';'comm7'='DM'")
+community_colors <- communities %>% car::recode(.,"'Visual'='#7B287E'; 'Somatomotor'='#5CA1C8' ; 'Dorsal Attention'='#0A9045';'Ventral Attention'='#C33AF8';'Limbic'='#dcf8a4';'Frontoparietal'='#EF9C23';'Default'='#E34A53'")
+
+# put pvalues back in matrix, but don't copy lower triangle to upper triangle
+edge_cfg_uniqshps_pvals_mat  <- matrix(nrow = 400, ncol=400)
+edge_cfg_uniqshps_pvals_mat [lower.tri(edge_cfg_uniqshps_pvals_mat , diag=FALSE)] <- edgewise_cfg_uniqshps_pvals_fdr[,1] #take uncorrected p-values for now
+length(which(edgewise_cfg_uniqshps_pvals_fdr[,1]<0.0001))
+#rows and cols
+rownames(edge_cfg_uniqshps_pvals_mat ) <- communities;colnames(edge_cfg_uniqshps_pvals_mat ) <- communities
+edges <- which(edge_cfg_uniqshps_pvals_mat < 0.0001, arr.ind = T)
+rownames(edge_cfg_uniqshps_pvals_mat [edges[,1],])
+colnames(edge_cfg_uniqshps_pvals_mat [, edges[,2]])
+paste0(rownames(edge_cfg_uniqshps_pvals_mat [edges[,1],]),"-",colnames(edge_cfg_uniqshps_pvals_mat [, edges[,2]]))
+```
+
+## Run edgwise linear models for age x SES
+Run linear models on edges, controlling for age, sex and average motion.
+```{r edgewise linear models age x SES}
+#multi-core apply the linear model across the matrix of edges, take the last p-value and coefficient (bc interaction)
+edgewise_agexses_pvals<- mclapply(1:79800, function(x) { summary(lm(n92_all_edges[,x]~main_unique$age_scan*main_unique$ses_composite+main_unique$age_scan+main_unique$male+main_unique$fd_mean_avg+main_unique$avgweight+main_unique$totalSizet))$coef[8,4]}, mc.cores = 4)
+edgewise_agexses_pvals <- unlist(edgewise_agexses_pvals)
+edgewise_agexses_pvals_fdr <- cbind(edgewise_agexses_pvals,p.adjust(edgewise_agexses_pvals,method = "fdr"))
+#get age betas
+edgewise_agexses_betas<- mclapply(1:79800, function(x) { lm.beta(lm(n92_all_edges[,x]~main_unique$age_scan*main_unique$ses_composite+main_unique$age_scan+main_unique$male+main_unique$fd_mean_avg+main_unique$avgweight+main_unique$totalSizet))$standardized.coefficients[[8]]}, mc.cores = 4)
+edgewise_agexses_betas <- unlist(edgewise_agexses_betas)
+#save for reloading in future
+save(edgewise_agexses_pvals_fdr,edgewise_agexses_pvals, edgewise_agexses_betas,file= "~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/edgewise_agexses_effects_all_cov_n92_2.Rdata")
+
+#load back in edge effects
+load("~/Documents/projects/in_progress/within_between_network_conn_CBPD/data/imageData/gsr_spkreg_fd0.5dvars1.75_drpvls/edgewise_agexses_effects_all_cov_n92.Rdata")
+
+#code to read back into a 400 x 400 matrix! This works correctly.
+# vec<- mat[lower.tri(mat)]
+edge_agexses_pvals_mat <- matrix(nrow = 400, ncol=400)
+edge_agexses_pvals_mat[lower.tri(edge_agexses_pvals_mat, diag=FALSE)] <- edgewise_agexses_pvals_fdr[,1] #take uncorrected p-values for now
+#copy lower triangle to upper triangle
+edge_agexses_pvals_mat[upper.tri(edge_agexses_pvals_mat)] <- t(edge_agexses_pvals_mat)[upper.tri(edge_agexses_pvals_mat)]
+edge_agexses_betas_mat <- matrix(nrow = 400, ncol=400)
+edge_agexses_betas_mat[lower.tri(edge_agexses_betas_mat, diag=FALSE)] <- edgewise_agexses_betas
+edge_agexses_betas_mat[upper.tri( edge_agexses_betas_mat)] <- t(edge_agexses_betas_mat)[upper.tri( edge_agexses_betas_mat)]
+```
+
+## Plot pvals on brain.
+
+```{r brain plotting initial, include=FALSE, echo=FALSE}
+#Use different pval thresholds and plot parcels that have age-sig edges at that threshold
+pvalues=c(0.01,0.001,0.0001)
+pvalue=0.001
+#Use different pval thresholds and plot parcels that have age-nonlin-sig edges at that threshold
+pos_edges <- edge_agexses_pvals_mat;pos_edges[edge_agexses_betas_mat<0] <- NA
+neg_edges <- edge_agexses_pvals_mat;neg_edges[edge_agexses_betas_mat>0] <- NA
+for (pvalue in pvalues){
+indices <- which(edge_agexses_pvals_mat<pvalue, arr.ind = T) #indices of edges that have age effects  below a pval
+l <- data.frame(table(indices)) #for each parcel, how many age-significant edges does it have at a given pval thresh
+values <- vector(mode = "double", 400)
+for (i in 1:400){
+values[as.numeric(as.character(l$indices[i]))] <- l$Freq[i]#replace the indices in values with the num of sig edges from that parcel in the table
+}
+print(max(values))
+values <- values/2 #because we indexed the full matrix, there are duplicates for each edge
+#values <- ifelse(values>num_edges,1,0)
+#which(values>num_edges)
+num_of_sig_age_edges_lh=as.list(setNames(c(0, values[1:200]), schaefer_atlas_region_names_lh))
+num_of_sig_age_edges_rh=as.list(setNames(c(0, values[201:400]), schaefer_atlas_region_names_rh))
+#colormap
+colFn_diverging = colorRampPalette(c("white","#7502E3"));makecmap_options=list('colFn'=colFn_diverging) 
+rglactions=list("snapshot_png"=paste0(output_image_directory,"agexses_pvals_", pvalue,"regions.png"),'shift_hemis_apart'=T) #purple="#7502E3", red=#E0011C, blue=#3602D9
+vis.region.values.on.subject(subjects_dir, 'fsaverage6', 'Schaefer2018_400Parcels_7Networks_order',  num_of_sig_age_edges_lh, 
+                             num_of_sig_age_edges_rh, makecmap_options = makecmap_options, "inflated", views="t9", draw_colorbar = T, rgloptions = rgloptions, rglactions = rglactions)
+}
+
+```
+
+
+#What do these edges age x SES look like pattern-wise?
+```{r age x SES plots}
+library(ggplot2)
+library(gridExtra)
+sum(edgewise_agexses_pvals_fdr[,1]<0.001)/length(edgewise_agexses_pvals_fdr[,1]) #percentage
+#make a big plot of them
+par(mfrow=c(4,3))
+myplots <- lapply(which(edgewise_agexses_pvals_fdr[,1]<0.0001), function(x) {ggplot(data=cbind(n92_all_edges[,x],main_unique), aes(x = age_scan,y = ...1,color = factor(ses_composite>-0.3507257))) +theme_bw() +labs(x = "Age", y = "Edge connectivity", color = "SES > median SES")+ geom_point(size = .9) +geom_smooth(method = "lm",)+ theme(legend.position = "none")})
+#arrange in a grid because par doesn't work with ggplot2
+gridExtra::grid.arrange( grobs = myplots, nrow = 3)
+
+#make sure these are sig edges
+lapply(which(edgewise_agexses_pvals_fdr[,1]<0.0001), function(x) {summary(lm(n92_all_edges[,x]~main_unique$age_scan*main_unique$ses_composite+main_unique$age_scan+main_unique$male+main_unique$fd_mean_avg+main_unique$avgweight+main_unique$totalSizet))})
+
+#which systems are these?
+#read in node identity and order
+community_assign <- read.delim("~/Documents/tools/parcellations/schaefer400x7CommunityAffiliation.1D", header = F)
+#communities <- paste0("comm",community_assign$V1) %>% car::recode(.,"'comm1'='Visual'; 'comm2'='Somatomotor' ; 'comm3'='Dorsal Attention';'comm4'='Ventral Attention';'comm5'='Limbic';'comm6'='Frontoparietal';'comm7'='Default'")
+communities <- paste0("comm",community_assign$V1) %>% car::recode(.,"'comm1'='VIS'; 'comm2'='SM' ; 'comm3'='DA';'comm4'='VA';'comm5'='LIM';'comm6'='FP';'comm7'='DM'")
+community_colors <- communities %>% car::recode(.,"'Visual'='#7B287E'; 'Somatomotor'='#5CA1C8' ; 'Dorsal Attention'='#0A9045';'Ventral Attention'='#C33AF8';'Limbic'='#dcf8a4';'Frontoparietal'='#EF9C23';'Default'='#E34A53'")
+# don't copy lower triangle to upper triangle
+edge_agexses_pvals_mat <- matrix(nrow = 400, ncol=400)
+edge_agexses_pvals_mat[lower.tri(edge_agexses_pvals_mat, diag=FALSE)] <- edgewise_agexses_pvals_fdr[,1] #take uncorrected p-values for now
+which(edgewise_agexses_pvals_fdr[,1]<0.0001)
+#rows and cols
+rownames(edge_agexses_pvals_mat) <- communities;colnames(edge_agexses_pvals_mat) <- communities
+edges <- which(edge_agexses_pvals_mat< 0.0001, arr.ind = T)
+rownames(edge_agexses_pvals_mat[edges[,1],])
+colnames(edge_agexses_pvals_mat[, edges[,2]])
+paste0(rownames(edge_agexses_pvals_mat[edges[,1],]),"-",colnames(edge_agexses_pvals_mat[, edges[,2]]))
+```
